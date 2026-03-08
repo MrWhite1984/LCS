@@ -323,12 +323,8 @@ p {
     width: 100%;
     border-radius: 12px;
     padding: 5px;
-    color: white;
     font-size: 0.9rem;
 }
-.perm-btn {
-    color: white;
-} 
 .delete-btn:hover {
     color: white !important;
 }
