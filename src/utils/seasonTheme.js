@@ -1,4 +1,4 @@
-const SEASON_PALETTES = {
+export const SEASON_PALETTES = {
     winter: {
         50: '#eef6ff',
         100: '#d8eaff',
@@ -53,16 +53,16 @@ const SEASON_PALETTES = {
     },
 };
 
-const SHADES = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
+export const SHADES = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
 
-const sanitizeSeason = (season) => {
+export const sanitizeSeason = (season) => {
     if (season && Object.prototype.hasOwnProperty.call(SEASON_PALETTES, season)) {
         return season;
     }
     return 'winter';
 };
 
-const hexToRgb = (hex) => {
+export const hexToRgb = (hex) => {
     const normalized = hex.replace('#', '');
     const value = normalized.length === 3
         ? normalized.split('').map((char) => char + char).join('')
@@ -75,20 +75,20 @@ const hexToRgb = (hex) => {
     return `${r}, ${g}, ${b}`;
 };
 
-export const applySeasonPrimaryTheme = (season) => {
+export const applyPrimaryPalette = (palette) => {
     if (typeof document === 'undefined') return;
 
     const root = document.documentElement;
-    const safeSeason = sanitizeSeason(season);
-    const palette = SEASON_PALETTES[safeSeason];
 
     SHADES.forEach((shade) => {
         const color = palette[shade];
         root.style.setProperty(`--p-primary-${shade}`, color, 'important');
+        root.style.setProperty(`--p-primary-${shade}-rgb`, hexToRgb(color), 'important');
         root.style.setProperty(`--p-blue-${shade}`, color, 'important');
     });
 
     root.style.setProperty('--p-primary-color', palette[500], 'important');
+    root.style.setProperty('--p-primary-color-rgb', hexToRgb(palette[500]), 'important');
     root.style.setProperty('--p-primary-hover-color', palette[600], 'important');
     root.style.setProperty('--p-primary-active-color', palette[700], 'important');
     root.style.setProperty('--p-primary-contrast-color', '#ffffff', 'important');
@@ -101,3 +101,12 @@ export const applySeasonPrimaryTheme = (season) => {
     );
 };
 
+export const getSeasonPalette = (season) => {
+    const safeSeason = sanitizeSeason(season);
+    return SEASON_PALETTES[safeSeason];
+};
+
+export const applySeasonPrimaryTheme = (season) => {
+    const palette = getSeasonPalette(season);
+    applyPrimaryPalette(palette);
+};

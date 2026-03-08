@@ -289,6 +289,13 @@ svg.lcs {
     color: var(--p-grey-2) !important;
 }
 
+.p-togglebutton-checked i {
+  color: var(--p-primary-700) !important;
+}
+.p-dark .p-togglebutton-checked i {
+  color: var(--p-primary-400) !important;
+}
+
 :root {
   --p-bg-color-0: rgba(255, 255, 255, 0.5);
   --p-bg-color-1: rgba(255,255,255,1.0);
@@ -307,10 +314,6 @@ svg.lcs {
 
   --p-blue-100: rgba(138, 190, 250, 0.4) !important;
   --p-blue-200: rgba(138, 190, 250) !important;
-  --p-blue-500: rgb(68, 143, 255) !important;
-  --p-blue-500-rgb: 68, 143, 255 !important;
-  --p-blue-400: rgb(86, 118, 221) !important;
-  /* --p-color-icon-menu: 86, 118, 221; */
   --p-blue-500-low-op: rgb(202, 218, 253) !important;
 
   --p-separator-opaque: rgba(198, 198, 200, 0.30) !important;
