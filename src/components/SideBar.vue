@@ -290,6 +290,7 @@ import { getCurrentUser, resetCurrentUserCache } from '@/utils/currentUser.js';
 import { idoSuResource } from '@/api/ido.js';
 import { projectShowcaseInitiatorResource, projectShowcaseSuResource } from '@/api/projectShowcase.js';
 import { ENABLE_PROJECT_OFFICE } from '@/config/features.js';
+import { runLogoutClipTransition } from '@/composables/logoutTransition';
 
 // Импортируем утилиты для сезонов
 import { 
@@ -578,8 +579,8 @@ const logout = async () => {
     await permissionStore.$reset();
     resetRequestAccessCache();
     resetCurrentUserCache();
-    
-    router.push('/auth');
+
+    await runLogoutClipTransition(() => router.push('/auth'));
 };
 
 onMounted(async () => {

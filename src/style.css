@@ -406,3 +406,16 @@ svg.lcs {
 
   --p-color-icon-menu: 255, 255, 255 !important;
 }
+
+:root.logout-view-transition::view-transition-old(root),
+:root.logout-view-transition::view-transition-new(root) {
+  animation: none;
+}
+
+:root.logout-view-transition::view-transition-old(root) {
+  z-index: 2;
+}
+
+:root.logout-view-transition::view-transition-new(root) {
+  z-index: 1;
+}

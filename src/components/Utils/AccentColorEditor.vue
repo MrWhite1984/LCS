@@ -29,64 +29,26 @@
 
     <Popover ref="popoverRef" class="accent-popover">
         <div class="accent-editor">
-            <div class="accent-surface">
-                <div class="mode-row">
-                    <div class="d-flex" style="width: 36px;"/>
-                    <div class="mode-btn-row">
-                        <Button
-                            icon="pi pi-sparkles"
-                            class="mode-btn"
-                            :class="{ 'mode-active': selectedTheme === 'auto' }"
-                            v-tooltip.bottom="'Авто'"
-                            @click="setTheme('auto')"
-                        />
-                        <Button
-                            icon="pi pi-sun"
-                            class="mode-btn"
-                            :class="{ 'mode-active': selectedTheme === 'light' }"
-                            v-tooltip.bottom="'Светлая'"
-                            @click="setTheme('light')"
-                        />
-                        <Button
-                            icon="pi pi-moon"
-                            class="mode-btn"
-                            :class="{ 'mode-active': selectedTheme === 'dark' }"
-                            v-tooltip.bottom="'Тёмная'"
-                            @click="setTheme('dark')"
-                        />
-                    </div>
-
-                    <Button
-                        icon="pi pi-refresh"
-                        outlined
-                        rounded
-                        class="swatch-nav swatch-reset"
-                        v-tooltip.bottom="'Сбросить'"
-                        @click="resetToSeason"
-                    />
-                </div>
-
-                <div class="play-field">
-                    <div class="spectrum-zone">
-                        <div ref="spectrumRef" class="spectrum-wheel" @click="jumpSelectedCircleToClick">
-                            <div v-if="!circles.length" class="empty-state-hint">
-                                Нажмите, чтобы добавить свой цвет
-                            </div>
-                            <button
-                                v-for="circle in circles"
-                                :key="circle.id"
-                                type="button"
-                                class="play-dot"
-                                :class="{
-                                    'is-active': circle.id === selectedCircleId,
-                                    'is-jumping': circle.id === jumpingCircleId,
-                                    'is-preset-pulse': circle.id === presetPulseCircleId,
-                                }"
-                                :style="circleStyle(circle)"
-                                @pointerdown.stop="startDragCircle(circle.id, $event)"
-                                @click.stop="selectCircle(circle.id)"
-                            ></button>
+            <div class="play-field">
+                <div class="spectrum-zone">
+                    <div ref="spectrumRef" class="spectrum-wheel" @click="jumpSelectedCircleToClick">
+                        <div v-if="!circles.length" class="empty-state-hint">
+                            Нажмите, чтобы добавить свой цвет
                         </div>
+                        <button
+                            v-for="circle in circles"
+                            :key="circle.id"
+                            type="button"
+                            class="play-dot"
+                            :class="{
+                                'is-active': circle.id === selectedCircleId,
+                                'is-jumping': circle.id === jumpingCircleId,
+                                'is-preset-pulse': circle.id === presetPulseCircleId,
+                            }"
+                            :style="circleStyle(circle)"
+                            @pointerdown.stop="startDragCircle(circle.id, $event)"
+                            @click.stop="selectCircle(circle.id)"
+                        ></button>
                     </div>
                 </div>
             </div>
@@ -141,6 +103,42 @@
                     />
                 </div>
             </div>
+
+            <div class="mode-row mode-row-bottom">
+                <div class="d-flex" style="width: 36px;"/>
+                <div class="mode-btn-row">
+                    <Button
+                        icon="pi pi-sparkles"
+                        class="mode-btn"
+                        :class="{ 'mode-active': selectedTheme === 'auto' }"
+                        v-tooltip.bottom="'Авто'"
+                        @click="setTheme('auto')"
+                    />
+                    <Button
+                        icon="pi pi-sun"
+                        class="mode-btn"
+                        :class="{ 'mode-active': selectedTheme === 'light' }"
+                        v-tooltip.bottom="'Светлая'"
+                        @click="setTheme('light')"
+                    />
+                    <Button
+                        icon="pi pi-moon"
+                        class="mode-btn"
+                        :class="{ 'mode-active': selectedTheme === 'dark' }"
+                        v-tooltip.bottom="'Тёмная'"
+                        @click="setTheme('dark')"
+                    />
+                </div>
+
+                <Button
+                    icon="pi pi-refresh"
+                    outlined
+                    rounded
+                    class="swatch-nav swatch-reset"
+                    v-tooltip.bottom="'Сбросить'"
+                    @click="resetToSeason"
+                />
+            </div>
         </div>
     </Popover>
 </template>
@@ -149,6 +147,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
     applyAccentTheme,
+    applySmartTextContrast,
     clearAccentThemePreference,
     getAccentThemePreference,
     normalizeAccentHex,
@@ -247,11 +246,11 @@ const wavePath = computed(() => {
     const amplitude = 1.6 + ((value - 20) / 80) * 6.2;
     const segments = 72;
     const baseline = 12;
-    const cycles = 5;
+    const cycles = 6;
     const xStart = 2;
     const xEnd = 98;
     const span = xEnd - xStart;
-    const omega = Math.PI * 2 * cycles;
+    const omega = -Math.PI * 2 * cycles;
 
     const pointAt = (t) => ({
         x: xStart + span * t,
@@ -362,6 +361,7 @@ const applyThemeMode = (theme) => {
     const root = document.documentElement;
     const resolved = theme === 'auto' ? getAutoTheme() : theme;
     root.classList.toggle('p-dark', resolved === 'dark');
+    applySmartTextContrast();
 };
 
 const setTheme = (theme) => {
@@ -786,20 +786,13 @@ onMounted(() => {
     color: var(--p-text-color);
 }
 
-.accent-surface {
-    border-radius: 18px;
-    padding: 0.5rem;
-    border: 1px solid rgba(123, 147, 188, 0.24);
-    background:
-        radial-gradient(circle at 8% 28%, rgba(255, 155, 89, 0.1), transparent 50%),
-        radial-gradient(circle at 96% 5%, rgba(255, 107, 71, 0.08), transparent 50%),
-        linear-gradient(155deg, #e8edf7, #dfe7f4 62%, #d8e2f1);
-}
-
 .mode-row {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 0.55rem;
+}
+
+.mode-row-bottom {
+    margin-top: 0.2rem;
 }
 
 .mode-btn-row {
@@ -831,15 +824,20 @@ onMounted(() => {
 }
 
 .spectrum-zone {
-    width: min(100%, 20rem);
+    width: min(100%, 22rem);
     aspect-ratio: 1 / 1;
     border-radius: 14px;
     border: 1px solid rgba(133, 154, 190, 0.3);
     display: grid;
     place-items: center;
     background:
-        radial-gradient(circle, rgba(127, 150, 189, 0.28) 1px, transparent 1px),
-        linear-gradient(155deg, rgba(237, 242, 250, 0.8), rgba(218, 228, 244, 0.68));
+        radial-gradient(circle, rgba(142, 142, 147, 0.24) 1px, transparent 1px),
+        linear-gradient(
+            155deg,
+            rgba(255, 255, 255, 0.46),
+            rgba(242, 242, 247, 0.76) 34%,
+            rgba(229, 229, 234, 0.7)
+        );
     background-size: 10px 10px, auto;
 }
 
@@ -967,20 +965,16 @@ onMounted(() => {
     color: rgba(236, 240, 247, 0.95);
 }
 
-.p-dark .accent-surface {
-    border: 1px solid rgba(173, 196, 255, 0.16);
-    background:
-        linear-gradient(155deg, #131c2e, #0d1527 62%, #0a1220);
-    box-shadow:
-        inset 0 0 0 1px rgba(255, 255, 255, 0.05),
-        0 14px 36px rgba(5, 10, 20, 0.42);
-}
-
 .p-dark .spectrum-zone {
-    border: 1px solid rgba(152, 180, 224, 0.18);
+    border: 1px solid rgba(142, 142, 147, 0.2);
     background:
-        radial-gradient(circle, rgba(124, 149, 194, 0.28) 1px, transparent 1px),
-        linear-gradient(155deg, rgba(17, 26, 45, 0.82), rgba(10, 18, 35, 0.88));
+        radial-gradient(circle, rgba(142, 142, 147, 0.28) 1px, transparent 1px),
+        linear-gradient(
+            155deg,
+            rgba(72, 72, 74, 0.36),
+            rgba(44, 44, 46, 0.88) 30%,
+            rgba(28, 28, 30, 0.92)
+        );
     background-size: 10px 10px, auto;
 }
 
@@ -995,7 +989,7 @@ onMounted(() => {
 .wave-svg .wave-path-main {
     fill: none;
     stroke: var(--p-grey-1);
-    stroke-width: 2.2;
+    stroke-width: 2.75;
     stroke-linecap: round;
     stroke-linejoin: round;
 }
@@ -1017,7 +1011,7 @@ onMounted(() => {
 
 .range-wave::-webkit-slider-thumb {
     appearance: none;
-    width: 1rem;
+    width: 1.25rem;
     height: 3.2rem;
     border-radius: 10px;
     background: var(--p-text-color);
@@ -1031,7 +1025,7 @@ onMounted(() => {
 }
 
 .range-wave::-moz-range-thumb {
-    width: 1rem;
+    width: 1.25rem;
     height: 3.2rem;
     border-radius: 10px;
     background: var(--p-text-color);

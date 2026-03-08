@@ -17,6 +17,72 @@ const DEFAULT_LIGHTNESS_MAP = {
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
+const parseCssColor = (value) => {
+    if (typeof value !== 'string') return null;
+    const raw = value.trim();
+    if (!raw) return null;
+
+    const hex = normalizeHex(raw);
+    if (hex) {
+        const rgb = hexToRgbObject(hex);
+        return rgb ? { ...rgb, a: 1 } : null;
+    }
+
+    const rgbMatch = raw.match(/^rgba?\(([^)]+)\)$/i);
+    if (!rgbMatch) return null;
+    const parts = rgbMatch[1].split(',').map((part) => Number.parseFloat(part.trim()));
+    if (parts.length < 3 || parts.some((part, index) => index < 3 && !Number.isFinite(part))) {
+        return null;
+    }
+
+    return {
+        r: clamp(parts[0], 0, 255),
+        g: clamp(parts[1], 0, 255),
+        b: clamp(parts[2], 0, 255),
+        a: clamp(Number.isFinite(parts[3]) ? parts[3] : 1, 0, 1),
+    };
+};
+
+const relativeLuminance = ({ r, g, b }) => {
+    const normalizeChannel = (channel) => {
+        const value = clamp(channel, 0, 255) / 255;
+        return value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
+    };
+
+    const red = normalizeChannel(r);
+    const green = normalizeChannel(g);
+    const blue = normalizeChannel(b);
+    return (0.2126 * red) + (0.7152 * green) + (0.0722 * blue);
+};
+
+const getContrastRatio = (a, b) => {
+    const first = relativeLuminance(a);
+    const second = relativeLuminance(b);
+    const lighter = Math.max(first, second);
+    const darker = Math.min(first, second);
+    return (lighter + 0.05) / (darker + 0.05);
+};
+
+const chooseBestTextColor = (background) => {
+    const dark = { r: 17, g: 24, b: 39 };
+    const light = { r: 245, g: 247, b: 255 };
+    const darkContrast = getContrastRatio(background, dark);
+    const lightContrast = getContrastRatio(background, light);
+    return lightContrast >= darkContrast ? light : dark;
+};
+
+const mixRgb = (from, to, amount) => {
+    const t = clamp(amount, 0, 1);
+    return {
+        r: Math.round(from.r + ((to.r - from.r) * t)),
+        g: Math.round(from.g + ((to.g - from.g) * t)),
+        b: Math.round(from.b + ((to.b - from.b) * t)),
+    };
+};
+
+const toRgbCss = ({ r, g, b }) => `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
+const toRgbChannels = ({ r, g, b }) => `${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}`;
+
 const normalizeHex = (value) => {
     if (typeof value !== 'string') return null;
 
@@ -162,12 +228,41 @@ export const getAccentThemePreference = () => {
 
 export const hasCustomAccentTheme = () => Boolean(getAccentThemePreference());
 
+export const applySmartTextContrast = () => {
+    if (typeof document === 'undefined') return;
+    const root = document.documentElement;
+    const styles = getComputedStyle(root);
+    const isDarkMode = root.classList.contains('p-dark');
+
+    const bg = parseCssColor(styles.getPropertyValue('--p-bg-color-1')) ?? { r: 255, g: 255, b: 255, a: 1 };
+    const primary = parseCssColor(styles.getPropertyValue('--p-primary-500')) ?? { r: 68, g: 143, b: 255, a: 1 };
+
+    const autoText = chooseBestTextColor(bg);
+    const text = isDarkMode
+        ? mixRgb(autoText, { r: 245, g: 247, b: 255 }, 0.88)
+        : autoText;
+    const secondary = isDarkMode ? mixRgb(text, bg, 0.28) : mixRgb(text, bg, 0.34);
+    const muted = isDarkMode ? mixRgb(text, bg, 0.44) : mixRgb(text, bg, 0.52);
+    const primaryContrast = chooseBestTextColor(primary);
+
+    root.style.setProperty('--p-text-color', toRgbCss(text), 'important');
+    root.style.setProperty('--p-text-color-secondary', toRgbCss(secondary), 'important');
+    root.style.setProperty('--p-text-secondary-color', toRgbCss(secondary), 'important');
+    root.style.setProperty('--p-text-secondary', toRgbCss(secondary), 'important');
+    root.style.setProperty('--p-text-muted-color', toRgbCss(muted), 'important');
+    root.style.setProperty('--p-dialog-color', toRgbCss(text), 'important');
+    root.style.setProperty('--p-color-icon-menu', toRgbChannels(text), 'important');
+    root.style.setProperty('--p-primary-contrast-color', toRgbCss(primaryContrast), 'important');
+    root.style.setProperty('--p-button-primary-color', toRgbCss(primaryContrast), 'important');
+};
+
 export const applyAccentTheme = (hex) => {
     const palette = buildAccentPalette(hex);
     if (!palette) return null;
 
     applyPrimaryPalette(palette);
     document.documentElement.style.setProperty('--accent-editor-color', palette[500], 'important');
+    applySmartTextContrast();
     return palette[500];
 };
 
@@ -195,6 +290,7 @@ export const syncPrimaryTheme = (season) => {
 
     if (accentPreference?.color) {
         applyAccentTheme(accentPreference.color);
+        applySmartTextContrast();
         return 'accent';
     }
 
@@ -202,6 +298,7 @@ export const syncPrimaryTheme = (season) => {
     if (typeof document !== 'undefined') {
         document.documentElement.style.removeProperty('--accent-editor-color');
     }
+    applySmartTextContrast();
     return 'season';
 };
 

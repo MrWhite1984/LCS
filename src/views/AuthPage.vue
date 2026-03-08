@@ -41,25 +41,25 @@
                 
             </div>
         </div>
-        <WelcomeLogin v-if="isLoading" :isLoading="isLoading" @videoEnded="handleVideoEnded" />
     </main>
 </template>
 
 <script setup>
 import { ref } from 'vue';
 import { useToast } from 'primevue/usetoast';
+import { useRouter } from 'vue-router';
 import { saveAuthData, startTokenWorker } from "@/utils/TokenService";
 import axiosInstance from '@/utils/axios.js';
+import { playSplashAndNavigate } from '@/composables/splashTransition';
 
 import ThemeSwitcher from '@/components/Utils/ThemeSwitcher.vue';
-import WelcomeLogin from '@/components/Utils/WelcomeLogin.vue';
 
 const email = ref('');
 const password = ref('');
 const errorMessage = ref('');
 const toast = useToast();
+const router = useRouter();
 
-const isLoading = ref(false);
 const ssoLoading = ref(false);
 
 const auth = async () => {
@@ -87,7 +87,12 @@ const auth = async () => {
 
         startTokenWorker();
 
-        isLoading.value = true;
+        playSplashAndNavigate(() =>
+            router.replace({
+                name: 'Dashboard',
+                query: { message: 'success', summary: 'Успешно', detail: 'Вы вошли в личный кабинет' },
+            })
+        );
 
     } catch (error) {
         errorMessage.value = error.response?.data?.message || 'Неверный логин или пароль';
@@ -126,9 +131,6 @@ const ssoLogin = async () => {
     }
 };
 
-const handleVideoEnded = () => {
-    isLoading.value = false; // Сброс флага загрузки при окончании видео
-};
 </script>
 
 
@@ -137,13 +139,22 @@ const handleVideoEnded = () => {
     position: absolute;
     top: 35px;
     left: 35px;
-    width: 100%;
+    width: 400px;
     height: 40px;
-    background-repeat: no-repeat;
+    background-color: var(--p-text-color);
+    -webkit-mask-image: url('/src/assets/logo/logoUp.svg');
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+    -webkit-mask-position: left center;
+    mask-image: url('/src/assets/logo/logoUp.svg');
+    mask-repeat: no-repeat;
+    mask-size: contain;
+    mask-position: left center;
     z-index: 1;
-    background-image: url('/src/assets/logo/logoUp.svg');
+    transition: background-color 0.35s ease;
     @media (max-width: 896px) {
-        height: 20px;
+        width: 150px;
+        height: 28px;
     }
 }
 .logoDownContainer {
@@ -225,6 +236,7 @@ main {
   width: 100vw;
   position: relative;
   overflow: hidden;
+  background: linear-gradient(145deg, var(--p-bg-color-2) 0%, var(--p-bg-color-1) 100%);
 }
 .error-message {
     color: var(--p-red-500);
@@ -241,29 +253,31 @@ main {
    left: 0;
    width: 100%;
    height: 100%;
-   background-size: cover;
-   background-position: center;
-   transition: opacity 0.5s ease; /* Плавная смена */
+   transition: opacity 0.5s ease;
    z-index: 0;
-   opacity: 0;
 }
 
 .login-page::before {
-   background-image: url('/src/assets/backgrounds/lp_bg_light.png'); /* Светлое изображение */
-   opacity: 1; /* Показываем светлую картинку по умолчанию */
+   background:
+      radial-gradient(circle at 14% 18%, rgba(var(--p-primary-500-rgb), 0.24), transparent 44%),
+      radial-gradient(circle at 88% 82%, rgba(var(--p-primary-500-rgb), 0.14), transparent 48%),
+      linear-gradient(135deg, #dbe4f5, #cfdaf0 58%, #c6d3ec);
+   opacity: 1;
 }
 
 .login-page::after {
-   background-image: url('/src/assets/backgrounds/lp_bg_dark.png'); /* Темное изображение */
+   background:
+      radial-gradient(circle at 10% 14%, rgba(var(--p-primary-500-rgb), 0.24), transparent 44%),
+      radial-gradient(circle at 90% 86%, rgba(var(--p-primary-500-rgb), 0.14), transparent 48%),
+      linear-gradient(145deg, rgba(9, 14, 28, 0.90), rgba(16, 24, 40, 0.78));
+   opacity: 0;
 }
-
-/* Когда включена темная тема */
 .p-dark .login-page::before {
-   opacity: 0; /* Скрываем светлую картинку */
+   opacity: 0;
 }
 
 .p-dark .login-page::after {
-   opacity: 1; /* Показываем темную картинку */
+   opacity: 1;
 }
 
 .login-container {
