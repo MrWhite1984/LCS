@@ -16,9 +16,9 @@
                     <div class="col-auto">
                         <div class="card h-100">
                             <div class="card-body">
-                                <Chip class="role-label">
+                <Chip class="role-label">
                                     <span class="roleType" :class="getRoleTypeClass()">
-                                        {{ roleStore.roleType.charAt(0) }}
+                                        {{ (roleStore.roleType || '?').charAt(0) }}
                                     </span>
                                     <span>{{ roleStore.roleTitle }}</span>
                                 </Chip>
@@ -40,7 +40,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useRoleStore } from '@/stores/roleStore';
 import axiosInstance from '@/utils/axios.js';
 import PermissionsResourceList from '@/components/Permissions/PermissionsResourceList.vue';
@@ -49,9 +49,38 @@ const searchQuery1 = ref('');
 const loading = ref(true);
 const roleStore = useRoleStore();
 const router = useRouter();
+const route = useRoute();
 const allPermissions = ref([]);
 const rolePermissions = ref([]);
 
+const resolveRoleContext = async () => {
+    const rawRoleId = route.query['id'];
+    const queryRoleId = Number(rawRoleId);
+
+    if (Number.isFinite(queryRoleId) && queryRoleId > 0) {
+        if (Number(roleStore.roleId) === queryRoleId) {
+            return true;
+        }
+        try {
+            const response = await axiosInstance.get('/api/rbac/roles');
+            const role = response.data.find((item) => Number(item.id) === queryRoleId);
+            if (!role) return false;
+
+            roleStore.setRoleInfo({
+                roleId: role.id,
+                roleTitle: role.title,
+                roleDescription: role.description,
+                roleType: role.type,
+            });
+            return true;
+        } catch (error) {
+            console.debug('Ошибка при загрузке роли из query:', error);
+            return false;
+        }
+    }
+
+    return Number.isFinite(Number(roleStore.roleId)) && Number(roleStore.roleId) > 0;
+};
 
 const fetchAllPermissions = async () => {
     try {
@@ -63,8 +92,11 @@ const fetchAllPermissions = async () => {
 };
 
 const fetchRolePermissions = async () => {
+    const roleId = Number(roleStore.roleId);
+    if (!Number.isFinite(roleId) || roleId <= 0) return;
+
     try {
-        const response = await axiosInstance.get(`/api/rbac/roles/${roleStore.roleId}/permissions`);
+        const response = await axiosInstance.get(`/api/rbac/roles/${roleId}/permissions`);
         rolePermissions.value = response.data.resourcesWithPermissions; // Получаем полномочия роли
         updatePermissionsWithRoleStatus();
     } catch (error) {
@@ -162,6 +194,12 @@ const getRoleTypeClass = () => {
 
 onMounted(async () => {
     loading.value = true;
+    const hasRoleContext = await resolveRoleContext();
+    if (!hasRoleContext) {
+        loading.value = false;
+        router.replace('/rbac');
+        return;
+    }
     await fetchAllPermissions();
     await fetchRolePermissions();
     loading.value = false;

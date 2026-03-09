@@ -1,6 +1,7 @@
 import { applyPrimaryPalette, applySeasonPrimaryTheme } from '@/utils/seasonTheme.js';
 
 const ACCENT_STORAGE_KEY = 'accentTheme';
+const DEFAULT_STATE_DELTA = 50;
 const DEFAULT_LIGHTNESS_MAP = {
     50: 0.97,
     100: 0.93,
@@ -16,6 +17,10 @@ const DEFAULT_LIGHTNESS_MAP = {
 };
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+const normalizeStateDelta = (value) => {
+    const numeric = Number(value);
+    return clamp(Number.isFinite(numeric) ? Math.round(numeric) : DEFAULT_STATE_DELTA, 0, 100);
+};
 
 const parseCssColor = (value) => {
     if (typeof value !== 'string') return null;
@@ -60,7 +65,30 @@ const getContrastRatio = (a, b) => {
     const second = relativeLuminance(b);
     const lighter = Math.max(first, second);
     const darker = Math.min(first, second);
-    return (lighter + 0.05) / (darker + 0.05);
+    return (lighter + 0.1) / (darker + 0.1);
+};
+
+const resolveCssColor = (styles, value, depth = 0) => {
+    if (depth > 6 || typeof value !== 'string') return null;
+    const raw = value.trim();
+    if (!raw) return null;
+
+    const parsed = parseCssColor(raw);
+    if (parsed) return parsed;
+
+    const varMatch = raw.match(/^var\(\s*(--[^,\s)]+)\s*(?:,\s*([^)]+))?\)$/i);
+    if (!varMatch) return null;
+
+    const varName = varMatch[1];
+    const fallbackRaw = varMatch[2]?.trim() ?? '';
+    const fromVar = styles.getPropertyValue(varName).trim();
+
+    if (fromVar) {
+        const resolvedFromVar = resolveCssColor(styles, fromVar, depth + 1);
+        if (resolvedFromVar) return resolvedFromVar;
+    }
+
+    return fallbackRaw ? resolveCssColor(styles, fallbackRaw, depth + 1) : null;
 };
 
 const chooseBestTextColor = (background) => {
@@ -68,6 +96,20 @@ const chooseBestTextColor = (background) => {
     const light = { r: 245, g: 247, b: 255 };
     const darkContrast = getContrastRatio(background, dark);
     const lightContrast = getContrastRatio(background, light);
+    return lightContrast >= darkContrast ? light : dark;
+};
+
+const chooseAccessibleBWTextColor = (background, minContrast = 4.5) => {
+    const light = { r: 255, g: 255, b: 255 };
+    const dark = { r: 0, g: 0, b: 0 };
+    const lightContrast = getContrastRatio(background, light);
+    const darkContrast = getContrastRatio(background, dark);
+
+    if (lightContrast >= minContrast && darkContrast >= minContrast) {
+        return lightContrast >= darkContrast ? light : dark;
+    }
+    if (lightContrast >= minContrast) return light;
+    if (darkContrast >= minContrast) return dark;
     return lightContrast >= darkContrast ? light : dark;
 };
 
@@ -205,6 +247,48 @@ export const buildAccentPalette = (hex) => {
     return palette;
 };
 
+const paletteColorToRgb = (palette, shade, fallbackShade = 500) => {
+    const color = hexToRgbObject(palette?.[shade]) ?? hexToRgbObject(palette?.[fallbackShade]);
+    return color ?? { r: 68, g: 143, b: 255 };
+};
+
+const applyStateDelta = (palette, stateDelta = DEFAULT_STATE_DELTA) => {
+    if (typeof document === 'undefined' || !palette) return;
+    const root = document.documentElement;
+    const isDarkMode = root.classList.contains('p-dark');
+    const t = normalizeStateDelta(stateDelta) / 100;
+
+    const primary500 = paletteColorToRgb(palette, 500);
+    const primary700 = paletteColorToRgb(palette, 700);
+    const primary900 = paletteColorToRgb(palette, 900);
+    const primary950 = paletteColorToRgb(palette, 950);
+
+    const hover = mixRgb(primary500, primary700, 0.12 + (0.63 * t));
+    const active = mixRgb(primary500, primary900, 0.2 + (0.72 * t));
+
+    const buttonBase = isDarkMode ? primary700 : primary500;
+    const buttonHoverTarget = isDarkMode ? primary900 : primary700;
+    const buttonActiveTarget = isDarkMode ? primary950 : primary900;
+    const buttonHover = mixRgb(buttonBase, buttonHoverTarget, 0.14 + (0.62 * t));
+    const buttonActive = mixRgb(buttonBase, buttonActiveTarget, 0.24 + (0.68 * t));
+
+    root.style.setProperty('--p-primary-hover-color', rgbToHex(hover), 'important');
+    root.style.setProperty('--p-primary-active-color', rgbToHex(active), 'important');
+    root.style.setProperty('--p-button-primary-background', rgbToHex(buttonBase), 'important');
+    root.style.setProperty('--p-button-primary-hover-background', rgbToHex(buttonHover), 'important');
+    root.style.setProperty('--p-button-primary-active-background', rgbToHex(buttonActive), 'important');
+    root.style.setProperty('--accent-state-delta', String(normalizeStateDelta(stateDelta)), 'important');
+};
+
+const clearStateDeltaOverrides = () => {
+    if (typeof document === 'undefined') return;
+    const root = document.documentElement;
+    root.style.removeProperty('--p-button-primary-background');
+    root.style.removeProperty('--p-button-primary-hover-background');
+    root.style.removeProperty('--p-button-primary-active-background');
+    root.style.removeProperty('--accent-state-delta');
+};
+
 export const getAccentThemePreference = () => {
     if (typeof localStorage === 'undefined') return null;
 
@@ -219,6 +303,7 @@ export const getAccentThemePreference = () => {
 
         return {
             color,
+            stateDelta: normalizeStateDelta(parsed?.stateDelta),
         };
     } catch (error) {
         console.debug('Не удалось прочитать пользовательский акцент:', error);
@@ -234,8 +319,15 @@ export const applySmartTextContrast = () => {
     const styles = getComputedStyle(root);
     const isDarkMode = root.classList.contains('p-dark');
 
-    const bg = parseCssColor(styles.getPropertyValue('--p-bg-color-1')) ?? { r: 255, g: 255, b: 255, a: 1 };
-    const primary = parseCssColor(styles.getPropertyValue('--p-primary-500')) ?? { r: 68, g: 143, b: 255, a: 1 };
+    const bg = resolveCssColor(styles, styles.getPropertyValue('--p-bg-color-1')) ?? { r: 255, g: 255, b: 255, a: 1 };
+    const primary = resolveCssColor(styles, styles.getPropertyValue('--p-primary-500')) ?? { r: 68, g: 143, b: 255, a: 1 };
+    const primaryButtonBg = resolveCssColor(styles, styles.getPropertyValue('--p-button-primary-background')) ?? primary;
+    const primaryButtonHoverBg = resolveCssColor(styles, styles.getPropertyValue('--p-button-primary-hover-background'))
+        ?? resolveCssColor(styles, styles.getPropertyValue('--p-primary-hover-color'))
+        ?? primaryButtonBg;
+    const primaryButtonActiveBg = resolveCssColor(styles, styles.getPropertyValue('--p-button-primary-active-background'))
+        ?? resolveCssColor(styles, styles.getPropertyValue('--p-primary-active-color'))
+        ?? primaryButtonHoverBg;
 
     const autoText = chooseBestTextColor(bg);
     const text = isDarkMode
@@ -244,6 +336,9 @@ export const applySmartTextContrast = () => {
     const secondary = isDarkMode ? mixRgb(text, bg, 0.28) : mixRgb(text, bg, 0.34);
     const muted = isDarkMode ? mixRgb(text, bg, 0.44) : mixRgb(text, bg, 0.52);
     const primaryContrast = chooseBestTextColor(primary);
+    const primaryButtonContrast = chooseAccessibleBWTextColor(primaryButtonBg);
+    const primaryButtonHoverContrast = chooseAccessibleBWTextColor(primaryButtonHoverBg);
+    const primaryButtonActiveContrast = chooseAccessibleBWTextColor(primaryButtonActiveBg);
 
     root.style.setProperty('--p-text-color', toRgbCss(text), 'important');
     root.style.setProperty('--p-text-color-secondary', toRgbCss(secondary), 'important');
@@ -253,27 +348,33 @@ export const applySmartTextContrast = () => {
     root.style.setProperty('--p-dialog-color', toRgbCss(text), 'important');
     root.style.setProperty('--p-color-icon-menu', toRgbChannels(text), 'important');
     root.style.setProperty('--p-primary-contrast-color', toRgbCss(primaryContrast), 'important');
-    root.style.setProperty('--p-button-primary-color', toRgbCss(primaryContrast), 'important');
+    root.style.setProperty('--p-button-primary-color', toRgbCss(primaryButtonContrast), 'important');
+    root.style.setProperty('--p-button-primary-hover-color', toRgbCss(primaryButtonHoverContrast), 'important');
+    root.style.setProperty('--p-button-primary-active-color', toRgbCss(primaryButtonActiveContrast), 'important');
 };
 
-export const applyAccentTheme = (hex) => {
+export const applyAccentTheme = (hex, options = {}) => {
+    const stateDelta = normalizeStateDelta(options?.stateDelta);
     const palette = buildAccentPalette(hex);
     if (!palette) return null;
 
     applyPrimaryPalette(palette);
+    applyStateDelta(palette, stateDelta);
     document.documentElement.style.setProperty('--accent-editor-color', palette[500], 'important');
     applySmartTextContrast();
     return palette[500];
 };
 
-export const saveAccentThemePreference = (hex) => {
-    const normalized = applyAccentTheme(hex);
+export const saveAccentThemePreference = (hex, options = {}) => {
+    const stateDelta = normalizeStateDelta(options?.stateDelta);
+    const normalized = applyAccentTheme(hex, { stateDelta });
     if (!normalized || typeof localStorage === 'undefined') return null;
 
     localStorage.setItem(
         ACCENT_STORAGE_KEY,
         JSON.stringify({
             color: normalized,
+            stateDelta,
         }),
     );
 
@@ -289,7 +390,7 @@ export const syncPrimaryTheme = (season) => {
     const accentPreference = getAccentThemePreference();
 
     if (accentPreference?.color) {
-        applyAccentTheme(accentPreference.color);
+        applyAccentTheme(accentPreference.color, { stateDelta: accentPreference.stateDelta });
         applySmartTextContrast();
         return 'accent';
     }
@@ -297,6 +398,17 @@ export const syncPrimaryTheme = (season) => {
     applySeasonPrimaryTheme(season);
     if (typeof document !== 'undefined') {
         document.documentElement.style.removeProperty('--accent-editor-color');
+    }
+    clearStateDeltaOverrides();
+    applySmartTextContrast();
+    return 'season';
+};
+
+export const refreshAccentForThemeChange = () => {
+    const accentPreference = getAccentThemePreference();
+    if (accentPreference?.color) {
+        applyAccentTheme(accentPreference.color, { stateDelta: accentPreference.stateDelta });
+        return 'accent';
     }
     applySmartTextContrast();
     return 'season';

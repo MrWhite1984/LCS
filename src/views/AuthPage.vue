@@ -89,8 +89,7 @@ const auth = async () => {
 
         playSplashAndNavigate(() =>
             router.replace({
-                name: 'Dashboard',
-                query: { message: 'success', summary: 'Успешно', detail: 'Вы вошли в личный кабинет' },
+                name: 'Dashboard'
             })
         );
 

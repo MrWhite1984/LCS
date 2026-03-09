@@ -185,7 +185,7 @@ const onToggle = (permissionId, isActive) => {
 }
 
 .permission-item:hover {
-    filter: drop-shadow(0 0 0.5rem rgba(0, 0, 0, 0.3));
+    box-shadow: 0 0 0.5rem rgba(0, 0, 0, 0.3);
 }
 
 .permissions-skeleton {

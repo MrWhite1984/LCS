@@ -67,15 +67,15 @@
                                             </div>
                                             <div class="col-auto">
                                                 <div class="card-text m-0" v-if="role.id === userRole.id">Это вы</div>
-                                                <div v-else class="d-flex justify-content-between">
+                                                <div v-else class="role-actions-inline">
                                                     <Button 
                                                         v-if="role.type === 'Custom' && hasPermission('Rbac', 'Delete')"
                                                         label="Удалить" 
-                                                        class="delete-btn me-3"
+                                                        class="delete-btn"
                                                         severity="danger" 
                                                         @click="confirm1(role)" 
                                                     />
-                                                    <router-link to="/role-permissions" v-if="hasPermission('Rbac', 'Update')">
+                                                    <router-link to="/role-permissions" class="perm-link-grow" v-if="hasPermission('Rbac', 'Update')">
                                                         <Button label="Полномочия" class="perm-btn" @click.prevent="navigateToPermissions(role)"/>
                                                     </router-link>
                                                 </div>
@@ -250,7 +250,12 @@ const setRoleInfo = role => {
 };
 const navigateToPermissions = (role) => {
     setRoleInfo(role);
-    router.push('/role-permissions');
+    router.push({
+        path: '/role-permissions',
+        query: {
+            'id': String(role.id),
+        },
+    });
 };
 </script>
 
@@ -319,14 +324,31 @@ p {
 p {
     margin: 0;
 }
-.edit-btn, .delete-btn, .perm-btn {
+.edit-btn, .perm-btn {
     width: 100%;
     border-radius: 12px;
     padding: 5px;
     font-size: 0.9rem;
 }
+.delete-btn {
+    width: auto;
+    min-width: 86px;
+    border-radius: 10px;
+    padding: 4px 10px;
+    font-size: 0.82rem;
+}
 .delete-btn:hover {
     color: white !important;
+}
+.role-actions-inline {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+}
+.perm-link-grow {
+    flex: 1 1 auto;
+    min-width: 0;
 }
 .muted {
     color: var(--p-grey-2);

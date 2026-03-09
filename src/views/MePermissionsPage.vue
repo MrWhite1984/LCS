@@ -7,7 +7,7 @@
             <PermissionsResourceList
                 :resources="filteredResources"
                 :loading="loading"
-                grid-class="row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-2"
+                grid-class="row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xxl-4 g-2"
                 :skeleton-items="4"
                 skeleton-title-width="48%"
                 skeleton-description-width="74%"

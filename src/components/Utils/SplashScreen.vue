@@ -41,6 +41,8 @@ let resizeRaf = null;
 let revealTimer = null;
 let collapseTimer = null;
 let finishTimer = null;
+let flashTimer = null;
+let flashResetTimer = null;
 
 function getPaths() {
     return svgRef.value ? Array.from(svgRef.value.querySelectorAll('path')) : [];
@@ -87,7 +89,7 @@ function resetAnimation() {
     if (!svg || !paths.length) return;
 
     svg.classList.remove('active');
-    logoWrapRef.value?.classList.remove('is-revealed', 'is-collapsing');
+    logoWrapRef.value?.classList.remove('is-revealed', 'is-collapsing', 'is-final-flash');
 
     paths.forEach((path) => {
         path.style.transition = 'none';
@@ -122,9 +124,19 @@ function playAnimation() {
 
     clearTimeout(finishTimer);
     clearTimeout(collapseTimer);
+    clearTimeout(flashTimer);
+    clearTimeout(flashResetTimer);
     collapseTimer = window.setTimeout(() => {
         logoWrapRef.value?.classList.add('is-collapsing');
     }, CLIP_DURATION_MS + totalMs);
+
+    const flashDelay = Math.max(CLIP_DURATION_MS, (CLIP_DURATION_MS + totalMs) - 300);
+    flashTimer = window.setTimeout(() => {
+        logoWrapRef.value?.classList.add('is-final-flash');
+        flashResetTimer = window.setTimeout(() => {
+            logoWrapRef.value?.classList.remove('is-final-flash');
+        }, 420);
+    }, flashDelay);
 
     finishTimer = window.setTimeout(() => {
         emit('finished');
@@ -167,6 +179,8 @@ onBeforeUnmount(() => {
     clearTimeout(revealTimer)
     clearTimeout(collapseTimer)
     clearTimeout(finishTimer)
+    clearTimeout(flashTimer)
+    clearTimeout(flashResetTimer)
     if (resizeRaf) cancelAnimationFrame(resizeRaf)
     window.removeEventListener('resize', handleResize)
 })
@@ -236,6 +250,23 @@ defineExpose({
     opacity: 1;
 }
 
+.logo-wrap::after {
+    content: "";
+    position: absolute;
+    inset: 8% 12%;
+    background: radial-gradient(
+        circle,
+        rgba(var(--p-primary-500-rgb, 255, 255, 255), 0.2),
+        rgba(var(--p-primary-500-rgb, 255, 255, 255), 0.07) 38%,
+        transparent 68%
+    );
+    filter: blur(30px);
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0;
+    transform: scale(0.88);
+}
+
 .logo-svg {
     position: relative;
     z-index: 1;
@@ -243,6 +274,25 @@ defineExpose({
     height: auto;
     display: block;
     overflow: visible;
+}
+
+.logo-wrap.is-final-flash::after {
+    animation: splash-final-flash 420ms cubic-bezier(0.22, 0.7, 0.3, 1) forwards;
+}
+
+@keyframes splash-final-flash {
+    0% {
+        opacity: 0;
+        transform: scale(0.88);
+    }
+    45% {
+        opacity: 0.42;
+        transform: scale(0.98);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(1.04);
+    }
 }
 
 .logo-svg path {

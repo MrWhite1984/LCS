@@ -20,7 +20,7 @@
 <script setup>
 import { ref, watch, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
-import { applySmartTextContrast } from '@/utils/accentTheme.js';
+import { refreshAccentForThemeChange } from '@/utils/accentTheme.js';
 
 const props = defineProps({
     isSideBarCollapse: {
@@ -76,7 +76,7 @@ function applyTheme(theme) {
         root.classList.remove('p-dark');
     }
 
-    applySmartTextContrast();
+    refreshAccentForThemeChange();
 
 }
 

@@ -29,6 +29,21 @@
 
     <Popover ref="popoverRef" class="accent-popover">
         <div class="accent-editor">
+            <button
+                type="button"
+                class="editor-help-trigger"
+                aria-label="Открыть инструкцию"
+                @click="toggleHelpPopover"
+            >
+                <i class="pi pi-info-circle"></i>
+            </button>
+
+            <Popover ref="helpPopoverRef" class="editor-help-popover">
+                <div class="editor-help-content">
+                    <strong>Подсказка</strong>
+                    <span>Круг: выбирает оттенок. Волна: меняет насыщенность. Крутилка справа: делает состояния кнопки (обычная, наведение, нажатие) ближе или контрастнее.</span>
+                </div>
+            </Popover>
             <div class="play-field">
                 <div class="spectrum-zone">
                     <div ref="spectrumRef" class="spectrum-wheel" @click="jumpSelectedCircleToClick">
@@ -102,6 +117,43 @@
                         aria-label="Насыщенность"
                     />
                 </div>
+
+                <div class="dial-wrap">
+                    <div
+                        ref="lightnessDialRef"
+                        class="lightness-dial"
+                        role="slider"
+                        tabindex="0"
+                        aria-label="Дельта состояний"
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                        :aria-valuenow="Number(stateDelta)"
+                        @pointerdown="startLightnessDialDrag"
+                        @keydown="handleLightnessDialKeydown"
+                    >
+                        <svg class="lightness-dial-svg" viewBox="0 0 100 100" aria-hidden="true">
+                            <line
+                                v-for="tick in lightnessTicks"
+                                :key="tick.index"
+                                x1="50"
+                                y1="8"
+                                x2="50"
+                                y2="14"
+                                class="lightness-tick"
+                                :class="{ 'is-active': tick.index < activeLightnessTickCount }"
+                                :transform="`rotate(${tick.angle} 50 50)`"
+                            />
+                            <line
+                                x1="50"
+                                y1="6"
+                                x2="50"
+                                y2="16"
+                                class="lightness-selector"
+                                :transform="`rotate(${lightnessDialAngle} 50 50)`"
+                            />
+                        </svg>
+                    </div>
+                </div>
             </div>
 
             <div class="mode-row mode-row-bottom">
@@ -147,10 +199,10 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
     applyAccentTheme,
-    applySmartTextContrast,
     clearAccentThemePreference,
     getAccentThemePreference,
     normalizeAccentHex,
+    refreshAccentForThemeChange,
     saveAccentThemePreference,
     syncPrimaryTheme,
 } from '@/utils/accentTheme.js';
@@ -181,6 +233,7 @@ const presets = [
     { name: 'Leaf', color: '#357c2b' },
 ];
 const CIRCLES_STORAGE_KEY = 'accentEditorCircles';
+const DEFAULT_STATE_DELTA = 50;
 
 const readLivePrimaryColor = () => {
     if (typeof window === 'undefined') return null;
@@ -188,10 +241,12 @@ const readLivePrimaryColor = () => {
     return normalizeAccentHex(value);
 };
 
-const savedAccent = getAccentThemePreference()?.color;
+const accentPreference = getAccentThemePreference();
+const savedAccent = accentPreference?.color;
 const fallbackColor = savedAccent ?? readLivePrimaryColor() ?? '#d97757';
 
 const popoverRef = ref(null);
+const helpPopoverRef = ref(null);
 const spectrumRef = ref(null);
 const workingColor = ref(fallbackColor);
 const accentGradient = ref(`linear-gradient(135deg, ${fallbackColor}, ${fallbackColor})`);
@@ -199,6 +254,8 @@ const customEnabled = ref(Boolean(savedAccent));
 const skipNextSaturationWatch = ref(false);
 const supportedThemes = ['light', 'dark', 'auto'];
 const selectedTheme = ref('auto');
+const lightnessDialRef = ref(null);
+const isLightnessDialDragging = ref(false);
 
 const circles = ref([]);
 const nextCircleId = ref(2);
@@ -228,6 +285,9 @@ const { saveCircleLayout, loadCircleLayout } = useAccentCircleStorage({
 
 const initialHsl = hexToHsl(fallbackColor);
 const saturation = ref(initialHsl.s);
+const stateDelta = ref(Number(accentPreference?.stateDelta ?? DEFAULT_STATE_DELTA));
+const LIGHTNESS_TICK_COUNT = 18;
+const LIGHTNESS_MAX_STEP_INDEX = Math.max(0, LIGHTNESS_TICK_COUNT - 1);
 
 const presetOffset = ref(0);
 const visiblePresetCount = 8;
@@ -279,6 +339,19 @@ const wavePath = computed(() => {
 
     return path.trim();
 });
+const lightnessTicks = computed(() => {
+    return Array.from({ length: LIGHTNESS_TICK_COUNT }, (_, index) => ({
+        index,
+        angle: (index * 360) / LIGHTNESS_TICK_COUNT,
+    }));
+});
+const lightnessStepIndex = computed(() => {
+    const normalized = Math.max(0, Math.min(100, Number(stateDelta.value) || 0));
+    if (LIGHTNESS_MAX_STEP_INDEX === 0) return 0;
+    return Math.round((normalized / 100) * LIGHTNESS_MAX_STEP_INDEX);
+});
+const lightnessDialAngle = computed(() => (lightnessStepIndex.value * 360) / LIGHTNESS_TICK_COUNT);
+const activeLightnessTickCount = computed(() => lightnessStepIndex.value + 1);
 const selectedCircle = computed(() => circles.value.find((circle) => circle.id === selectedCircleId.value) ?? circles.value[0]);
 
 const applyFromHsl = () => {
@@ -309,7 +382,11 @@ const ensureSelectedCircle = () => {
 };
 
 const syncCustomEnabled = () => {
-    customEnabled.value = Boolean(getAccentThemePreference()?.color);
+    const preference = getAccentThemePreference();
+    customEnabled.value = Boolean(preference?.color);
+    if (preference && Number.isFinite(Number(preference.stateDelta))) {
+        stateDelta.value = Math.max(0, Math.min(100, Math.round(Number(preference.stateDelta))));
+    }
 };
 
 const updateDerivedState = (hex, { apply = false } = {}) => {
@@ -361,7 +438,7 @@ const applyThemeMode = (theme) => {
     const root = document.documentElement;
     const resolved = theme === 'auto' ? getAutoTheme() : theme;
     root.classList.toggle('p-dark', resolved === 'dark');
-    applySmartTextContrast();
+    refreshAccentForThemeChange();
 };
 
 const setTheme = (theme) => {
@@ -374,8 +451,8 @@ const setTheme = (theme) => {
 };
 
 const applyAndPersistAccent = (hex) => {
-    applyAccentTheme(hex);
-    saveAccentThemePreference(hex);
+    applyAccentTheme(hex, { stateDelta: stateDelta.value });
+    saveAccentThemePreference(hex, { stateDelta: stateDelta.value });
     customEnabled.value = true;
 };
 
@@ -392,12 +469,22 @@ const togglePopover = (event) => {
     popoverRef.value?.toggle(event, target);
 };
 
+const toggleHelpPopover = (event) => {
+    const target = event?.currentTarget ?? event?.target;
+    helpPopoverRef.value?.toggle(event, target);
+};
+
 watch(() => saturation.value, () => {
     if (skipNextSaturationWatch.value) {
         skipNextSaturationWatch.value = false;
         return;
     }
     applyFromHsl();
+});
+
+watch(() => stateDelta.value, () => {
+    if (!customEnabled.value || !workingColor.value) return;
+    applyAndPersistAccent(workingColor.value);
 });
 
 watch(() => props.season, () => {
@@ -455,6 +542,83 @@ const applyPreset = (color) => {
 const selectCircle = (id) => {
     selectedCircleId.value = id;
     syncFromSelectedCircle();
+};
+
+const clampPercent = (value) => {
+    return Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
+};
+
+const clampStepIndex = (value) => {
+    return Math.max(0, Math.min(LIGHTNESS_MAX_STEP_INDEX, Math.round(Number(value) || 0)));
+};
+
+const lightnessFromStepIndex = (index) => {
+    if (LIGHTNESS_MAX_STEP_INDEX === 0) return 0;
+    return Math.round((clampStepIndex(index) / LIGHTNESS_MAX_STEP_INDEX) * 100);
+};
+
+const stepIndexFromAngle = (angleDeg) => {
+    if (LIGHTNESS_TICK_COUNT <= 0) return 0;
+    const stepSize = 360 / LIGHTNESS_TICK_COUNT;
+    return clampStepIndex(Math.round(angleDeg / stepSize));
+};
+
+const setLightnessFromPointerEvent = (event) => {
+    const rect = lightnessDialRef.value?.getBoundingClientRect();
+    if (!rect) return;
+
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const angleRad = Math.atan2(event.clientY - centerY, event.clientX - centerX);
+    const angleDeg = ((angleRad * 180) / Math.PI + 450) % 360;
+    const stepIndex = stepIndexFromAngle(angleDeg);
+    stateDelta.value = lightnessFromStepIndex(stepIndex);
+};
+
+const onLightnessDialPointerMove = (event) => {
+    if (!isLightnessDialDragging.value) return;
+    setLightnessFromPointerEvent(event);
+};
+
+const stopLightnessDialDrag = () => {
+    if (!isLightnessDialDragging.value) return;
+    isLightnessDialDragging.value = false;
+    window.removeEventListener('pointermove', onLightnessDialPointerMove);
+    window.removeEventListener('pointerup', stopLightnessDialDrag);
+};
+
+const startLightnessDialDrag = (event) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    isLightnessDialDragging.value = true;
+    setLightnessFromPointerEvent(event);
+    window.addEventListener('pointermove', onLightnessDialPointerMove);
+    window.addEventListener('pointerup', stopLightnessDialDrag);
+};
+
+const handleLightnessDialKeydown = (event) => {
+    const key = event.key;
+    const currentStep = lightnessStepIndex.value;
+    let nextStep = currentStep;
+
+    if (key === 'ArrowRight' || key === 'ArrowUp') {
+        nextStep = currentStep + 1;
+    } else if (key === 'ArrowLeft' || key === 'ArrowDown') {
+        nextStep = currentStep - 1;
+    } else if (key === 'PageUp') {
+        nextStep = currentStep + 2;
+    } else if (key === 'PageDown') {
+        nextStep = currentStep - 2;
+    } else if (key === 'Home') {
+        nextStep = 0;
+    } else if (key === 'End') {
+        nextStep = LIGHTNESS_MAX_STEP_INDEX;
+    } else {
+        return;
+    }
+
+    event.preventDefault();
+    stateDelta.value = clampPercent(lightnessFromStepIndex(nextStep));
 };
 
 const showNextPresets = () => {
@@ -658,6 +822,7 @@ onBeforeUnmount(() => {
     }
     cancelJumpAnimation();
     stopDragging();
+    stopLightnessDialDrag();
 });
 
 onMounted(() => {
@@ -779,11 +944,50 @@ onMounted(() => {
 }
 
 .accent-editor {
+    position: relative;
     width: min(23rem, calc(100vw - 1.25rem));
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
     color: var(--p-text-color);
+}
+
+.editor-help-trigger {
+    position: absolute;
+    top: 0.2rem;
+    right: 0.2rem;
+    z-index: 2;
+    width: 1.7rem;
+    height: 1.7rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--p-primary-500) 22%, transparent);
+    background: color-mix(in srgb, var(--p-bg-color-1) 90%, var(--p-primary-500) 10%);
+    color: var(--p-text-color);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.editor-help-trigger:hover {
+    transform: translateY(-1px);
+    background: color-mix(in srgb, var(--p-bg-color-1) 82%, var(--p-primary-500) 18%);
+}
+
+.editor-help-content {
+    max-width: 12.5rem;
+    font-size: 0.72rem;
+    line-height: 1.3;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.editor-help-content strong {
+    font-size: 0.66rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    opacity: 0.88;
 }
 
 .mode-row {
@@ -937,9 +1141,9 @@ onMounted(() => {
 
 .control-row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    gap: 0.55rem;
+    gap: 0.9rem;
     padding: 0 0.2rem;
 }
 
@@ -959,6 +1163,61 @@ onMounted(() => {
 
     display: flex;
     align-items: center;
+}
+
+.dial-wrap {
+    width: 5.3rem;
+    display: grid;
+    place-items: center;
+}
+
+.lightness-dial {
+    position: relative;
+    width: 5.3rem;
+    height: 5.3rem;
+    border-radius: 999px;
+    cursor: grab;
+    outline: none;
+    background: transparent;
+}
+
+.lightness-dial::before {
+    content: '';
+    position: absolute;
+    inset: 24%;
+    border-radius: 999px;
+    background: radial-gradient(circle at center, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.1) 68%, transparent 100%);
+    border: 1px solid color-mix(in srgb, var(--p-text-color) 18%, transparent);
+    pointer-events: none;
+}
+
+.lightness-dial:active {
+    cursor: grabbing;
+}
+
+.lightness-dial:focus-visible {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--p-primary-color) 40%, transparent);
+}
+
+.lightness-dial-svg {
+    width: 100%;
+    height: 100%;
+}
+
+.lightness-tick {
+    stroke: color-mix(in srgb, var(--p-text-color) 32%, transparent);
+    stroke-width: 3;
+    stroke-linecap: round;
+}
+
+.lightness-tick.is-active {
+    stroke: color-mix(in srgb, var(--p-primary-color) 78%, var(--p-text-color));
+}
+
+.lightness-selector {
+    stroke: var(--p-text-color);
+    stroke-width: 6;
+    stroke-linecap: round;
 }
 
 .p-dark .accent-editor {
@@ -1068,5 +1327,19 @@ onMounted(() => {
         grid-template-columns: repeat(4, minmax(0, 1fr));
     }
 
+    .control-row {
+        grid-template-columns: minmax(0, 1fr) 4.8rem;
+    }
+
+    .dial-wrap,
+    .lightness-dial {
+        width: 4.8rem;
+        height: 4.8rem;
+    }
+
+    .editor-help-content {
+        max-width: 10rem;
+        font-size: 0.66rem;
+    }
 }
 </style>
