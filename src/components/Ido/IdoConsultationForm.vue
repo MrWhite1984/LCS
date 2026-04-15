@@ -27,6 +27,16 @@
             />
         </div>
 
+        <Message severity="warn" class="ido-important-message">
+            <div class="ido-important-message-content">
+                <i class="pi pi-megaphone"></i>
+                <div>
+                    <strong>Уважаемые студенты!</strong>
+                    После заполнения договора и оплаты за образовательную услугу, преподавателю необходимо принести распечатанный договор с вашей подписью и чек об оплате.
+                </div>
+            </div>
+        </Message>
+
         <div class="ido-grid">
             <Card class="ido-card">
                 <template #title>Данные заказчика</template>
@@ -502,6 +512,26 @@ if (canUseAutofill.value) {
 .ido-actions :deep(.p-button) {
     min-width: 240px;
     border-radius: 14px;
+}
+
+.ido-important-message {
+    margin-bottom: 0.25rem;
+    border-radius: 18px;
+    border-width: 1px;
+    box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
+}
+
+.ido-important-message-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+    line-height: 1.6;
+}
+
+.ido-important-message-content .pi {
+    font-size: 1.1rem;
+    margin-top: 0.1rem;
+    flex-shrink: 0;
 }
 
 @media (max-width: 992px) {

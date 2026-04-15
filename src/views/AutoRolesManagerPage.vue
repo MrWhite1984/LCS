@@ -23,6 +23,23 @@
                                 <h1 class="m-0">Авто-роли</h1>
                             </div>
                             <div class="page-controls d-flex gap-2">
+                                <Button
+                                    icon="pi pi-sliders-h"
+                                    outlined
+                                    severity="secondary"
+                                    @click="toggleSettingsPanel"
+                                />
+                                <OverlayPanel ref="settingsPanel">
+                                    <div class="auto-roles-settings-panel">
+                                        <Button
+                                            label="Синхронизировать преподавателей"
+                                            icon="pi pi-sync"
+                                            :loading="syncLoading"
+                                            :disabled="syncLoading"
+                                            @click="syncLecturers"
+                                        />
+                                    </div>
+                                </OverlayPanel>
                                 <Button 
                                     icon="pi pi-plus" 
                                     @click="openCreateDialog"
@@ -281,6 +298,8 @@ const availableRoles = ref([]);
 const loading = ref(false);
 const creating = ref(false);
 const deleting = ref(false);
+const syncLoading = ref(false);
+const settingsPanel = ref(null);
 
 // Dialog states
 const showCreateDialog = ref(false);
@@ -374,6 +393,36 @@ const closeCreateDialog = () => {
 };
 
 const hasPermission = (type, action) => permissionStore.hasPermission(type, action);
+
+const toggleSettingsPanel = (event) => {
+    settingsPanel.value?.toggle(event);
+};
+
+const syncLecturers = async () => {
+    try {
+        syncLoading.value = true;
+        await axiosInstance.post('/api/roleautoassigner/sync-lecturers');
+
+        toast.add({
+            severity: 'success',
+            summary: 'Синхронизация запущена',
+            detail: 'Синхронизация преподавателей успешно запущена.',
+            life: 3000
+        });
+
+        settingsPanel.value?.hide();
+    } catch (error) {
+        console.error('Ошибка синхронизации преподавателей:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Ошибка',
+            detail: 'Не удалось запустить синхронизацию преподавателей.',
+            life: 5000
+        });
+    } finally {
+        syncLoading.value = false;
+    }
+};
 
 const createAutoRole = async () => {
     if (!hasPermission('RoleAutoAssigner', 'Create')) {
@@ -520,6 +569,13 @@ onMounted(async () => {
     border-radius: 12px;
     overflow: hidden;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.auto-roles-settings-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 320px;
 }
 
 .auto-roles-table.empty-table {

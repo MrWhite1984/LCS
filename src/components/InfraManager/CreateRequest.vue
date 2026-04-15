@@ -55,6 +55,17 @@
                 </div>
                 <div class="row mb-4">
                     <div class="col">
+                        <label for="inventoryNumber" class="ms-2 mb-1">Инвентарный номер</label>
+                        <InputText
+                            id="inventoryNumber"
+                            v-model="inventoryNumber"
+                            class="form-input"
+                            placeholder="Введите инвентарный номер..."
+                        />
+                    </div>
+                </div>
+                <div class="row mb-4">
+                    <div class="col">
                         <label for="description" class="ms-2 mb-1">Краткое описание</label>
                         <Textarea id="descriprion" v-model="description" class="form-input" rows="5" placeholder="Введите описание..."/>
                     </div>
@@ -99,6 +110,7 @@ const userSuggestions = ref([]);
 const selectedService = ref(null);
 const serviceTree = ref([]);
 const shortDescriprion = ref('');
+const inventoryNumber = ref('');
 const description = ref('');
 
 const store = usePriorityStore();
@@ -202,6 +214,7 @@ const createCall = async () => {
             serviceItemId: serviceKey,
             urgencyId: store.selectedUrgencyId,
             priorityId: store.selectedPriorityId,
+            inventoryNumber: inventoryNumber.value || null,
             influenceId: store.selecetedInfluenceId
         };
         const response = await axiosInstance.post('/api/infra-manager/calls/register', payload);
@@ -236,6 +249,7 @@ const resetForm = () => {
     whoami.value = '';
     selectedService.value = null;
     shortDescriprion.value = '';
+    inventoryNumber.value = '';
     description.value = '';
     store.selectedPriority = null;
 }
