@@ -132,6 +132,37 @@
                             </div>
                         </Transition>
                     </div>
+                    <div v-if="showProjectOfficeMenu" class="ido-menu-group">
+                        <button
+                            type="button"
+                            class="menu-item menu-item-button"
+                            :class="{ 'active-link': isProjectOfficeRoute, 'menu-item-open': projectOfficeMenuOpen && !collapsed }"
+                            @click="toggleProjectOfficeMenu"
+                            v-tooltip.right="collapsed ? 'Проектный офис' : ''"
+                        >
+                            <div class="menu-item-content">
+                                <i class="pi pi-paperclip"></i>
+                                <div v-if="!collapsed" class="menucrumb menucrumb-with-arrow">
+                                    <span>Проектный офис</span>
+                                    <i class="pi pi-angle-down ido-arrow" :class="{ 'ido-arrow-open': projectOfficeMenuOpen }"></i>
+                                </div>
+                            </div>
+                        </button>
+                        <Transition name="ido-submenu">
+                            <div v-if="projectOfficeMenuOpen && !collapsed" class="ido-submenu">
+                                <router-link
+                                    v-for="item in visibleProjectOfficeMenuItems"
+                                    :key="item.path"
+                                    :to="item.path"
+                                    class="ido-submenu-item"
+                                    active-class="ido-submenu-item-active"
+                                >
+                                    <i :class="item.icon"></i>
+                                    <span>{{ item.name }}</span>
+                                </router-link>
+                            </div>
+                        </Transition>
+                    </div>
                     <router-link 
                         to="/schedule" 
                         class="menu-item" 
@@ -257,6 +288,8 @@ import { clearAuthData } from '@/utils/TokenService.js';
 import { getRequestAccess, resetRequestAccessCache } from '@/utils/requestAccess.js';
 import { getCurrentUser, resetCurrentUserCache } from '@/utils/currentUser.js';
 import { idoSuResource } from '@/api/ido.js';
+import { projectShowcaseInitiatorResource, projectShowcaseSuResource } from '@/api/projectShowcase.js';
+import { ENABLE_PROJECT_OFFICE } from '@/config/features.js';
 
 // Импортируем утилиты для сезонов
 import { 
@@ -306,6 +339,7 @@ const fullName = ref('');
 const searchQuery = ref('');
 const showRequests = ref(false);
 const idoMenuOpen = ref(false);
+const projectOfficeMenuOpen = ref(false);
 
 // Вычисляемые свойства для сезона
 const seasonName = computed(() => getSeasonName(currentSeason.value));
@@ -344,6 +378,33 @@ const idoMenuItems = computed(() => ([
 ]));
 const visibleIdoMenuItems = computed(() => idoMenuItems.value.filter((item) => item.visible));
 const isIdoRoute = computed(() => route.path.startsWith('/ido'));
+const showProjectOfficeMenu = computed(() => ENABLE_PROJECT_OFFICE);
+const canReadProjectShowcaseAll = computed(() => hasPermission(projectShowcaseSuResource, 'Read'));
+const canCreateProjectShowcase = computed(() => hasPermission(projectShowcaseInitiatorResource, 'Create'));
+const projectOfficeMenuItems = computed(() => ([
+    {
+        name: 'Банк проектов',
+        path: '/project-office/projects',
+        icon: 'pi pi-folder-open',
+        visible: true,
+    },
+    {
+        name: 'Мои проекты',
+        path: '/project-office/projects',
+        icon: 'pi pi-user-edit',
+        visible: canCreateProjectShowcase.value || canReadProjectShowcaseAll.value,
+    },
+]));
+const visibleProjectOfficeMenuItems = computed(() => {
+    const uniqueItems = new Map();
+    projectOfficeMenuItems.value
+        .filter((item) => item.visible)
+        .forEach((item) => {
+            if (!uniqueItems.has(item.path)) uniqueItems.set(item.path, item);
+        });
+    return [...uniqueItems.values()];
+});
+const isProjectOfficeRoute = computed(() => route.path.startsWith('/project-office'));
 
 const filteredMenuItems = computed(() => {
     return menuItemsAdmin.filter(item =>
@@ -366,6 +427,15 @@ const toggleIdoMenu = () => {
     }
 
     idoMenuOpen.value = !idoMenuOpen.value;
+};
+
+const toggleProjectOfficeMenu = () => {
+    if (props.collapsed) {
+        router.push('/project-office/projects');
+        return;
+    }
+
+    projectOfficeMenuOpen.value = !projectOfficeMenuOpen.value;
 };
 
 const checkPermission = (path) => {
@@ -443,6 +513,9 @@ watch(
     (path) => {
         if (path.startsWith('/ido')) {
             idoMenuOpen.value = true;
+        }
+        if (path.startsWith('/project-office')) {
+            projectOfficeMenuOpen.value = true;
         }
     },
     { immediate: true }

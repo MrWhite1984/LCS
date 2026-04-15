@@ -124,12 +124,15 @@
                 </div>
             </div>
         </section>
+
+        <NewsFeedSection />
     </main>
 </template>
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
 import axios from 'axios';
+import NewsFeedSection from '@/components/News/NewsFeedSection.vue';
 import { getRequestAccess } from '@/utils/requestAccess.js';
 import { getCurrentUser } from '@/utils/currentUser.js';
 import {

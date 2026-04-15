@@ -120,6 +120,30 @@ body {
   font-family: 'SF Pro Rounded' !important;
   font-weight: 400 !important;
   font-size: 1rem !important;
+  color: var(--p-text-color) !important;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--p-text-color);
+}
+
+p,
+span,
+label,
+li,
+dt,
+dd,
+th,
+td,
+legend,
+figcaption,
+small {
+  color: inherit;
 }
 
 svg.logout path {
@@ -277,7 +301,9 @@ svg.lcs {
   --p-color-trans: #FFFFFF;
 
   --p-red-500: rgb(255, 101, 93) !important;
+  --p-red-500-rgb: 255, 101, 93 !important;
   --p-red-400: rgb(235, 66, 57) !important;
+  --p-red-400-rgb: 235, 66, 57 !important;
 
   --p-blue-100: rgba(138, 190, 250, 0.4) !important;
   --p-blue-200: rgba(138, 190, 250) !important;

@@ -102,10 +102,12 @@
                     <div v-if="!loading" key="services-content" class="services-cards">
                         <InfraManagerMicroService />
                         <RatingService />
+                        <NewsMicroService v-if="canManageNews" />
                     </div>
                     <div v-else key="services-skeleton" class="services-cards">
                         <Skeleton width="100%" height="110px" />
                         <Skeleton width="100%" height="110px" />
+                        <Skeleton v-if="canManageNews" width="100%" height="110px" />
                     </div>
                 </Transition>
             </section>
@@ -115,12 +117,17 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { usePermissionStore } from '@/stores/permissions.js';
 import InfraManagerMicroService from '@/components/Microservice/InfraManager/InfraManagerMicroService.vue';
 import RatingService from '@/components/Microservice/Rating/RatingMicroService.vue';
+import NewsMicroService from '@/components/News/NewsMicroService.vue';
+import { canAccessNewsManagement } from '@/api/news.js';
 import axiosInstance from '@/utils/axios.js';
 
 const loading = ref(true);
 const checkingAll = ref(false);
+const permissionStore = usePermissionStore();
+const canManageNews = computed(() => canAccessNewsManagement(permissionStore));
 
 const services = ref([
     {
@@ -198,6 +205,16 @@ const services = ref([
         name: 'FAQ',
         description: 'Сервис статей и базы знаний.',
         endpoint: '/api/health/faq',
+        status: 'idle',
+        statusCode: null,
+        checking: false,
+        error: '',
+    },
+    {
+        key: 'news',
+        name: 'News',
+        description: 'Новостная лента, теги, эмодзи и комментарии.',
+        endpoint: '/api/health/news',
         status: 'idle',
         statusCode: null,
         checking: false,

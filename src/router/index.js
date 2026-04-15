@@ -2,6 +2,8 @@ import { createMemoryHistory, createRouter, createWebHistory } from "vue-router"
 import { isAuthenticated } from "@/utils/auth";
 import { usePermissionStore } from '@/stores/permissions.js';
 import { ensureAuthSession, isSessionExpiredFlag } from "@/utils/TokenService";
+import { ENABLE_PROJECT_OFFICE } from '@/config/features.js';
+import { canAccessNewsManagement, hasNewsPermission } from '@/api/news.js';
 
 const routes = [
     { 
@@ -188,6 +190,26 @@ const routes = [
                     title: 'Настройки ИДО'
                 }
             },
+            ...(ENABLE_PROJECT_OFFICE ? [
+                {
+                    path: "/project-office/projects",
+                    component: () => import('@/views/ProjectShowcasePage.vue'),
+                    name: 'ProjectShowcaseList',
+                    meta: {
+                        requiresAuth: true,
+                        title: 'Витрина проектов'
+                    }
+                },
+                {
+                    path: "/project-office/projects/:id",
+                    component: () => import('@/views/ProjectShowcaseDetailsPage.vue'),
+                    name: 'ProjectShowcaseDetails',
+                    meta: {
+                        requiresAuth: true,
+                        title: 'Карточка проекта'
+                    }
+                },
+            ] : []),
             // Requests section
             {
                 path: "/requests",
@@ -228,6 +250,38 @@ const routes = [
                 name: 'FaqArticle',
                 meta: {
                     title: 'Статья'
+                }
+            },
+            {
+                path: "/news/manage",
+                component: () => import('@/views/news/NewsManagePage.vue'),
+                name: 'NewsManage',
+                meta: {
+                    requiresAuth: true,
+                    requiresNewsManagement: true,
+                    title: 'Управление новостями'
+                }
+            },
+            {
+                path: "/news/manage/create",
+                component: () => import('@/views/news/NewsEditorPage.vue'),
+                name: 'NewsCreate',
+                meta: {
+                    requiresAuth: true,
+                    requiresNewsManagement: true,
+                    requiresNewsAction: 'Create',
+                    title: 'Новый пост'
+                }
+            },
+            {
+                path: "/news/manage/:postId/edit",
+                component: () => import('@/views/news/NewsEditorPage.vue'),
+                name: 'NewsEdit',
+                meta: {
+                    requiresAuth: true,
+                    requiresNewsManagement: true,
+                    requiresNewsAction: 'Update',
+                    title: 'Редактирование поста'
                 }
             },
             {
@@ -347,6 +401,16 @@ router.beforeEach(async (to, from) => {
         return { path: '/overview' };  // Перенаправляем на главную страницу
     }
     
+    // Проверка авторизации
+    if (requiresAuthRoute) {
+        if (!isAuthenticated() || isSessionExpiredFlag()) {
+            return {
+                path: '/auth',
+                replace: true
+            };
+        }
+    }
+
     // Проверка полномочий, если маршрут требует их
     if (to.meta.permission) {
         const { type, action } = to.meta.permission;
@@ -357,13 +421,13 @@ router.beforeEach(async (to, from) => {
         }
     }
 
-    // Проверка авторизации
-    if (requiresAuthRoute) {
-        if (!isAuthenticated() || isSessionExpiredFlag()) {
-            return {
-                path: '/auth',
-                replace: true
-            };
+    if (typeof to.meta.requiresNewsAction === 'string') {
+        if (!hasNewsPermission(permissionStore, to.meta.requiresNewsAction)) {
+            return { path: '/noAccess' };
+        }
+    } else if (to.matched.some((record) => record.meta.requiresNewsManagement)) {
+        if (!canAccessNewsManagement(permissionStore)) {
+            return { path: '/noAccess' };
         }
     }
 
