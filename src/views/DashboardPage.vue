@@ -366,7 +366,7 @@ h3 {
     z-index: -1;
     pointer-events: none;
     background:
-        radial-gradient(circle at 18% 24%, rgba(var(--p-blue-500-rgb), 0.15), transparent 50%),
+        radial-gradient(circle at 18% 24%, rgba(var(--p-primary-500-rgb), 0.15), transparent 50%),
         radial-gradient(circle at 86% 8%, rgba(var(--p-amber-500-rgb), 0.10), transparent 42%);
     filter: blur(8px);
     animation: driftBg 14s ease-in-out infinite alternate;
@@ -378,10 +378,10 @@ h3 {
     padding: 24px 28px;
     background: linear-gradient(
         120deg,
-        rgba(var(--p-blue-500-rgb), 0.08),
+        rgba(var(--p-primary-500-rgb), 0.08),
         rgba(255, 255, 255, 0)
     );
-    border: 1px solid rgba(var(--p-blue-500-rgb), 0.14);
+    border: 1px solid rgba(var(--p-primary-500-rgb), 0.14);
     opacity: 0;
     transform: translateY(18px) scale(0.99);
     animation: revealUp 0.62s cubic-bezier(0.16, 1, 0.3, 1) 0.05s forwards;
@@ -402,8 +402,8 @@ h3 {
     padding: 6px 10px;
     border-radius: 999px;
     font-size: 0.8rem;
-    background: rgba(var(--p-blue-500-rgb), 0.12);
-    border: 1px solid rgba(var(--p-blue-500-rgb), 0.18);
+    background: rgba(var(--p-primary-500-rgb), 0.12);
+    border: 1px solid rgba(var(--p-primary-500-rgb), 0.18);
     color: var(--p-text-color);
     margin-bottom: 12px;
 }
@@ -417,15 +417,15 @@ h3 {
     text-decoration: none;
     padding: 10px 16px;
     border-radius: 16px;
-    background: rgba(var(--p-blue-500-rgb), 0.16);
-    border: 1px solid rgba(var(--p-blue-500-rgb), 0.24);
+    background: rgba(var(--p-primary-500-rgb), 0.16);
+    border: 1px solid rgba(var(--p-primary-500-rgb), 0.24);
     color: var(--p-text-color);
     font-weight: 600;
     transition: all 0.2s ease;
 }
 .hero-cta:hover {
     transform: translateY(-1px);
-    border-color: rgba(var(--p-blue-500-rgb), 0.36);
+    border-color: rgba(var(--p-primary-500-rgb), 0.36);
 }
 .hero-cta.secondary {
     background: transparent;
@@ -438,7 +438,7 @@ h3 {
     height: 280px;
     background: radial-gradient(
         circle,
-        rgba(var(--p-blue-500-rgb), 0.18),
+        rgba(var(--p-primary-500-rgb), 0.18),
         transparent 70%
     );
     animation: pulseGlow 4.6s ease-in-out infinite;
@@ -466,19 +466,19 @@ h3 {
     color: var(--p-text-color);
     background: linear-gradient(
         180deg,
-        rgba(var(--p-blue-500-rgb), 0.04),
+        rgba(var(--p-primary-500-rgb), 0.04),
         rgba(255, 255, 255, 0)
     );
-    border: 1px solid rgba(var(--p-blue-500-rgb), 0.14);
+    border: 1px solid rgba(var(--p-primary-500-rgb), 0.14);
     transition: transform 0.28s ease, border-color 0.28s ease, box-shadow 0.28s ease, background 0.28s ease;
     opacity: 0;
     transform: translateY(16px);
     animation: revealUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 .action-card:hover {
-    border-color: rgba(var(--p-blue-500-rgb), 0.3);
+    border-color: rgba(var(--p-primary-500-rgb), 0.3);
     transform: translateY(-4px);
-    box-shadow: 0 10px 24px rgba(var(--p-blue-500-rgb), 0.12);
+    box-shadow: 0 10px 24px rgba(var(--p-primary-500-rgb), 0.12);
 }
 .action-card:nth-child(1) { animation-delay: 0.16s; }
 .action-card:nth-child(2) { animation-delay: 0.24s; }
@@ -490,12 +490,12 @@ h3 {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(var(--p-blue-500-rgb), 0.12);
-    border: 1px solid rgba(var(--p-blue-500-rgb), 0.2);
+    background: rgba(var(--p-primary-500-rgb), 0.12);
+    border: 1px solid rgba(var(--p-primary-500-rgb), 0.2);
 }
 .action-card .pi {
     font-size: 1.2rem;
-    color: rgba(var(--p-blue-500-rgb), 0.8);
+    color: rgba(var(--p-primary-500-rgb), 0.8);
 }
 .action-title {
     font-weight: 600;
@@ -514,10 +514,10 @@ h3 {
     border-radius: 16px;
     background: linear-gradient(
         180deg,
-        rgba(var(--p-blue-500-rgb), 0.03),
+        rgba(var(--p-primary-500-rgb), 0.03),
         rgba(255, 255, 255, 0)
     );
-    border: 1px solid rgba(var(--p-blue-500-rgb), 0.12);
+    border: 1px solid rgba(var(--p-primary-500-rgb), 0.12);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
     opacity: 0;
     transform: translateY(14px);
@@ -526,7 +526,7 @@ h3 {
 }
 .panel-card:hover {
     transform: translateY(-3px);
-    border-color: rgba(var(--p-blue-500-rgb), 0.28);
+    border-color: rgba(var(--p-primary-500-rgb), 0.28);
 }
 .overview-grid .panel-card:nth-child(1) { animation-delay: 0.38s; }
 .overview-grid .panel-card:nth-child(2) { animation-delay: 0.46s; }
@@ -541,23 +541,11 @@ h3 {
     flex-direction: column;
     gap: 4px;
 }
-.panel-subtitle {
-    font-size: 0.8rem;
-    color: var(--p-grey-2);
+
+.panel-header:first-child {
+    color: rgba(var(--p-primary-500-rgb), 0.8);
 }
-.panel-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(var(--p-blue-500-rgb), 0.12);
-    border: 1px solid rgba(var(--p-blue-500-rgb), 0.2);
-}
-.panel-header i {
-    color: rgba(var(--p-blue-500-rgb), 0.8);
-}
+
 .panel-content {
     display: flex;
     flex-direction: column;
@@ -566,6 +554,17 @@ h3 {
 
 .schedule-mode-switch :deep(.p-togglebutton-content) {
     padding: 2px 0.5rem;
+}
+
+:deep(.p-togglebutton) {
+    background: linear-gradient(
+        180deg,
+        rgba(var(--p-primary-500-rgb), 0.45),
+        rgba(var(--p-primary-500-rgb), 0.05)
+    ) !important;
+}
+:deep(.p-togglebutton-checked::before) {
+    background: rgba(var(--p-primary-400-rgb), 0.35) !important;
 }
 .schedule-mode-icon {
     display: inline-flex;
@@ -577,42 +576,6 @@ h3 {
 .schedule-current-target {
     color: var(--p-text-color);
     font-weight: 600;
-}
-.status-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-}
-.status-item {
-    padding: 10px 12px;
-    border-radius: 16px;
-    background: rgba(var(--p-blue-500-rgb), 0.06);
-    border: 1px solid rgba(var(--p-blue-500-rgb), 0.12);
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-.info-line {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-}
-.label {
-    color: var(--p-text-color);
-    font-size: 0.85rem;
-}
-.value,
-.value-link {
-    font-weight: 600;
-    color: var(--p-text-color);
-    text-decoration: none;
-    min-width: 0;
-    word-break: break-word;
-}
-.value-link:hover {
-    color: rgb(var(--p-color-icon-menu));
 }
 .activity-item {
     color: var(--p-text-color);
@@ -643,10 +606,10 @@ h3 {
     border-radius: 16px;
     background: linear-gradient(
         180deg,
-        rgba(var(--p-blue-500-rgb), 0.08),
+        rgba(var(--p-primary-500-rgb), 0.08),
         rgba(255, 255, 255, 0)
     );
-    border: 1px solid rgba(var(--p-blue-500-rgb), 0.14);
+    border: 1px solid rgba(var(--p-primary-500-rgb), 0.14);
 }
 .schedule-skeleton-badges {
     display: flex;
@@ -666,16 +629,16 @@ h3 {
     border-radius: 16px;
     background: linear-gradient(
         180deg,
-        rgba(var(--p-blue-500-rgb), 0.08),
+        rgba(var(--p-primary-500-rgb), 0.08),
         rgba(255, 255, 255, 0)
     );
-    border: 1px solid rgba(var(--p-blue-500-rgb), 0.16);
+    border: 1px solid rgba(var(--p-primary-500-rgb), 0.16);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
     transition: transform 0.24s ease, border-color 0.24s ease;
 }
 .schedule-mini-item:hover {
     transform: translateX(4px);
-    border-color: rgba(var(--p-blue-500-rgb), 0.26);
+    border-color: rgba(var(--p-primary-500-rgb), 0.26);
 }
 .schedule-badges {
     color: var(--p-text-color);
@@ -691,10 +654,10 @@ h3 {
 }
 .schedule-time {
     font-size: 0.85rem;
-    color: var(--p-text-color);
+    color: var(--p-primary-500);
     white-space: nowrap;
-    background: rgba(var(--p-blue-500-rgb), 0.12);
-    border: 1px solid rgba(var(--p-blue-500-rgb), 0.2);
+    background: rgba(var(--p-primary-500-rgb), 0.12);
+    border: 1px solid rgba(var(--p-primary-500-rgb), 0.2);
     padding: 4px 8px;
     border-radius: 999px;
 }
@@ -707,9 +670,9 @@ h3 {
 }
 .schedule-room {
     font-size: 0.85rem;
-    color: var(--p-text-color);
-    background: rgba(var(--p-blue-500-rgb), 0.12);
-    border: 1px solid rgba(var(--p-blue-500-rgb), 0.2);
+    color: var(--p-primary-500);
+    background: rgba(var(--p-primary-500-rgb), 0.12);
+    border: 1px solid rgba(var(--p-primary-500-rgb), 0.2);
     padding: 4px 8px;
     border-radius: 999px;
     white-space: nowrap;
@@ -723,6 +686,11 @@ h3 {
     padding: 4px 8px;
     border-radius: 999px;
     white-space: nowrap;
+}
+
+.p-dark .schedule-time,
+.p-dark .schedule-room {
+    color: var(--p-primary-200);
 }
 
 .schedule-fade-enter-active,

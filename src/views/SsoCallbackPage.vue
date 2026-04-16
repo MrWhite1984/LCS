@@ -52,7 +52,6 @@
             </div>
         </div>
 
-        <WelcomeLogin v-if="showWelcomeVideo" :isLoading="showWelcomeVideo" @videoEnded="handleVideoEnded" />
     </main>
 </template>
 
@@ -62,14 +61,13 @@ import { useRouter } from 'vue-router';
 import { useToast } from 'primevue/usetoast';
 import { saveAuthData, startTokenWorker } from "@/utils/TokenService";
 import axiosInstance from '@/utils/axios.js';
+import { playSplashAndNavigate } from '@/composables/splashTransition';
 
 import ThemeSwitcher from '@/components/Utils/ThemeSwitcher.vue';
-import WelcomeLogin from '@/components/Utils/WelcomeLogin.vue';
 
 const router = useRouter();
 const toast = useToast();
 const errorMessage = ref('');
-const showWelcomeVideo = ref(false);
 
 onMounted(async () => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -128,7 +126,7 @@ const verifySSO = async (code, state) => {
         //     router.push('/');
         // }, 1500);
 
-        showWelcomeVideo.value = true;
+        playSplashAndNavigate(() => router.push('/'));
 
     } catch (error) {
         console.error('SSO verification error:', error);
@@ -164,21 +162,6 @@ const formatSsoError = (error, description) => {
     };
 
     return errorMap[error] || 'Произошла ошибка при авторизации через систему единого входа. Пожалуйста, попробуйте снова.';
-};
-
-const handleVideoEnded = () => {
-    // Показываем успешное сообщение и делаем редирект после видео
-    toast.add({ 
-        severity: 'success', 
-        summary: 'Успешная авторизация', 
-        detail: 'Вы успешно вошли через систему единого входа', 
-        life: 3000 
-    });
-
-    // Редирект после завершения видео
-    setTimeout(() => {
-        router.push('/');
-    }, 1000);
 };
 
 </script>

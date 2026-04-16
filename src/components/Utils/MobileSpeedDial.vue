@@ -23,6 +23,7 @@ import { clearAuthData } from '@/utils/TokenService.js';
 import { resetRequestAccessCache } from '@/utils/requestAccess.js';
 import { resetCurrentUserCache } from '@/utils/currentUser.js';
 import { disconnectNotificationsHub } from '@/utils/notificationHub.js';
+import { runLogoutClipTransition } from '@/composables/logoutTransition';
 
 const permissionStore = usePermissionStore();
 const notificationStore = useNotificationStore();
@@ -49,8 +50,8 @@ const logout = async () => {
     await permissionStore.$reset();
     resetRequestAccessCache();
     resetCurrentUserCache();
-    
-    router.push('/auth');
+
+    await runLogoutClipTransition(() => router.push('/auth'));
 };
   
 // Функция для проверки мобильного устройства

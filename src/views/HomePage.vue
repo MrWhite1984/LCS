@@ -109,7 +109,6 @@ const teardownNotifications = async () => {
     notificationStore.reset();
   }
 };
-
 const toggleSidebar = () => {
   isExpanded.value = !isExpanded.value;
 };

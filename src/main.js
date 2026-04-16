@@ -18,7 +18,7 @@ import { createPinia } from 'pinia';
 
 import Tooltip from 'primevue/tooltip';
 import { getCurrentSeason } from '@/utils/seasons.js';
-import { applySeasonPrimaryTheme } from '@/utils/seasonTheme.js';
+import { syncPrimaryTheme } from '@/utils/accentTheme.js';
 
 const app = createApp(App);
 const pinia = createPinia();
@@ -27,7 +27,7 @@ const seasonOverride = localStorage.getItem('seasonOverride');
 const initialSeason = ['winter', 'spring', 'summer', 'autumn'].includes(seasonOverride)
     ? seasonOverride
     : getCurrentSeason();
-applySeasonPrimaryTheme(initialSeason);
+syncPrimaryTheme(initialSeason);
 
 app.use(PrimeVue, {
     theme: {

@@ -105,7 +105,6 @@ label {
 .edit-btn {
     margin-top: 10px;
     border-radius: 8px;
-    color: white;
     position: absolute;
     top: 0px;
     right: 10px;

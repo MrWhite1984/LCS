@@ -227,7 +227,7 @@
                     />
                 </div>
 
-                <ThemeSwitcher :isSideBarCollapse="collapsed" />
+                <AccentColorEditor :isSideBarCollapse="collapsed" :season="currentSeason" />
 
                 <router-link 
                     class="profile" 
@@ -254,11 +254,11 @@
                     </div>
                 </router-link>
 
-                <div class="row mt-2">
+                <div class="row">
                     <div class="col">
                         <button @click="confirmLogout()" class="logout-button" v-tooltip.right="collapsed ? 'Выйти' : ''">
                             <div class="logout-content" :class="{ 'collapsed': collapsed }">
-                                <LogoutSvg class="logout-icon"/>
+                                <i class="pi pi-sign-out"></i>
                                 <p v-if="!collapsed" class="logout-text">Выйти из аккаунта</p>
                             </div>
                         </button>
@@ -271,7 +271,6 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
-import LogoutSvg from '@/assets/logout.svg';
 import axiosInstance from '@/utils/axios.js';
 
 import Lcs from '@/assets/logo/lcs.svg';
@@ -280,7 +279,7 @@ import { useNotificationStore } from '@/stores/notifications.js';
 import { usePermissionStore } from '@/stores/permissions.js';
 import { disconnectNotificationsHub } from '@/utils/notificationHub.js';
 
-import ThemeSwitcher from './Utils/ThemeSwitcher.vue';
+import AccentColorEditor from './Utils/AccentColorEditor.vue';
 
 import { useConfirm } from "primevue/useconfirm";
 import { useToast } from "primevue/usetoast";
@@ -291,6 +290,7 @@ import { getCurrentUser, resetCurrentUserCache } from '@/utils/currentUser.js';
 import { idoSuResource } from '@/api/ido.js';
 import { projectShowcaseInitiatorResource, projectShowcaseSuResource } from '@/api/projectShowcase.js';
 import { ENABLE_PROJECT_OFFICE } from '@/config/features.js';
+import { runLogoutClipTransition } from '@/composables/logoutTransition';
 
 // Импортируем утилиты для сезонов
 import { 
@@ -298,7 +298,7 @@ import {
     getSeasonName, 
     getSeasonIcon,
 } from '@/utils/seasons.js';
-import { applySeasonPrimaryTheme } from '@/utils/seasonTheme.js';
+import { syncPrimaryTheme } from '@/utils/accentTheme.js';
 
 const props = defineProps({
     collapsed: {
@@ -506,7 +506,7 @@ const loadSeasonPreference = () => {
 };
 
 watch(currentSeason, (season) => {
-    applySeasonPrimaryTheme(season);
+    syncPrimaryTheme(season);
 });
 
 watch(
@@ -579,13 +579,13 @@ const logout = async () => {
     await permissionStore.$reset();
     resetRequestAccessCache();
     resetCurrentUserCache();
-    
-    router.push('/auth');
+
+    await runLogoutClipTransition(() => router.push('/auth'));
 };
 
 onMounted(async () => {
     loadSeasonPreference();
-    applySeasonPrimaryTheme(currentSeason.value);
+    syncPrimaryTheme(currentSeason.value);
     lastCheckedMonth = new Date().getMonth();
 
     try {
@@ -915,12 +915,18 @@ const checkIsMobile = () => {
     width: 100%;
     height: 48px;
     border-radius: 12px;
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    transition:
+        background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+        border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+        box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+        transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+        color 0s linear;
     text-decoration: none;
     color: var(--p-text-color);
     border: 2px solid transparent;
     contain: layout;
     background: transparent;
+    overflow: hidden;
 }
 
 .menu-item-button {
@@ -951,24 +957,51 @@ const checkIsMobile = () => {
 
 .menu-item.active-link {
     background: var(--p-blue-500-low-op);
-    color: rgb(var(--p-color-icon-menu));
+    color: var(--p-primary-500);
     box-shadow: 
         0 4px 12px rgba(var(--p-blue-500-rgb), 0.1),
         inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    animation: menu-active-switch 0.42s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .menu-item-open {
     border-color: rgba(var(--p-blue-500-rgb), 0.18);
 }
 
+.p-dark .menu-item.active-link {
+    color: var(--p-primary-300);
+}
+
+.menu-item.active-link::before {
+    content: '';
+    position: absolute;
+    left: 0.35rem;
+    top: 50%;
+    width: 0.22rem;
+    height: 62%;
+    border-radius: 999px;
+    transform: translateY(-50%);
+    background: var(--p-primary-500);
+    box-shadow: 0 0 16px color-mix(in srgb, var(--p-primary-500) 60%, transparent);
+    animation: menu-active-bar 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 /* ============ ИКОНКИ МЕНЮ ============ */
 .menu-item .pi {
     font-size: 1.25rem;
     position: relative;
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    transition:
+        transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+        margin 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+        font-size 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+        color 0s linear;
     will-change: transform;
     min-width: 24px;
     text-align: center;
+}
+
+.menu-item.active-link .pi {
+    animation: menu-icon-pop 0.42s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .rectangle:not(.collapsed) .menu-item .pi {
@@ -996,6 +1029,10 @@ const checkIsMobile = () => {
     will-change: opacity, max-width, transform;
     transform: translateX(0);
     text-overflow: ellipsis;
+}
+
+.menu-item.active-link .menucrumb {
+    animation: menu-label-glide 0.42s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .rectangle.collapsed .menucrumb {
@@ -1153,6 +1190,10 @@ const checkIsMobile = () => {
 .rectangle.collapsed .profile-content {
     justify-content: center;
     gap: 0;
+}
+
+.rectangle.collapsed .profile {
+    padding: 0.25rem 0.5rem;
 }
 
 .avatar-wrapper {
@@ -1396,6 +1437,55 @@ const checkIsMobile = () => {
 
 [dir="rtl"] .menu-item:hover {
     transform: translateX(-4px);
+}
+
+@keyframes menu-active-switch {
+    0% {
+        transform: translateX(6px) scale(0.985);
+        filter: saturate(0.9);
+    }
+    60% {
+        transform: translateX(-1px) scale(1.008);
+        filter: saturate(1.06);
+    }
+    100% {
+        transform: translateX(0) scale(1);
+        filter: saturate(1);
+    }
+}
+
+@keyframes menu-active-bar {
+    0% {
+        opacity: 0;
+        transform: translateY(-50%) scaleY(0.3);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(-50%) scaleY(1);
+    }
+}
+
+@keyframes menu-icon-pop {
+    0% {
+        transform: scale(0.85) translateX(-3px);
+    }
+    55% {
+        transform: scale(1.12) translateX(1px);
+    }
+    100% {
+        transform: scale(1) translateX(0);
+    }
+}
+
+@keyframes menu-label-glide {
+    0% {
+        opacity: 0.45;
+        transform: translateX(8px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateX(0);
+    }
 }
 
 [dir="rtl"] .rectangle.collapsed .menucrumb {
