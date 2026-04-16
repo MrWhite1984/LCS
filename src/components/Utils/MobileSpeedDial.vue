@@ -17,12 +17,15 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { usePermissionStore } from '@/stores/permissions.js';
+import { useNotificationStore } from '@/stores/notifications.js';
 import { useRouter } from 'vue-router';
 import { clearAuthData } from '@/utils/TokenService.js';
 import { resetRequestAccessCache } from '@/utils/requestAccess.js';
 import { resetCurrentUserCache } from '@/utils/currentUser.js';
+import { disconnectNotificationsHub } from '@/utils/notificationHub.js';
 
 const permissionStore = usePermissionStore();
+const notificationStore = useNotificationStore();
 const isMobile = ref(false);
 const router = useRouter();
   
@@ -39,6 +42,8 @@ const items = [
 ];
 
 const logout = async () => {
+    await disconnectNotificationsHub();
+    notificationStore.reset();
     clearAuthData();
     await permissionStore.clearPermissions();
     await permissionStore.$reset();

@@ -278,6 +278,7 @@ import Lcs from '@/assets/logo/lcs.svg';
 
 import { useNotificationStore } from '@/stores/notifications.js';
 import { usePermissionStore } from '@/stores/permissions.js';
+import { disconnectNotificationsHub } from '@/utils/notificationHub.js';
 
 import ThemeSwitcher from './Utils/ThemeSwitcher.vue';
 
@@ -571,6 +572,8 @@ const confirmLogout = () => {
 };
 
 const logout = async () => {
+    await disconnectNotificationsHub();
+    notificationStore.reset();
     clearAuthData();
     await permissionStore.clearPermissions();
     await permissionStore.$reset();

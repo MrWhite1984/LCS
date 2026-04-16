@@ -100,13 +100,21 @@
             />
         </div>
 
-        <Paginator
-            v-if="pageCount > 1"
-            :rows="pageSize"
-            :totalRecords="pageCount * pageSize"
-            :first="(page - 1) * pageSize"
-            @page="onPage"
-        />
+        <div v-if="posts.length > 0" class="news-feed-footer">
+            <Button
+                v-if="canLoadMore"
+                label="Показать ещё"
+                outlined
+                severity="secondary"
+                :loading="loading"
+                :disabled="loading"
+                @click="loadMorePosts"
+            />
+
+            <div v-else class="news-feed-end">
+                Новостей больше нет
+            </div>
+        </div>
     </section>
 </template>
 
@@ -156,6 +164,7 @@ const bookmarkedIds = ref(new Set());
 
 const canManageNews = computed(() => canAccessNewsManagement(permissionStore));
 const isAdmin = computed(() => hasNewsAdminPermission(permissionStore, 'Read'));
+const canLoadMore = computed(() => page.value < pageCount.value);
 
 async function loadBookmarkedIds() {
     const initialPage = 1;
@@ -212,11 +221,16 @@ async function fetchPosts(resetExpanded = false) {
         }
 
         const payload = normalizePostsResponse(response.data);
-        posts.value = payload.posts;
+        posts.value = page.value === 1
+            ? payload.posts
+            : [
+                ...posts.value,
+                ...payload.posts.filter((post) => !posts.value.some((current) => current.id === post.id)),
+            ];
         pageCount.value = payload.pageCount;
 
         if (mode.value === 'bookmarked') {
-            bookmarkedIds.value = new Set(payload.posts.map((post) => post.id));
+            bookmarkedIds.value = new Set(posts.value.map((post) => post.id));
         } else {
             payload.posts.forEach((post) => {
                 if (post.isUserViewed) viewedPostIds.value.add(post.id);
@@ -314,8 +328,10 @@ async function bookmarkPost(post) {
     }
 }
 
-function onPage(event) {
-    page.value = Math.floor(event.first / event.rows) + 1;
+function loadMorePosts() {
+    if (loading.value || !canLoadMore.value) return;
+
+    page.value += 1;
     fetchPosts();
 }
 
@@ -402,6 +418,21 @@ onMounted(async () => {
     display: flex;
     flex-direction: column;
     gap: 1rem;
+}
+
+.news-feed-footer {
+    display: flex;
+    justify-content: center;
+    padding-top: 0.35rem;
+}
+
+.news-feed-end {
+    padding: 0.85rem 1.1rem;
+    border-radius: 999px;
+    background: rgba(var(--p-blue-500-rgb), 0.05);
+    border: 1px solid rgba(var(--p-blue-500-rgb), 0.1);
+    color: var(--p-text-muted-color, var(--p-grey-2));
+    text-align: center;
 }
 
 .news-empty {

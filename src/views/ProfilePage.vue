@@ -350,7 +350,65 @@
                                 <div class="external-kv-grid">
                                     <div v-for="field in section.fields" :key="field.label" class="external-kv-card">
                                         <div class="external-kv-label">{{ field.label }}</div>
-                                        <div class="external-kv-value">{{ field.value }}</div>
+                                        <div class="external-kv-value">
+                                            <span
+                                                v-if="field.isBoolean"
+                                                class="external-boolean"
+                                                :class="{ 'is-true': field.booleanValue, 'is-false': !field.booleanValue }"
+                                            >
+                                                <i :class="field.booleanValue ? 'pi pi-check-circle' : 'pi pi-times-circle'"></i>
+                                                {{ field.booleanValue ? 'Да' : 'Нет' }}
+                                            </span>
+                                            <template v-else>{{ field.value }}</template>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+
+                        <template v-else-if="isUmuAccount">
+                            <div
+                                v-for="section in umuSummarySections"
+                                :key="section.title"
+                                class="external-data-section"
+                            >
+                                <div class="external-section-header">
+                                    <div>
+                                        <div class="external-section-title">{{ section.title }}</div>
+                                        <div v-if="section.subtitle" class="external-section-subtitle">{{ section.subtitle }}</div>
+                                    </div>
+                                </div>
+
+                                <div class="external-kv-grid">
+                                    <div v-for="field in section.fields" :key="field.label" class="external-kv-card">
+                                        <div class="external-kv-label">{{ field.label }}</div>
+                                        <div class="external-kv-value">
+                                            <span
+                                                v-if="field.isBoolean"
+                                                class="external-boolean"
+                                                :class="{ 'is-true': field.booleanValue, 'is-false': !field.booleanValue }"
+                                            >
+                                                <i :class="field.booleanValue ? 'pi pi-check-circle' : 'pi pi-times-circle'"></i>
+                                                {{ field.booleanValue ? 'Да' : 'Нет' }}
+                                            </span>
+                                            <template v-else>{{ field.value }}</template>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="external-data-section">
+                                <div class="external-section-header">
+                                    <div>
+                                        <div class="external-section-title">Статус обучающегося</div>
+                                        <div class="external-section-subtitle">Текущее состояние профиля в УМУ</div>
+                                    </div>
+                                </div>
+
+                                <div class="external-badge-row external-badge-row-single">
+                                    <div class="external-badge-group">
+                                        <div class="external-badge-label">Статус</div>
+                                        <Tag :value="umuStatusLabel" severity="info" />
                                     </div>
                                 </div>
                             </div>
@@ -372,7 +430,17 @@
                                 <div class="external-kv-grid">
                                     <div v-for="field in section.fields" :key="field.label" class="external-kv-card">
                                         <div class="external-kv-label">{{ field.label }}</div>
-                                        <div class="external-kv-value">{{ field.value }}</div>
+                                        <div class="external-kv-value">
+                                            <span
+                                                v-if="field.isBoolean"
+                                                class="external-boolean"
+                                                :class="{ 'is-true': field.booleanValue, 'is-false': !field.booleanValue }"
+                                            >
+                                                <i :class="field.booleanValue ? 'pi pi-check-circle' : 'pi pi-times-circle'"></i>
+                                                {{ field.booleanValue ? 'Да' : 'Нет' }}
+                                            </span>
+                                            <template v-else>{{ field.value }}</template>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -398,7 +466,17 @@
                                         <div class="external-kv-grid external-kv-grid-compact">
                                             <div v-for="field in job.fields" :key="field.label" class="external-kv-card">
                                                 <div class="external-kv-label">{{ field.label }}</div>
-                                                <div class="external-kv-value">{{ field.value }}</div>
+                                                <div class="external-kv-value">
+                                                    <span
+                                                        v-if="field.isBoolean"
+                                                        class="external-boolean"
+                                                        :class="{ 'is-true': field.booleanValue, 'is-false': !field.booleanValue }"
+                                                    >
+                                                        <i :class="field.booleanValue ? 'pi pi-check-circle' : 'pi pi-times-circle'"></i>
+                                                        {{ field.booleanValue ? 'Да' : 'Нет' }}
+                                                    </span>
+                                                    <template v-else>{{ field.value }}</template>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -456,7 +534,15 @@
                                         {{ entry.label }}
                                     </div>
                                     <div class="external-tree-value" :class="{ 'external-tree-value-group': entry.isGroup }">
-                                        {{ entry.value }}
+                                        <span
+                                            v-if="entry.isBoolean"
+                                            class="external-boolean"
+                                            :class="{ 'is-true': entry.booleanValue, 'is-false': !entry.booleanValue }"
+                                        >
+                                            <i :class="entry.booleanValue ? 'pi pi-check-circle' : 'pi pi-times-circle'"></i>
+                                            {{ entry.booleanValue ? 'Да' : 'Нет' }}
+                                        </span>
+                                        <template v-else>{{ entry.value }}</template>
                                     </div>
                                 </div>
                             </div>
@@ -476,6 +562,7 @@ import { useRoute } from 'vue-router';
 import axiosInstance from '@/utils/axios.js';
 import { usePermissionStore } from '@/stores/permissions.js';
 import { getSessionUserId } from '@/utils/TokenService.js';
+import { formatDateRuShort } from '@/utils/date.js';
 
 import UpdateUser from '@/components/Users/UpdateUser.vue';
 import MePermissionsPage from '@/views/MePermissionsPage.vue';
@@ -621,6 +708,7 @@ function onFileSelect(event) {
 let statusInfra = null;
 const status = ref(false);
 const INFRA_MANAGER_SYSTEM_TYPE = 0;
+const UMU_SYSTEM_TYPE = 3;
 const ONE_CZKGU_SYSTEM_TYPE = 1;
 
 const parseInformation = (information) => {
@@ -696,7 +784,9 @@ const buildExternalInformationRows = (value, depth = 0, label = '', path = 'root
         label: formatExternalInfoLabel(label),
         value: formatExternalInfoValue(value),
         depth,
-        isGroup: false
+        isGroup: false,
+        isBoolean: typeof value === 'boolean',
+        booleanValue: typeof value === 'boolean' ? value : null
     }];
 };
 
@@ -713,14 +803,42 @@ const parsedExternalInformation = computed(() => {
 });
 
 const isInfraManagerAccount = computed(() => Number(selectedExternalAccount.value?.systemType) === INFRA_MANAGER_SYSTEM_TYPE);
+const isUmuAccount = computed(() => Number(selectedExternalAccount.value?.systemType) === UMU_SYSTEM_TYPE);
 const isOneCzkguAccount = computed(() => Number(selectedExternalAccount.value?.systemType) === ONE_CZKGU_SYSTEM_TYPE);
 
 const createExternalField = (label, value) => ({
     label,
-    value: formatExternalInfoValue(value)
+    value: formatExternalInfoValue(value),
+    isBoolean: typeof value === 'boolean',
+    booleanValue: typeof value === 'boolean' ? value : null
 });
 
 const filterExternalFields = (fields) => fields.filter(field => field.value !== '-');
+
+const formatExternalDateValue = (value) => {
+    if (!value) return null;
+
+    if (typeof value === 'string') {
+        const isoDateMatch = /^(\d{4})-(\d{2})-(\d{2})(?:[T\s].*)?$/.exec(value);
+        if (isoDateMatch) {
+            const [, year, month, day] = isoDateMatch;
+            return `${day}.${month}.${year}`;
+        }
+    }
+
+    return formatDateRuShort(value, null);
+};
+
+const resolveStudentGroupLabel = (studentGroup) => {
+    if (!studentGroup) return null;
+    if (typeof studentGroup === 'string') return studentGroup;
+
+    return studentGroup.Name
+        || studentGroup.Title
+        || studentGroup.Number
+        || studentGroup.Code
+        || null;
+};
 
 const infraManagerSections = computed(() => {
     if (!isInfraManagerAccount.value || !parsedExternalInformation.value) return [];
@@ -773,6 +891,46 @@ const infraManagerSections = computed(() => {
     ].filter(section => section.fields.length);
 });
 
+const umuSummarySections = computed(() => {
+    if (!isUmuAccount.value || !parsedExternalInformation.value) return [];
+
+    const info = parsedExternalInformation.value;
+    const studentGroup = info.StudentGroup;
+
+    return [
+        {
+            title: 'Основное',
+            subtitle: 'Персональные данные обучающегося',
+            fields: filterExternalFields([
+                createExternalField('ФИО', [info.Surname, info.Name, info.Patronymic].filter(Boolean).join(' ')),
+                createExternalField('E-mail', info.Email),
+                createExternalField('Дата рождения', formatExternalDateValue(info.BirthDate))
+            ])
+        },
+        {
+            title: 'Обучение',
+            subtitle: 'Идентификаторы и академические данные',
+            fields: filterExternalFields([
+                createExternalField('ID в системе', info.Id),
+                createExternalField('Зачетная книжка', info.GradeBook),
+                createExternalField('Учебная группа', resolveStudentGroupLabel(studentGroup))
+            ])
+        }
+    ].filter(section => section.fields.length);
+});
+
+const umuStatusLabel = computed(() => {
+    if (!isUmuAccount.value) return '-';
+
+    const info = parsedExternalInformation.value || {};
+    if (info.StatusText) return info.StatusText;
+    if (info.Status !== null && info.Status !== undefined && info.Status !== '') {
+        return `Код ${info.Status}`;
+    }
+
+    return '-';
+});
+
 const oneCzkguSummarySections = computed(() => {
     if (!isOneCzkguAccount.value || !parsedExternalInformation.value) return [];
 
@@ -784,7 +942,7 @@ const oneCzkguSummarySections = computed(() => {
             subtitle: 'Персональная информация',
             fields: filterExternalFields([
                 createExternalField('ФИО', [info.Surname, info.FirstName, info.Patronymic].filter(Boolean).join(' ')),
-                createExternalField('Дата рождения', info.BirthDate),
+                createExternalField('Дата рождения', formatExternalDateValue(info.BirthDate)),
                 createExternalField('Пол', info.Gender),
                 createExternalField('ИНН', info.Inn),
                 createExternalField('СНИЛС', info.Snils)
@@ -826,10 +984,10 @@ const oneCzkguJobPositions = computed(() => {
             createExternalField('Тариф', job.Tariff),
             createExternalField('Тарифная сетка', job.TariffSchedule),
             createExternalField('Табельный номер', job.ServiceNumber),
-            createExternalField('Дата приема', job.DataAdmission),
-            createExternalField('Дата увольнения', job.DateDismissal),
+            createExternalField('Дата приема', formatExternalDateValue(job.DataAdmission)),
+            createExternalField('Дата увольнения', formatExternalDateValue(job.DateDismissal)),
             createExternalField('Номер договора', job.CurrentPlaceOfWork?.ContrantNumber),
-            createExternalField('Дата договора', job.CurrentPlaceOfWork?.ContrantDate)
+            createExternalField('Дата договора', formatExternalDateValue(job.CurrentPlaceOfWork?.ContrantDate))
         ])
     }));
 });
@@ -855,7 +1013,9 @@ const getSystemTypeLabel = (systemType) => {
     if (matchedSystemType?.label) return matchedSystemType.label;
 
     const map = {
-        0: 'InfraManager'
+        0: 'InfraManager',
+        1: '1СЗКГУ',
+        3: 'UMU'
     };
     return map[Number(systemType)] || `Система ${systemType}`;
 };
@@ -1691,6 +1851,21 @@ p {
     font-weight: 600;
     word-break: break-word;
 }
+.external-boolean {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-weight: 700;
+}
+.external-boolean .pi {
+    font-size: 1rem;
+}
+.external-boolean.is-true {
+    color: var(--p-green-500);
+}
+.external-boolean.is-false {
+    color: var(--p-red-500);
+}
 .external-section-header {
     padding: 1rem 1.2rem 0.9rem;
     border-bottom: 1px solid rgba(var(--p-blue-500-rgb), 0.12);
@@ -1744,6 +1919,9 @@ p {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1rem;
     padding: 1rem 1.1rem 1.1rem;
+}
+.external-badge-row-single {
+    grid-template-columns: 1fr;
 }
 .external-badge-group {
     display: flex;

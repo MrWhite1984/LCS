@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@microsoft/signalr": "^10.0.0",
     "@primevue/forms": "^4.5.3",
     "@primevue/themes": "^4.1.0",
     "axios": "^1.9.0",

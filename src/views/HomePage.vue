@@ -20,12 +20,15 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue';
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import SideBar from '@/components/SideBar.vue';
 import MobileSpeedDial from '@/components/Utils/MobileSpeedDial.vue';
 import { isAuthenticated } from '@/utils/auth';
 import { useRoute } from 'vue-router';
+import { useNotificationStore } from '@/stores/notifications.js';
+import { getUnreadNotifications, normalizeNotification } from '@/api/notifications.js';
+import { connectNotificationsHub, disconnectNotificationsHub } from '@/utils/notificationHub.js';
 
 const SIDEBAR_EXPANDED_STORAGE_KEY = 'sidebarExpanded';
 
@@ -38,8 +41,8 @@ const getSavedSidebarState = () => {
 const isExpanded = ref(getSavedSidebarState());
 const toast = useToast();
 const route = useRoute();
-
-computed(() => isAuthenticated());
+const notificationStore = useNotificationStore();
+let notificationsBootstrapPromise = null;
 
 const showMessage = (message, summary, detail) => {
 if (message === 'success') {
@@ -47,6 +50,64 @@ if (message === 'success') {
 } else if (message === 'error') {
   toast.add({ severity: 'error', summary, detail, life: 3000 });
 }
+};
+
+const showNotificationError = (detail) => {
+  toast.add({
+    severity: 'warn',
+    summary: 'Уведомления',
+    detail,
+    life: 4000,
+  });
+};
+
+const bootstrapNotifications = async () => {
+  if (notificationsBootstrapPromise) {
+    return notificationsBootstrapPromise;
+  }
+
+  notificationsBootstrapPromise = (async () => {
+    notificationStore.reset();
+
+    try {
+      const unreadNotifications = await getUnreadNotifications();
+      notificationStore.setUnreadNotifications(unreadNotifications);
+    } catch (error) {
+      console.error('Не удалось загрузить непрочитанные уведомления:', error);
+      showNotificationError('Не удалось загрузить непрочитанные уведомления. Новые уведомления продолжат поступать онлайн.');
+    }
+
+    try {
+      await connectNotificationsHub((payload) => {
+        const notification = normalizeNotification(payload, { isRead: false });
+        notificationStore.addLiveNotification(notification);
+
+        toast.add({
+          severity: 'info',
+          summary: 'Новое уведомление',
+          detail: notification.message || 'Получено новое уведомление',
+          life: 5000,
+        });
+      });
+    } catch (error) {
+      console.error('Не удалось подключиться к хабу уведомлений:', error);
+      showNotificationError('Не удалось подключить онлайн-уведомления.');
+    }
+  })().finally(() => {
+    notificationsBootstrapPromise = null;
+  });
+
+  return notificationsBootstrapPromise;
+};
+
+const teardownNotifications = async () => {
+  try {
+    await disconnectNotificationsHub();
+  } catch (error) {
+    console.error('Не удалось отключить хаб уведомлений:', error);
+  } finally {
+    notificationStore.reset();
+  }
 };
 
 const toggleSidebar = () => {
@@ -62,6 +123,14 @@ const query = route.query;
 if (query.message) {
   showMessage(query.message, query.summary, query.detail);
 }
+
+if (isAuthenticated()) {
+  bootstrapNotifications();
+}
+});
+
+onBeforeUnmount(() => {
+  void teardownNotifications();
 });
 </script>
 
