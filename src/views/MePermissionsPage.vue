@@ -18,18 +18,18 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import axiosInstance from '@/utils/axios.js';
+import { getSessionUserId } from '@/utils/TokenService.js';
 import PermissionsResourceList from '@/components/Permissions/PermissionsResourceList.vue';
 
 const loading = ref(true);
 const allPermissions = ref([]);
 const rolePermissions = ref([]);
+const roleIds = ref([]);
 
 const route = useRoute();
-
-const roleId = route.query.r;
 
 const fetchAllPermissions = async () => {
     try {
@@ -40,12 +40,40 @@ const fetchAllPermissions = async () => {
     }
 };
 
+const fetchUserRoles = async () => {
+    try {
+        const targetUserId = route.query.id;
+        const currentUserId = getSessionUserId();
+        const isCurrentUser = !targetUserId || String(targetUserId) === String(currentUserId);
+        const endpoint = isCurrentUser ? '/api/users/me/info' : `/api/users/${targetUserId}`;
+        const response = await axiosInstance.get(endpoint);
+
+        roleIds.value = (response.data?.roles || [])
+            .map((role) => role?.id)
+            .filter(Boolean);
+    } catch (error) {
+        roleIds.value = [];
+        console.debug('Ошибка при загрузке ролей пользователя:', error);
+    }
+};
+
 const fetchRolePermissions = async () => {
     try {
-        const response = await axiosInstance.get(`/api/rbac/roles/${roleId}/permissions`);
-        rolePermissions.value = response.data.resourcesWithPermissions; // Получаем полномочия роли
+        if (!roleIds.value.length) {
+            rolePermissions.value = [];
+            updatePermissionsWithRoleStatus();
+            return;
+        }
+
+        const responses = await Promise.all(
+            roleIds.value.map((roleId) => axiosInstance.get(`/api/rbac/roles/${roleId}/permissions`))
+        );
+
+        rolePermissions.value = responses.flatMap(
+            (response) => response.data?.resourcesWithPermissions || []
+        );
+
         updatePermissionsWithRoleStatus();
-        console.debug(roleId);
     } catch (error) {
         console.debug('Ошибка при загрузке полномочий роли:', error);
     }
@@ -53,10 +81,10 @@ const fetchRolePermissions = async () => {
 
 const updatePermissionsWithRoleStatus = () => {
     // Создаем словарь полномочий для быстрого доступа
-    const rolePermissionMap = new Map();
+    const rolePermissionMap = new Set();
     rolePermissions.value.forEach(resource => {
         resource.permissions.forEach(permission => {
-            rolePermissionMap.set(permission.id, true);
+            rolePermissionMap.add(permission.id);
         });
     });
 
@@ -79,11 +107,8 @@ const fetchData = async () => {
         loading.value = true;
         
         await fetchAllPermissions();
-        
-        if (roleId) {
-            await fetchRolePermissions();
-            updatePermissionsWithRoleStatus();
-        }
+        await fetchUserRoles();
+        await fetchRolePermissions();
     } catch (error) {
         console.debug('Ошибка при загрузке данных:', error);
     } finally {
@@ -91,9 +116,13 @@ const fetchData = async () => {
     }
 };
 
-onMounted(() => {
-    fetchData();
-});
+watch(
+    () => route.query.id,
+    () => {
+        fetchData();
+    },
+    { immediate: true }
+);
 </script>
 
 <style scoped>

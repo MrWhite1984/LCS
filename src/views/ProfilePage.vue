@@ -211,14 +211,24 @@
                     </div> -->
                     <div class="row mx-0">
                         <div class="col-auto d-flex align-items-center justify-content-center">
-                            <div class="avatar-wrapper">
+                            <div
+                                class="avatar-wrapper"
+                                :class="{ 'avatar-wrapper-dragover': isAvatarDragOver }"
+                                @dragover.prevent="onAvatarDragOver"
+                                @dragleave.prevent="onAvatarDragLeave"
+                                @drop.prevent="onAvatarDrop"
+                            >
                                 <Avatar :image="srcAvatar" icon="pi pi-user fs-1" size="large" shape="circle" style="transition: all 0.5s;" />
                                 <div class="avatar-overlay" @click="triggerFileUpload">
-                                    <div class="upload-button pi pi-camera" />
+                                    <div class="avatar-overlay-copy">
+                                        <div class="upload-button pi pi-camera" />
+                                        <small>{{ isAvatarDragOver ? 'Отпустите изображение' : 'Нажмите или перетащите фото' }}</small>
+                                    </div>
                                     <input 
                                         ref="fileInput" 
                                         type="file" 
                                         style="display: none" 
+                                        accept="image/*"
                                         @change="onFileSelect"
                                     />
                                 </div>
@@ -585,6 +595,7 @@ const visible = ref(false);
 const visiblePass = ref(false);
 const visibleEmail = ref(false);
 const fileInput = ref(null);
+const isAvatarDragOver = ref(false);
 const sidebarVisible = ref(false);
 const activeProfile = ref('user'); // Переключение профилей
 
@@ -683,6 +694,34 @@ const triggerFileUpload = () => {
   fileInput.value.click();
 }
 
+const applyAvatarFile = (file) => {
+    if (!file || !String(file.type || '').startsWith('image/')) return;
+
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+        srcAvatar.value = e.target.result;
+    };
+
+    reader.readAsDataURL(file);
+};
+
+const onAvatarDragOver = () => {
+    isAvatarDragOver.value = true;
+};
+
+const onAvatarDragLeave = (event) => {
+    const nextTarget = event?.relatedTarget;
+    if (nextTarget && event.currentTarget?.contains?.(nextTarget)) return;
+    isAvatarDragOver.value = false;
+};
+
+const onAvatarDrop = (event) => {
+    isAvatarDragOver.value = false;
+    const file = event?.dataTransfer?.files?.[0];
+    applyAvatarFile(file);
+};
+
 const changePassword = async () => {
     try {
         await axiosInstance.patch(`/api/users/${ userId.value }/password`, userPassword.value.toString());
@@ -694,15 +733,7 @@ const changePassword = async () => {
 
 function onFileSelect(event) {
     const file = event.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-
-        reader.onload = (e) => {
-            srcAvatar.value = e.target.result; // Предпросмотр загруженного изображения
-        };
-
-        reader.readAsDataURL(file);
-    }
+    applyAvatarFile(file);
 }
 
 let statusInfra = null;
@@ -1547,6 +1578,9 @@ main {
     display: flex;
     transition: all 0.5s;
 }
+.avatar-wrapper-dragover {
+    box-shadow: 0 0 0 6px rgba(var(--p-blue-500-rgb), 0.16);
+}
 .avatar-overlay {
     position: absolute;
     left: 50%;
@@ -1564,6 +1598,21 @@ main {
 .avatar-wrapper:hover .avatar-overlay {
     opacity: 1;
     cursor: pointer;
+}
+.avatar-wrapper-dragover .avatar-overlay {
+    opacity: 1;
+}
+.avatar-overlay-copy {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+    color: white;
+    text-align: center;
+}
+.avatar-overlay-copy small {
+    max-width: 7rem;
+    line-height: 1.35;
 }
 .upload-button {
     color: white;

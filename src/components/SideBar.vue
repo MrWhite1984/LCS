@@ -331,7 +331,6 @@ const seasonOptions = [
 ];
 
 const userId = ref(null);
-const roleId = ref(null);
 const firstName = ref('');
 const lastName = ref('');
 const email = ref('');
@@ -349,10 +348,6 @@ const profileLink = computed(() => {
     if (!userId.value) return '/profile';
 
     const params = new URLSearchParams({ id: String(userId.value) });
-    if (roleId.value) {
-        params.set('r', String(roleId.value));
-    }
-
     return `/profile?${params.toString()}`;
 });
 
@@ -599,8 +594,6 @@ onMounted(async () => {
         initials.value = getInitials(firstName.value, lastName.value);
 
         userId.value = response.id;
-        roleId.value = response.roles[0]?.id;
-
         localStorage.setItem('firstName', response.firstName);
 
         const requestAccess = await getRequestAccess();

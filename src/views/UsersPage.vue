@@ -12,7 +12,7 @@
                     stripedRows
                     :rows="rowsPerPage"
                     :rowClass="rowClass"
-                    @row-click="(event) => navigateToProfile(event.data.id, event.data.roles[0]?.id)"
+                    @row-click="(event) => navigateToProfile(event.data.id)"
                     :totalRecords="totalRecords"
                     @page="onPage"
                     :rowsPerPageOptions="[5, 10, 15]"
@@ -305,10 +305,10 @@ const rowClass = (data) => {
     return [{ 'pointer': !data.removed }];
 };
 
-const navigateToProfile = (userId, roleId) => {
+const navigateToProfile = (userId) => {
     router.push({ 
         name: 'Profile', 
-        query: { id: userId, r: roleId }
+        query: { id: userId }
     });
 };
 
