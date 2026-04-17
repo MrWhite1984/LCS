@@ -222,6 +222,7 @@ export function normalizePost(post = null) {
         tags: Array.isArray(post?.tags) ? post.tags.map(normalizeTag) : [],
         viewsCount: Number(post?.viewsCount || 0),
         isUserViewed: Boolean(post?.isUserViewed),
+        isMarked: Boolean(post?.isMarked),
     };
 }
 

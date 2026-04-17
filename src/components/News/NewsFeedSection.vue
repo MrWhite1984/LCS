@@ -166,34 +166,6 @@ const canManageNews = computed(() => canAccessNewsManagement(permissionStore));
 const isAdmin = computed(() => hasNewsAdminPermission(permissionStore, 'Read'));
 const canLoadMore = computed(() => page.value < pageCount.value);
 
-async function loadBookmarkedIds() {
-    const initialPage = 1;
-    const requestPageSize = 100;
-    const { data } = await getBookmarkedPosts({
-        page: initialPage,
-        pageSize: requestPageSize,
-    });
-
-    const firstPayload = normalizePostsResponse(data);
-    const collectedIds = new Set(firstPayload.posts.map((post) => post.id));
-
-    if (firstPayload.pageCount > 1) {
-        const responses = await Promise.all(
-            Array.from({ length: firstPayload.pageCount - 1 }, (_, index) => getBookmarkedPosts({
-                page: index + 2,
-                pageSize: requestPageSize,
-            }))
-        );
-
-        responses.forEach((response) => {
-            const payload = normalizePostsResponse(response.data);
-            payload.posts.forEach((post) => collectedIds.add(post.id));
-        });
-    }
-
-    bookmarkedIds.value = collectedIds;
-}
-
 async function fetchPosts(resetExpanded = false) {
     loading.value = true;
 
@@ -229,13 +201,14 @@ async function fetchPosts(resetExpanded = false) {
             ];
         pageCount.value = payload.pageCount;
 
-        if (mode.value === 'bookmarked') {
-            bookmarkedIds.value = new Set(posts.value.map((post) => post.id));
-        } else {
-            payload.posts.forEach((post) => {
-                if (post.isUserViewed) viewedPostIds.value.add(post.id);
-            });
-        }
+        const nextMarked = page.value === 1 ? new Set() : new Set(bookmarkedIds.value);
+        payload.posts.forEach((post) => {
+            if (post.isUserViewed) viewedPostIds.value.add(post.id);
+            if (post.isMarked || mode.value === 'bookmarked') {
+                nextMarked.add(post.id);
+            }
+        });
+        bookmarkedIds.value = nextMarked;
 
         if (resetExpanded || !posts.value.some((post) => post.id === expandedPostId.value)) {
             expandedPostId.value = null;
@@ -318,10 +291,13 @@ async function togglePost(post) {
 }
 
 async function bookmarkPost(post) {
-    if (!post?.id) return;
+    if (!post?.id || post.isMarked || bookmarkedIds.value.has(post.id)) return;
 
     await addMarkedPost(post.id);
     bookmarkedIds.value = new Set([...bookmarkedIds.value, post.id]);
+    posts.value = posts.value.map((item) => item.id === post.id
+        ? { ...item, isMarked: true }
+        : item);
 
     if (mode.value === 'bookmarked') {
         fetchPosts(true);
@@ -341,7 +317,7 @@ watch(mode, () => {
 });
 
 onMounted(async () => {
-    await Promise.allSettled([fetchMeta(), loadBookmarkedIds()]);
+    await fetchMeta();
     await fetchPosts(true);
 });
 </script>

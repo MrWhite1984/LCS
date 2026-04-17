@@ -14,27 +14,23 @@
             <Button icon="pi pi-comments" text size="small" @click="insertLine('> цитата')" />
             <Button icon="pi pi-code" text size="small" @click="wrapInline('`', '`', 'код')" />
             <Button icon="pi pi-link" text size="small" @click="wrapInline('[ссылка](', ')', 'https://example.com')" />
-            <Button
-                v-if="allowMediaUpload"
-                icon="pi pi-image"
-                text
-                size="small"
-                :loading="uploading"
-                :disabled="uploading"
-                @click="openFileDialog"
-            />
         </div>
-
-        <input
-            ref="fileInputRef"
-            type="file"
-            class="hidden-input"
-            multiple
-            @change="onFileSelected"
-        />
 
         <div class="editor-layout">
             <div class="editor-source">
+                <FileDropzone
+                    v-if="allowMediaUpload"
+                    class="editor-dropzone"
+                    multiple
+                    :disabled="uploading"
+                    icon="pi pi-images"
+                    title="Перетащите медиафайлы сюда"
+                    subtitle="или нажмите, чтобы выбрать файлы через проводник"
+                    active-subtitle="Отпустите файлы для загрузки в редактор"
+                    compact
+                    @select="onFilesSelected"
+                />
+
                 <Textarea
                     ref="textareaRef"
                     :modelValue="modelValue"
@@ -76,6 +72,7 @@ import { computed, nextTick, ref, watch } from 'vue';
 import { getMediaTypes, normalizeMediaType, uploadMedia } from '@/api/news.js';
 import { fileToBase64, insertAroundSelection, resolveMediaTypeId } from '@/utils/news.js';
 import NewsMarkdownRenderer from '@/components/News/NewsMarkdownRenderer.vue';
+import FileDropzone from '@/components/Utils/FileDropzone.vue';
 
 const props = defineProps({
     modelValue: {
@@ -107,7 +104,6 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'update:mediaIds']);
 
 const textareaRef = ref(null);
-const fileInputRef = ref(null);
 const mediaTypes = ref([]);
 const uploading = ref(false);
 const localMedia = ref([]);
@@ -157,13 +153,10 @@ function insertLine(template) {
     });
 }
 
-function openFileDialog() {
-    fileInputRef.value?.click();
-}
-
-async function onFileSelected(event) {
-    const files = Array.from(event.target?.files || []);
-    if (files.length === 0) return;
+async function onFilesSelected(files) {
+    const normalizedFiles = Array.from(files || []);
+    const filesToUpload = normalizedFiles.filter(Boolean);
+    if (filesToUpload.length === 0) return;
 
     uploading.value = true;
 
@@ -172,7 +165,7 @@ async function onFileSelected(event) {
 
         const uploaded = [];
 
-        for (const file of files) {
+        for (const file of filesToUpload) {
             const content = await fileToBase64(file);
             const typeId = resolveMediaTypeId(file, mediaTypes.value);
             const { data } = await uploadMedia({
@@ -200,7 +193,6 @@ async function onFileSelected(event) {
             emit('update:mediaIds', [...new Set([...normalizedMediaIds.value, ...uploaded.map((item) => item.id)])]);
         }
     } finally {
-        if (fileInputRef.value) fileInputRef.value.value = '';
         uploading.value = false;
     }
 }
@@ -242,10 +234,6 @@ watch(() => props.mediaIds, () => {
     stroke-linejoin: round;
 }
 
-.hidden-input {
-    display: none;
-}
-
 .editor-layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -270,6 +258,10 @@ watch(() => props.mediaIds, () => {
     min-height: 300px;
     font-family: 'SFMono-Regular', ui-monospace, monospace;
     line-height: 1.6;
+}
+
+.editor-dropzone {
+    margin-bottom: 0.85rem;
 }
 
 .preview-head {
