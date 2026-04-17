@@ -2,6 +2,7 @@ import axiosInstance from '@/utils/axios.js';
 import { USE_PROJECT_SHOWCASE_MOCK_DATA } from '@/mocks/config.js';
 import {
     mockAddCriterias,
+    mockAddProjectDocument,
     mockAddGeneralInformation,
     mockAddLksUserToSystem,
     mockAddMeToSystem,
@@ -13,10 +14,13 @@ import {
     mockAddUser,
     mockChangeVisibility,
     mockCreateSolution,
+    mockDeleteProjectDocument,
     mockGetCheckList,
     mockGetInitiatorTypes,
     mockGetJournal,
     mockGetMeInSystem,
+    mockGetProjectDocument,
+    mockGetProjectDocuments,
     mockGetParticipants,
     mockGetProject,
     mockGetProjectsList,
@@ -27,6 +31,8 @@ import {
     mockInitiateProject,
     mockSearchLksUsers,
     mockSearchUsers,
+    mockUpdateRoadMapItem,
+    mockUpdateRoadMapItemDocuments,
 } from '@/mocks/projectShowcase.js';
 
 export const projectShowcaseInitiatorResource = 'ProjectShowcase_Initiator';
@@ -322,4 +328,49 @@ export function addRoadMapItem(projectId, payload) {
         return wrapMockResponse(null);
     }
     return axiosInstance.post(`${PROJECT_SHOWCASE_BASE}/project/${projectId}/add-road-map-item`, payload);
+}
+
+export function getProjectDocuments(projectId) {
+    if (USE_PROJECT_SHOWCASE_MOCK_DATA) {
+        return wrapMockResponse(mockGetProjectDocuments(projectId));
+    }
+    return axiosInstance.get(`${PROJECT_SHOWCASE_BASE}/project/${projectId}/documents`);
+}
+
+export function addProjectDocument(projectId, payload) {
+    if (USE_PROJECT_SHOWCASE_MOCK_DATA) {
+        return wrapMockResponse(mockAddProjectDocument(projectId, payload));
+    }
+    return axiosInstance.post(`${PROJECT_SHOWCASE_BASE}/project/${projectId}/add-document`, payload);
+}
+
+export function getProjectDocument(documentId) {
+    if (USE_PROJECT_SHOWCASE_MOCK_DATA) {
+        return wrapMockResponse(mockGetProjectDocument(documentId));
+    }
+    return axiosInstance.get(`${PROJECT_SHOWCASE_BASE}/projects/documents/${documentId}`);
+}
+
+export function deleteProjectDocument(documentId) {
+    if (USE_PROJECT_SHOWCASE_MOCK_DATA) {
+        mockDeleteProjectDocument(documentId);
+        return wrapMockResponse(null);
+    }
+    return axiosInstance.delete(`${PROJECT_SHOWCASE_BASE}/projects/documents/${documentId}`);
+}
+
+export function updateRoadMapItem(itemId, payload) {
+    if (USE_PROJECT_SHOWCASE_MOCK_DATA) {
+        mockUpdateRoadMapItem(itemId, payload);
+        return wrapMockResponse(null);
+    }
+    return axiosInstance.put(`${PROJECT_SHOWCASE_BASE}/projects/road-map-item/${itemId}`, payload);
+}
+
+export function updateRoadMapItemDocuments(itemId, payload) {
+    if (USE_PROJECT_SHOWCASE_MOCK_DATA) {
+        mockUpdateRoadMapItemDocuments(itemId, payload);
+        return wrapMockResponse(null);
+    }
+    return axiosInstance.put(`${PROJECT_SHOWCASE_BASE}/projects/road-map-item/${itemId}/documents`, payload);
 }

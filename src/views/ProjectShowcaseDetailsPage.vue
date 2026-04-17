@@ -67,6 +67,11 @@
                         <span>Обновлено</span>
                         <strong>{{ formatDateRuShortWithTime(project.updatedAt, '-') }}</strong>
                     </article>
+                    <article v-if="SHOW_ROADMAP_PROGRESS_DRAFT" class="project-summary-card project-summary-progress-card">
+                        <span>Прогресс по шагам</span>
+                        <ProgressBar :value="roadMapProgress" :showValue="false" style="height: 0.6rem" />
+                        <strong>{{ roadMapProgress }}%</strong>
+                    </article>
                 </section>
 
                 <Tabs v-model:value="activeTab">
@@ -101,7 +106,7 @@
                                             <h3>Чек-лист публикации</h3>
                                             <p>Публикация станет доступна после заполнения всех обязательных этапов.</p>
                                         </div>
-                                        <Tag :severity="canPublishAction ? 'success' : 'secondary'" :value="canPublishAction ? 'Готово к публикации' : 'Ещё не готово'" />
+                                        <Tag :severity="checklistStatus.severity" :value="checklistStatus.label" />
                                     </div>
 
                                     <div class="project-checklist-grid">
@@ -174,13 +179,6 @@
                                             <h3>Задачи</h3>
                                             <p>Список основных задач проекта.</p>
                                         </div>
-                                        <Button
-                                            v-if="canEditAfterSolution"
-                                            label="Добавить"
-                                            icon="pi pi-plus"
-                                            text
-                                            @click="tasksDialogVisible = true"
-                                        />
                                     </div>
 
                                     <ul v-if="project.projectTasks?.length" class="project-bullet-list">
@@ -453,7 +451,13 @@
                                     <div v-if="roadMapLoading" class="project-inline-loader">
                                         <ProgressSpinner style="width: 40px; height: 40px" />
                                     </div>
-                                    <ProjectRoadMapTree v-else-if="roadMapItems.length" :nodes="roadMapItems" />
+                                    <ProjectRoadMapTree
+                                        v-else-if="roadMapItems.length"
+                                        :nodes="roadMapItems"
+                                        :can-edit="canEditAfterSolution"
+                                        @edit="openRoadMapEditDialog"
+                                        @download-document="handleRoadMapDocumentDownload"
+                                    />
                                     <div v-else class="project-empty-state project-empty-state-inline">
                                         <i class="pi pi-sitemap"></i>
                                         <h4>Дорожная карта пока не заполнена</h4>
@@ -465,11 +469,70 @@
 
                         <TabPanel value="documents">
                             <div class="project-tab-content">
-                                <ProjectPlaceholderPane
-                                    icon="pi pi-file"
-                                    title="Документы в разработке"
-                                    description="Раздел документов будет подключён в следующих итерациях."
-                                />
+                                <section class="project-section-card">
+                                    <div class="project-section-head">
+                                        <div>
+                                            <h3>Документы проекта</h3>
+                                            <p>Общий пул документов, которые можно прикреплять к шагам дорожной карты</p>
+                                        </div>
+                                    </div>
+
+                                    <FileDropzone
+                                        v-if="canEditAfterSolution"
+                                        class="project-document-dropzone"
+                                        :disabled="projectDocumentUploading"
+                                        icon="pi pi-file-arrow-up"
+                                        title="Перетащите документы проекта сюда"
+                                        subtitle="или нажмите, чтобы выбрать файлы через проводник"
+                                        active-subtitle="Отпустите файлы для загрузки в проект"
+                                        @select="handleProjectDocumentSelected"
+                                    />
+
+                                    <div v-if="projectDocumentsLoading" class="project-inline-loader">
+                                        <ProgressSpinner style="width: 40px; height: 40px" />
+                                    </div>
+
+                                    <div v-else-if="projectDocuments.length" class="project-document-list">
+                                        <article
+                                            v-for="document in projectDocuments"
+                                            :key="document.id"
+                                            class="project-document-card"
+                                        >
+                                            <div class="project-document-copy">
+                                                <div class="project-document-name">
+                                                    <i class="pi pi-file"></i>
+                                                    <strong>{{ document.name }}</strong>
+                                                </div>
+                                                <p>Документ доступен для скачивания и привязки к задачам дорожной карты</p>
+                                            </div>
+
+                                            <div class="project-document-actions">
+                                                <Button
+                                                    label="Скачать"
+                                                    icon="pi pi-download"
+                                                    text
+                                                    :loading="downloadingDocumentIds.includes(document.id)"
+                                                    @click="downloadProjectDocumentById(document.id, document)"
+                                                />
+                                                <Button
+                                                    v-if="canEditAfterSolution"
+                                                    label="Удалить"
+                                                    icon="pi pi-trash"
+                                                    severity="danger"
+                                                    text
+                                                    :loading="deletingDocumentIds.includes(document.id)"
+                                                    @click="handleProjectDocumentDelete(document.id)"
+                                                />
+                                            </div>
+                                        </article>
+                                    </div>
+
+                                    <div v-else class="project-empty-state project-empty-state-inline">
+                                        <i class="pi pi-file"></i>
+                                        <h4>Документы проекта пока не загружены</h4>
+                                        <p>Загрузите первый документ, чтобы затем привязывать его к задачам дорожной карты.</p>
+                                    </div>
+                                </section>
                             </div>
                         </TabPanel>
                     </TabPanels>
@@ -527,6 +590,8 @@
             :project-id="projectId"
             :participants="participants"
             :road-map-items="roadMapItems"
+            :available-documents="projectDocuments"
+            :item="activeRoadMapItem"
             @saved="handleRoadMapMutation"
         />
     </main>
@@ -538,13 +603,18 @@ import { useRoute, useRouter } from 'vue-router';
 import { useToast } from 'primevue/usetoast';
 import { usePermissionStore } from '@/stores/permissions.js';
 import { getCurrentUser } from '@/utils/currentUser.js';
+import { downloadBase64Document, fileToBase64 } from '@/utils/ido.js';
 import { formatDateRuLong, formatDateRuShortWithTime } from '@/utils/date.js';
 import {
     addMeToProjectShowcaseSystem,
+    addProjectDocument,
     changeProjectVisibility,
+    deleteProjectDocument,
     getMeInProjectShowcaseSystem,
     getProject,
     getProjectCheckList,
+    getProjectDocument,
+    getProjectDocuments,
     getProjectJournal,
     getProjectParticipants,
     getProjectRoadMap,
@@ -577,6 +647,7 @@ import ProjectStringListDialog from '@/components/ProjectShowcase/ProjectStringL
 import ProjectResourceDialog from '@/components/ProjectShowcase/ProjectResourceDialog.vue';
 import ProjectParticipantDialog from '@/components/ProjectShowcase/ProjectParticipantDialog.vue';
 import ProjectRoadMapItemDialog from '@/components/ProjectShowcase/ProjectRoadMapItemDialog.vue';
+import FileDropzone from '@/components/Utils/FileDropzone.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -604,6 +675,13 @@ const journalHasMore = ref(true);
 
 const roadMapItems = ref([]);
 const roadMapLoading = ref(false);
+const projectDocuments = ref([]);
+const projectDocumentContentCache = ref({});
+const projectDocumentsLoading = ref(false);
+const projectDocumentsLoaded = ref(false);
+const projectDocumentUploading = ref(false);
+const downloadingDocumentIds = ref([]);
+const deletingDocumentIds = ref([]);
 
 const solutionDialogVisible = ref(false);
 const generalInfoDialogVisible = ref(false);
@@ -613,6 +691,8 @@ const criteriaDialogVisible = ref(false);
 const resourceDialogVisible = ref(false);
 const participantDialogVisible = ref(false);
 const roadMapDialogVisible = ref(false);
+const activeRoadMapItem = ref(null);
+const SHOW_ROADMAP_PROGRESS_DRAFT = true;
 
 const projectId = computed(() => Number(route.params.id));
 const detailsMode = computed(() => getProjectDetailsMode(permissionStore));
@@ -630,7 +710,31 @@ const canCreateSolutionAction = computed(() =>
     !project.value?.solution && canCreateProjectSolution(permissionStore)
 );
 const checklistVisible = computed(() => isTeacher.value && isCurrentProjectInitiator.value && !projectRejected.value);
+const isChecklistComplete = computed(() => {
+    if (!checklist.value) return false;
+    return Object.values(checklist.value).every(Boolean);
+});
 const canPublishAction = computed(() => !projectRejected.value && canPublishProject(project.value, checklist.value));
+const checklistStatus = computed(() => {
+    if (project.value?.isPublic) {
+        return {
+            severity: 'success',
+            label: 'Уже опубликован',
+        };
+    }
+
+    if (isChecklistComplete.value) {
+        return {
+            severity: 'success',
+            label: 'Готово к публикации',
+        };
+    }
+
+    return {
+        severity: 'secondary',
+        label: 'Ещё не готово',
+    };
+});
 
 const checklistItems = computed(() => {
     if (!checklist.value) return [];
@@ -647,6 +751,67 @@ const checklistItems = computed(() => {
         { key: 'isResourcesFilled', label: 'Ресурсы заполнены', done: checklist.value.isResourcesFilled },
         { key: 'isRoadMapFilled', label: 'Дорожная карта заполнена', done: checklist.value.isRoadMapFilled },
     ];
+});
+
+const flattenRoadMapItems = (items = []) => items.flatMap((item) => [
+    item,
+    ...flattenRoadMapItems(item.roadMapItems || []),
+]);
+
+const normalizeProjectDocument = (document) => ({
+    ...document,
+    id: Number(document?.id) || null,
+    name: String(document?.name || '').trim(),
+    data: document?.data || null,
+});
+
+const normalizeProjectDocuments = (documents = []) => (
+    Array.isArray(documents)
+        ? documents.map(normalizeProjectDocument).filter((document) => document.id)
+        : []
+);
+
+const cacheProjectDocumentData = (documentId, data) => {
+    if (!documentId || !data) return;
+
+    projectDocumentContentCache.value = {
+        ...projectDocumentContentCache.value,
+        [documentId]: data,
+    };
+};
+
+const hydrateProjectDocumentCache = (documents = []) => {
+    documents.forEach((document) => {
+        cacheProjectDocumentData(document.id, document.data);
+    });
+};
+
+const findProjectDocumentByName = (fileName, previousDocumentIds = new Set()) => {
+    const normalizedFileName = String(fileName || '').trim().toLowerCase();
+    if (!normalizedFileName) return null;
+
+    const matchedDocuments = projectDocuments.value.filter((document) => (
+        String(document?.name || '').trim().toLowerCase() === normalizedFileName
+    ));
+
+    if (!matchedDocuments.length) return null;
+
+    const newDocuments = matchedDocuments.filter((document) => !previousDocumentIds.has(document.id));
+    const candidates = newDocuments.length ? newDocuments : matchedDocuments;
+
+    return [...candidates].sort((left, right) => right.id - left.id)[0] || null;
+};
+
+const wait = (ms = 0) => new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+});
+
+const roadMapProgress = computed(() => {
+    const items = flattenRoadMapItems(roadMapItems.value);
+    if (!items.length) return 0;
+
+    const completedCount = items.filter((item) => item.isCompleted).length;
+    return Math.round((completedCount / items.length) * 100);
 });
 
 const syncProjectShowcaseUser = async ({ createIfMissing = false } = {}) => {
@@ -730,7 +895,10 @@ const loadProjectDetails = async () => {
             : await getProject(projectId.value, showcaseUserId.value || undefined);
 
         project.value = normalizeProject(response.data);
-        await loadChecklist();
+        await Promise.all([
+            loadChecklist(),
+            fetchRoadMap(),
+        ]);
     } catch (error) {
         project.value = null;
         toast.add({
@@ -818,6 +986,210 @@ const fetchRoadMap = async () => {
     }
 };
 
+const fetchProjectDocuments = async () => {
+    if (!projectId.value) return;
+
+    projectDocumentsLoading.value = true;
+
+    try {
+        const response = await getProjectDocuments(projectId.value);
+        projectDocuments.value = normalizeProjectDocuments(response.data);
+        hydrateProjectDocumentCache(projectDocuments.value);
+        projectDocumentsLoaded.value = true;
+    } catch (error) {
+        projectDocuments.value = [];
+        projectDocumentsLoaded.value = false;
+        toast.add({
+            severity: 'error',
+            summary: 'Не удалось загрузить документы проекта',
+            detail: buildProjectShowcaseErrorMessage(error, 'Повторите попытку позже.'),
+            life: 3500,
+        });
+    } finally {
+        projectDocumentsLoading.value = false;
+    }
+};
+
+const ensureProjectDocumentsLoaded = async () => {
+    if (projectDocumentsLoaded.value || projectDocumentsLoading.value) return;
+    await fetchProjectDocuments();
+};
+
+const withDocumentLoading = async (loadingRef, documentId, action) => {
+    if (loadingRef.value.includes(documentId)) return;
+
+    loadingRef.value = [...loadingRef.value, documentId];
+
+    try {
+        return await action();
+    } finally {
+        loadingRef.value = loadingRef.value.filter((id) => id !== documentId);
+    }
+};
+
+const resolveUploadedProjectDocument = async (fileName, previousDocumentIds = new Set()) => {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+        await fetchProjectDocuments();
+
+        const matchedDocument = findProjectDocumentByName(fileName, previousDocumentIds);
+        if (matchedDocument) {
+            return matchedDocument;
+        }
+
+        if (attempt < 2) {
+            await wait(350);
+        }
+    }
+
+    return findProjectDocumentByName(fileName, previousDocumentIds);
+};
+
+const handleProjectDocumentSelected = async (selectedFiles) => {
+    const [file] = Array.from(selectedFiles || []);
+    if (!file || !projectId.value) return;
+
+    projectDocumentUploading.value = true;
+    const uploadedFileName = String(file.name || '').trim();
+    const previousDocumentIds = new Set(
+        projectDocuments.value
+            .map((document) => document.id)
+            .filter(Boolean),
+    );
+    let uploadedDocumentContent = '';
+
+    try {
+        uploadedDocumentContent = await fileToBase64(file);
+        const response = await addProjectDocument(projectId.value, {
+            documentName: file.name,
+            documentContent: uploadedDocumentContent,
+        });
+        const uploadedDocumentId = Number(response?.data);
+
+        if (uploadedDocumentId) {
+            cacheProjectDocumentData(uploadedDocumentId, uploadedDocumentContent);
+        }
+
+        toast.add({
+            severity: 'success',
+            summary: 'Документ загружен',
+            detail: 'Документ добавлен в проект.',
+            life: 2500,
+        });
+
+        await fetchProjectDocuments();
+    } catch (error) {
+        const uploadedDocument = await resolveUploadedProjectDocument(uploadedFileName, previousDocumentIds);
+
+        if (uploadedDocument?.id) {
+            cacheProjectDocumentData(uploadedDocument.id, uploadedDocumentContent);
+
+            const errorMessage = buildProjectShowcaseErrorMessage(error, '');
+            const isMinioStorageIssue = /MinIO API responded with message=documents/i.test(errorMessage);
+
+            toast.add({
+                severity: isMinioStorageIssue ? 'warn' : 'success',
+                summary: isMinioStorageIssue ? 'Документ загружен с предупреждением' : 'Документ загружен',
+                detail: isMinioStorageIssue,
+                life: 5000,
+            });
+            return;
+        }
+
+        toast.add({
+            severity: 'error',
+            summary: 'Не удалось загрузить документ',
+            detail: buildProjectShowcaseErrorMessage(error, 'Проверьте файл и повторите попытку.'),
+            life: 3500,
+        });
+    } finally {
+        projectDocumentUploading.value = false;
+    }
+};
+
+const downloadProjectDocumentById = async (documentId, fallbackDocument = null) => {
+    await withDocumentLoading(downloadingDocumentIds, documentId, async () => {
+        try {
+            let targetDocument = fallbackDocument ? normalizeProjectDocument(fallbackDocument) : null;
+
+            if (targetDocument?.data) {
+                cacheProjectDocumentData(targetDocument.id, targetDocument.data);
+            }
+
+            if (!targetDocument?.data) {
+                const cachedData = projectDocumentContentCache.value[documentId];
+                const cachedName = targetDocument?.name
+                    || projectDocuments.value.find((document) => document.id === Number(documentId))?.name
+                    || '';
+
+                if (cachedData && cachedName) {
+                    targetDocument = {
+                        ...targetDocument,
+                        id: Number(documentId),
+                        name: cachedName,
+                        data: cachedData,
+                    };
+                }
+            }
+
+            if (!targetDocument?.data) {
+                const response = await getProjectDocument(documentId);
+                targetDocument = normalizeProjectDocument(response.data?.projectDocument || response.data);
+                cacheProjectDocumentData(targetDocument.id, targetDocument.data);
+            }
+
+            if (!targetDocument?.data || !targetDocument?.name) {
+                throw new Error('Документ не содержит данных для скачивания.');
+            }
+
+            downloadBase64Document(targetDocument.data, targetDocument.name);
+        } catch (error) {
+            const errorMessage = buildProjectShowcaseErrorMessage(error, 'Документ временно недоступен для скачивания.');
+
+            toast.add({
+                severity: 'error',
+                summary: 'Не удалось скачать документ',
+                detail: errorMessage,
+                life: 3500,
+            });
+        }
+    });
+};
+
+const handleProjectDocumentDelete = async (documentId) => {
+    await withDocumentLoading(deletingDocumentIds, documentId, async () => {
+        try {
+            await deleteProjectDocument(documentId);
+            const nextDocumentCache = { ...projectDocumentContentCache.value };
+            delete nextDocumentCache[documentId];
+            projectDocumentContentCache.value = nextDocumentCache;
+
+            toast.add({
+                severity: 'success',
+                summary: 'Документ удалён',
+                detail: 'Список документов проекта обновлён.',
+                life: 2500,
+            });
+
+            await Promise.all([
+                fetchProjectDocuments(),
+                fetchRoadMap(),
+            ]);
+        } catch (error) {
+            toast.add({
+                severity: 'error',
+                summary: 'Не удалось удалить документ',
+                detail: buildProjectShowcaseErrorMessage(error, 'Повторите попытку позже.'),
+                life: 3500,
+            });
+        }
+    });
+};
+
+const handleRoadMapDocumentDownload = async (document) => {
+    if (!document?.id) return;
+    await downloadProjectDocumentById(document.id, document);
+};
+
 const refreshProject = async () => {
     await loadProjectDetails();
 
@@ -829,8 +1201,8 @@ const refreshProject = async () => {
         await fetchJournal({ reset: true });
     }
 
-    if (activeTab.value === 'roadmap') {
-        await fetchRoadMap();
+    if (activeTab.value === 'documents') {
+        await fetchProjectDocuments();
     }
 };
 
@@ -885,7 +1257,10 @@ const handleTeamMutation = async () => {
 };
 
 const handleRoadMapMutation = async () => {
-    await fetchRoadMap();
+    await Promise.all([
+        fetchRoadMap(),
+        fetchProjectDocuments(),
+    ]);
     await loadChecklist();
 };
 
@@ -894,6 +1269,20 @@ const openRoadMapItemDialog = async () => {
         await fetchParticipants();
     }
 
+    await ensureProjectDocumentsLoaded();
+    activeRoadMapItem.value = null;
+    roadMapDialogVisible.value = true;
+};
+
+const openRoadMapEditDialog = async (item) => {
+    if (!item?.id) return;
+
+    if (!participants.length) {
+        await fetchParticipants();
+    }
+
+    await ensureProjectDocumentsLoaded();
+    activeRoadMapItem.value = item;
     roadMapDialogVisible.value = true;
 };
 
@@ -919,6 +1308,16 @@ watch(activeTab, async (tab) => {
     if (tab === 'roadmap' && !roadMapItems.length && !roadMapLoading.value) {
         await fetchRoadMap();
     }
+
+    if (tab === 'documents' && !projectDocumentsLoaded.value && !projectDocumentsLoading.value) {
+        await fetchProjectDocuments();
+    }
+});
+
+watch(roadMapDialogVisible, (visible) => {
+    if (!visible) {
+        activeRoadMapItem.value = null;
+    }
 });
 
 watch(
@@ -929,6 +1328,12 @@ watch(
         journalPage.value = 1;
         journalHasMore.value = true;
         roadMapItems.value = [];
+        projectDocuments.value = [];
+        projectDocumentContentCache.value = {};
+        projectDocumentsLoaded.value = false;
+        downloadingDocumentIds.value = [];
+        deletingDocumentIds.value = [];
+        activeRoadMapItem.value = null;
         await loadProjectDetails();
     }
 );
@@ -1065,6 +1470,10 @@ onMounted(async () => {
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
+}
+
+.project-summary-progress-card {
+    gap: 0.6rem;
 }
 
 .project-summary-card span,
@@ -1248,6 +1657,50 @@ onMounted(async () => {
     line-height: 1.6;
 }
 
+.project-document-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.project-document-dropzone {
+    margin-bottom: 1rem;
+}
+
+.project-document-card {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.95rem 1rem;
+    border-radius: 14px;
+    background: rgba(var(--p-blue-500-rgb), 0.04);
+    border: 1px solid rgba(var(--p-blue-500-rgb), 0.08);
+}
+
+.project-document-copy {
+    min-width: 0;
+}
+
+.project-document-copy p {
+    margin: 0.35rem 0 0;
+    color: var(--p-grey-1);
+    line-height: 1.55;
+}
+
+.project-document-name {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.project-document-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
 @media (max-width: 1024px) {
     .project-summary-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1277,6 +1730,14 @@ onMounted(async () => {
 
     .project-journal-item {
         grid-template-columns: 1fr;
+    }
+
+    .project-document-card {
+        flex-direction: column;
+    }
+
+    .project-document-actions {
+        justify-content: flex-start;
     }
 }
 </style>

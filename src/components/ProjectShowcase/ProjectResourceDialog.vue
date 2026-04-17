@@ -124,7 +124,7 @@ const submit = async () => {
     const resourceTypeId = normalizeResourceTypeId(form.resourceTypeId);
     const normalizedNeed = form.need.trim();
 
-    if (!resourceTypeId || !normalizedNeed) {
+    if (resourceTypeId === null || !normalizedNeed) {
         toast.add({
             severity: 'warn',
             summary: 'Форма заполнена не полностью',
