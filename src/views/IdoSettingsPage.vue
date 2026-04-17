@@ -67,14 +67,16 @@
                                 </p>
                             </div>
                             <div class="ido-inline-actions">
-                                <input
-                                    ref="templateInput"
-                                    type="file"
-                                    class="d-none"
+                                <FileDropzone
+                                    class="ido-template-dropzone"
                                     accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                                    @change="onTemplateSelected"
+                                    icon="pi pi-file-word"
+                                    title="Перетащите шаблон сюда"
+                                    subtitle="или нажмите, чтобы выбрать .doc/.docx через проводник"
+                                    active-subtitle="Отпустите шаблон для загрузки"
+                                    compact
+                                    @select="onTemplateSelected"
                                 />
-                                <Button label="Выбрать файл" icon="pi pi-upload" @click="templateInput?.click()" />
                                 <Tag v-if="templateFileName" :value="templateFileName" severity="secondary" />
                             </div>
                         </div>
@@ -262,6 +264,7 @@ import {
     uploadIdoTemplate,
 } from '@/api/ido.js';
 import { fileToBase64 } from '@/utils/ido.js';
+import FileDropzone from '@/components/Utils/FileDropzone.vue';
 
 const toast = useToast();
 
@@ -270,7 +273,6 @@ const savingSettings = ref(false);
 const syncing = ref(false);
 const savingDegrees = ref(false);
 const savingRanks = ref(false);
-const templateInput = ref(null);
 const templateFileName = ref('');
 const degrees = ref([]);
 const ranks = ref([]);
@@ -410,8 +412,8 @@ const saveRanks = async () => {
     }
 };
 
-const onTemplateSelected = async (event) => {
-    const file = event.target?.files?.[0];
+const onTemplateSelected = async (files) => {
+    const file = Array.from(files || [])[0];
 
     if (!file) return;
 
@@ -429,10 +431,6 @@ const onTemplateSelected = async (event) => {
             detail: 'Для шаблона ИДО можно выбрать только файл Microsoft Word (.doc или .docx).',
             life: 3500,
         });
-
-        if (templateInput.value) {
-            templateInput.value.value = '';
-        }
 
         templateFileName.value = '';
         return;
@@ -458,10 +456,6 @@ const onTemplateSelected = async (event) => {
             detail: 'Не удалось отправить выбранный файл.',
             life: 3000,
         });
-    } finally {
-        if (templateInput.value) {
-            templateInput.value.value = '';
-        }
     }
 };
 
@@ -604,6 +598,10 @@ onMounted(loadData);
     gap: 0.75rem;
     align-items: center;
     justify-content: flex-end;
+}
+
+.ido-template-dropzone {
+    min-width: min(100%, 24rem);
 }
 
 .ido-settings-list {

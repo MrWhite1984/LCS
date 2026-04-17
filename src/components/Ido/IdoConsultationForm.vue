@@ -73,26 +73,49 @@
             </Card>
 
             <Card class="ido-card">
-                <template #title>Паспортные данные</template>
+                <template #title>Документ, удостоверяющий личность</template>
                 <template #content>
                     <div class="ido-form-grid">
-                        <div class="ido-field">
-                            <label for="ido-passport-series">Серия</label>
+                        <div class="ido-field ido-field-wide">
+                            <label for="ido-document-type">Тип документа</label>
+                            <Select
+                                id="ido-document-type"
+                                v-model="form.identityDocumentType"
+                                :options="identityDocumentOptions"
+                                optionLabel="label"
+                                optionValue="value"
+                                placeholder="Выберите тип документа"
+                            />
+                        </div>
+                        <div v-if="!isKazakhstanPassport" class="ido-field">
+                            <label for="ido-passport-series">{{ identitySeriesLabel }}</label>
                             <InputMask
                                 id="ido-passport-series"
                                 v-model="form.passportSeries"
+                                class="w-100"
                                 mask="9999"
-                                placeholder="0000"
+                                :placeholder="identitySeriesPlaceholder"
                                 :invalid="submitted && !form.passportSeries"
                             />
                         </div>
                         <div class="ido-field">
-                            <label for="ido-passport-number">Номер</label>
-                            <InputMask
+                            <label for="ido-passport-number">{{ identityNumberLabel }}</label>
+                            <InputText
+                                v-if="isKazakhstanPassport"
                                 id="ido-passport-number"
                                 v-model="form.passportNumber"
+                                class="w-100"
+                                :placeholder="identityNumberPlaceholder"
+                                :invalid="submitted && !form.passportNumber"
+                                @update:modelValue="normalizeIdentityField('passportNumber')"
+                            />
+                            <InputMask
+                                v-else
+                                id="ido-passport-number"
+                                v-model="form.passportNumber"
+                                class="w-100"
                                 mask="999999"
-                                placeholder="000000"
+                                :placeholder="identityNumberPlaceholder"
                                 :invalid="submitted && !form.passportNumber"
                             />
                         </div>
@@ -107,7 +130,7 @@
                             />
                         </div>
                         <div class="ido-field ido-field-wide">
-                            <label for="ido-passport-place">Место выдачи</label>
+                            <label for="ido-passport-place">{{ identityIssuerLabel }}</label>
                             <InputText
                                 id="ido-passport-place"
                                 v-model.trim="form.placeIssuePassport"
@@ -192,7 +215,7 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { debounce } from 'lodash';
 import { useToast } from 'primevue/usetoast';
 import { createIdoOrder, createPublicIdoOrder, fetchCurrentUserPhones, getTeacherDivisions, searchTeachers } from '@/api/ido.js';
@@ -210,6 +233,15 @@ const selectedTeacher = ref(null);
 const teacherSuggestions = ref([]);
 const divisionOptions = ref([]);
 const canUseAutofill = computed(() => isAuthenticated());
+const IDENTITY_DOCUMENT_TYPES = {
+    RF_PASSPORT: 'RF_PASSPORT',
+    KZ_PASSPORT: 'KZ_PASSPORT',
+};
+
+const identityDocumentOptions = [
+    { label: 'Паспорт РФ', value: IDENTITY_DOCUMENT_TYPES.RF_PASSPORT },
+    { label: 'Паспорт Казахстана', value: IDENTITY_DOCUMENT_TYPES.KZ_PASSPORT },
+];
 
 const form = reactive({
     surname: '',
@@ -217,6 +249,7 @@ const form = reactive({
     pastronymic: '',
     address: '',
     phone: '',
+    identityDocumentType: IDENTITY_DOCUMENT_TYPES.RF_PASSPORT,
     passportSeries: '',
     passportNumber: '',
     dateIssuePassport: '',
@@ -227,12 +260,32 @@ const form = reactive({
     divisionId: '',
 });
 
+const isKazakhstanPassport = computed(() => form.identityDocumentType === IDENTITY_DOCUMENT_TYPES.KZ_PASSPORT);
+
+const identitySeriesLabel = computed(() => (
+    isKazakhstanPassport.value ? 'Серия / код документа' : 'Серия'
+));
+const identitySeriesPlaceholder = computed(() => (
+    isKazakhstanPassport.value ? 'Например, N' : '0000'
+));
+
+const identityNumberLabel = computed(() => (
+    isKazakhstanPassport.value ? 'Номер документа' : 'Номер'
+));
+const identityNumberPlaceholder = computed(() => (
+    isKazakhstanPassport.value ? 'N1234567' : '000000'
+));
+
+const identityIssuerLabel = computed(() => (
+    isKazakhstanPassport.value ? 'Орган выдачи' : 'Место выдачи'
+));
+
 const requiredFields = computed(() => ([
     form.surname,
     form.name,
     form.address,
     form.phone,
-    form.passportSeries,
+    isKazakhstanPassport.value ? 'kz-passport' : form.passportSeries,
     form.passportNumber,
     form.dateIssuePassport,
     form.placeIssuePassport,
@@ -241,6 +294,14 @@ const requiredFields = computed(() => ([
     form.teacherId,
     form.divisionId,
 ]).every(Boolean));
+
+const normalizeIdentityField = (fieldName) => {
+    if (!isKazakhstanPassport.value) return;
+    form[fieldName] = String(form[fieldName] || '')
+        .toUpperCase()
+        .replace(/\s+/g, ' ')
+        .trimStart();
+};
 
 const loadTeachersDebounced = debounce(async (query) => {
     const normalizedQuery = query?.trim() || '';
@@ -389,6 +450,14 @@ const submitForm = async () => {
 if (canUseAutofill.value) {
     prefillCurrentUser();
 }
+
+watch(
+    () => form.identityDocumentType,
+    () => {
+        form.passportSeries = '';
+        form.passportNumber = '';
+    },
+);
 </script>
 
 <style scoped>

@@ -29,7 +29,7 @@
                     <div class="ido-public-inline-card">
                         <div class="ido-public-card-title">Что понадобится</div>
                             <ul class="ido-public-list">
-                                <li>Паспортные данные</li>
+                                <li>Данные документа, удостоверяющего личность</li>
                                 <li>Контактный телефон</li>
                                 <li>Тема и объем консультации</li>
                             </ul>
