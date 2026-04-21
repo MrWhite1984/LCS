@@ -16,6 +16,7 @@ import {
     mockCreateSolution,
     mockDeleteProjectDocument,
     mockGetCheckList,
+    mockGetDepartmentsByPartOfName,
     mockGetInitiatorTypes,
     mockGetJournal,
     mockGetMeInSystem,
@@ -140,6 +141,15 @@ export function getInitiatorTypes() {
         return wrapMockResponse(mockGetInitiatorTypes());
     }
     return axiosInstance.get(`${PROJECT_SHOWCASE_BASE}/projects/initiator-types`);
+}
+
+export function getProjectShowcaseDepartmentsByPartOfName(partOfName = '') {
+    if (USE_PROJECT_SHOWCASE_MOCK_DATA) {
+        return wrapMockResponse(mockGetDepartmentsByPartOfName(partOfName));
+    }
+    return axiosInstance.get(`${PROJECT_SHOWCASE_BASE}/departments/by-part-of-name`, {
+        params: { partOfName },
+    });
 }
 
 export function createProjectSolution(payload) {

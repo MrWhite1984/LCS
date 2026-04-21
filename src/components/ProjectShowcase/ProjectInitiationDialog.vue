@@ -44,6 +44,26 @@
             </div>
 
             <div class="project-field project-field-wide">
+                <label for="project-department">Кафедра</label>
+                <AutoComplete
+                    id="project-department"
+                    v-model="selectedDepartment"
+                    :suggestions="departmentSuggestions"
+                    optionLabel="name"
+                    class="w-100"
+                    forceSelection
+                    dropdown
+                    dropdownMode="blank"
+                    showClear
+                    placeholder="Начните вводить название кафедры"
+                    :loading="loadingDepartments"
+                    @complete="searchDepartments"
+                    @item-select="handleDepartmentSelect"
+                    @clear="clearDepartmentSelection"
+                />
+            </div>
+
+            <div class="project-field project-field-wide">
                 <label for="project-description">Краткое описание</label>
                 <Textarea id="project-description" v-model.trim="form.shortDescription" rows="3" class="w-100" autoResize />
             </div>
@@ -119,8 +139,13 @@
 
 <script setup>
 import { reactive, ref, watch } from 'vue';
+import { debounce } from 'lodash';
 import { useToast } from 'primevue/usetoast';
-import { getInitiatorTypes, initiateProject } from '@/api/projectShowcase.js';
+import {
+    getInitiatorTypes,
+    getProjectShowcaseDepartmentsByPartOfName,
+    initiateProject,
+} from '@/api/projectShowcase.js';
 import {
     buildProjectShowcaseErrorMessage,
     translateProjectShowcaseTypeTitle,
@@ -145,9 +170,13 @@ const initiatorTypes = ref([]);
 const loadingTypes = ref(false);
 const saving = ref(false);
 const competencies = ref(['']);
+const selectedDepartment = ref(null);
+const departmentSuggestions = ref([]);
+const loadingDepartments = ref(false);
 
 const createInitialForm = () => ({
     initiatorTypeId: null,
+    departmentId: null,
     projectName: '',
     shortDescription: '',
     goal: '',
@@ -165,6 +194,8 @@ const form = reactive(createInitialForm());
 const resetForm = () => {
     Object.assign(form, createInitialForm());
     competencies.value = [''];
+    selectedDepartment.value = null;
+    departmentSuggestions.value = [];
 };
 
 const removeCompetency = (index) => {
@@ -196,10 +227,43 @@ const loadInitiatorTypes = async () => {
     }
 };
 
+const executeDepartmentSearch = async (query = '') => {
+    loadingDepartments.value = true;
+
+    try {
+        const response = await getProjectShowcaseDepartmentsByPartOfName(query);
+        departmentSuggestions.value = Array.isArray(response.data) ? response.data : [];
+    } catch (error) {
+        departmentSuggestions.value = [];
+        toast.add({
+            severity: 'error',
+            summary: 'Не удалось загрузить кафедры',
+            detail: buildProjectShowcaseErrorMessage(error, 'Справочник кафедр временно недоступен.'),
+            life: 3500,
+        });
+    } finally {
+        loadingDepartments.value = false;
+    }
+};
+
+const searchDepartments = debounce(async (event) => {
+    await executeDepartmentSearch(event?.query || '');
+}, 250);
+
+const handleDepartmentSelect = (event) => {
+    form.departmentId = event?.value?.id ?? null;
+};
+
+const clearDepartmentSelection = () => {
+    selectedDepartment.value = null;
+    form.departmentId = null;
+};
+
 const validate = () => {
     if (!props.initiatorId) return 'Не найден идентификатор инициатора в новой системе.';
     if (!form.projectName) return 'Укажите название проекта.';
     if (form.initiatorTypeId === null || form.initiatorTypeId === undefined) return 'Выберите тип инициатора.';
+    if (form.departmentId === null || form.departmentId === undefined) return 'Выберите кафедру.';
     if (!form.shortDescription) return 'Добавьте краткое описание проекта.';
     if (!form.goal) return 'Укажите цель проекта.';
     if (!form.expectedResults) return 'Укажите ожидаемые результаты.';
@@ -224,6 +288,7 @@ const submit = async () => {
         await initiateProject({
             initiatorId: props.initiatorId,
             initiatorTypeId: form.initiatorTypeId,
+            departmentId: form.departmentId,
             projectName: form.projectName,
             shortDescription: form.shortDescription,
             goal: form.goal,

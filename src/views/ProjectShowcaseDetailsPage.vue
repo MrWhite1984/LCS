@@ -1,6 +1,10 @@
 <template>
     <main class="project-details-page">
-        <section class="project-details-shell">
+        <section
+            ref="projectDetailsShellRef"
+            class="project-details-shell"
+            :class="{ 'project-details-shell-with-floating-progress': showFloatingProgress }"
+        >
             <header class="project-details-header">
                 <div class="project-details-copy">
                     <Button
@@ -66,11 +70,6 @@
                     <article class="project-summary-card">
                         <span>Обновлено</span>
                         <strong>{{ formatDateRuShortWithTime(project.updatedAt, '-') }}</strong>
-                    </article>
-                    <article v-if="SHOW_ROADMAP_PROGRESS_DRAFT" class="project-summary-card project-summary-progress-card">
-                        <span>Прогресс по шагам</span>
-                        <ProgressBar :value="roadMapProgress" :showValue="false" style="height: 0.6rem" />
-                        <strong>{{ roadMapProgress }}%</strong>
                     </article>
                 </section>
 
@@ -228,6 +227,10 @@
                                         <div class="project-info-item">
                                             <span>Тип инициатора</span>
                                             <strong>{{ translateProjectShowcaseTypeTitle(project.initiator?.type?.title) }}</strong>
+                                        </div>
+                                        <div class="project-info-item">
+                                            <span>Кафедра</span>
+                                            <strong>{{ project.department?.name || 'Не указана' }}</strong>
                                         </div>
                                     </div>
                                 </section>
@@ -594,11 +597,44 @@
             :item="activeRoadMapItem"
             @saved="handleRoadMapMutation"
         />
+
+        <Teleport to="body">
+            <section
+                v-if="showFloatingProgress"
+                class="project-floating-progress"
+                :style="floatingProgressStyle"
+            >
+                <div class="project-floating-progress-main">
+                    <div class="project-floating-progress-copy">
+                        <div class="project-floating-progress-title">
+                            <span>Прогресс проекта</span>
+                            <h3>{{ floatingProgressCompactTitle }}</h3>
+                        </div>
+                        <div class="project-floating-progress-subline">
+                            <Tag :severity="floatingProgressTag.severity" :value="floatingProgressTag.label" />
+                            <small v-if="checklistVisible && checklistItems.length">
+                                Чек-лист: {{ completedChecklistCount }}/{{ checklistItems.length }}
+                            </small>
+                            <small v-else>
+                                Шагов: {{ roadMapCompletedCount }}/{{ roadMapTotalCount || 0 }}
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="project-floating-progress-metric">
+                        <strong>{{ roadMapProgress }}%</strong>
+                        <small>{{ roadMapCompletedCount }}/{{ roadMapTotalCount || 0 }}</small>
+                    </div>
+                </div>
+
+                <ProgressBar :value="roadMapProgress" :showValue="false" style="height: 0.8rem" />
+            </section>
+        </Teleport>
     </main>
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useToast } from 'primevue/usetoast';
 import { usePermissionStore } from '@/stores/permissions.js';
@@ -692,7 +728,9 @@ const resourceDialogVisible = ref(false);
 const participantDialogVisible = ref(false);
 const roadMapDialogVisible = ref(false);
 const activeRoadMapItem = ref(null);
-const SHOW_ROADMAP_PROGRESS_DRAFT = true;
+const projectDetailsShellRef = ref(null);
+const floatingProgressStyle = ref({});
+let floatingProgressResizeObserver = null;
 
 const projectId = computed(() => Number(route.params.id));
 const detailsMode = computed(() => getProjectDetailsMode(permissionStore));
@@ -752,6 +790,8 @@ const checklistItems = computed(() => {
         { key: 'isRoadMapFilled', label: 'Дорожная карта заполнена', done: checklist.value.isRoadMapFilled },
     ];
 });
+
+const completedChecklistCount = computed(() => checklistItems.value.filter((item) => item.done).length);
 
 const flattenRoadMapItems = (items = []) => items.flatMap((item) => [
     item,
@@ -813,6 +853,68 @@ const roadMapProgress = computed(() => {
     const completedCount = items.filter((item) => item.isCompleted).length;
     return Math.round((completedCount / items.length) * 100);
 });
+
+const roadMapTotalCount = computed(() => flattenRoadMapItems(roadMapItems.value).length);
+const roadMapCompletedCount = computed(() => (
+    flattenRoadMapItems(roadMapItems.value).filter((item) => item.isCompleted).length
+));
+const showFloatingProgress = computed(() => roadMapTotalCount.value > 0 || checklistItems.value.length > 0);
+const floatingProgressCompactTitle = computed(() => {
+    if (!roadMapTotalCount.value) {
+        return 'Дорожная карта ещё не заполнена';
+    }
+
+    if (roadMapProgress.value >= 100) {
+        return 'Дорожная карта завершена';
+    }
+
+    return 'Дорожная карта в работе';
+});
+const floatingProgressTag = computed(() => {
+    if (project.value?.isPublic) {
+        return {
+            severity: 'success',
+            label: 'Опубликован',
+        };
+    }
+
+    if (roadMapTotalCount.value && roadMapProgress.value >= 100) {
+        return {
+            severity: 'success',
+            label: 'Шаги завершены',
+        };
+    }
+
+    if (checklistVisible.value && checklistItems.value.length) {
+        return checklistStatus.value;
+    }
+
+    return {
+        severity: 'secondary',
+        label: roadMapTotalCount.value ? 'В работе' : 'Нет шагов',
+    };
+});
+
+const updateFloatingProgressBounds = () => {
+    const element = projectDetailsShellRef.value;
+    if (!element || typeof window === 'undefined') {
+        floatingProgressStyle.value = {};
+        return;
+    }
+
+    const rect = element.getBoundingClientRect();
+    const viewportWidth = window.innerWidth || 0;
+    const horizontalInset = viewportWidth <= 768 ? 12 : 18;
+    const bottomInset = viewportWidth <= 768 ? 12 : 18;
+    const width = Math.max(0, rect.width - (horizontalInset * 2));
+    const left = rect.left + horizontalInset;
+
+    floatingProgressStyle.value = {
+        left: `${Math.max(horizontalInset, left)}px`,
+        width: `${width}px`,
+        bottom: `${bottomInset}px`,
+    };
+};
 
 const syncProjectShowcaseUser = async ({ createIfMissing = false } = {}) => {
     ensuringShowcaseIdentity.value = true;
@@ -1338,10 +1440,48 @@ watch(
     }
 );
 
+watch(showFloatingProgress, async () => {
+    await nextTick();
+    updateFloatingProgressBounds();
+});
+
+watch(
+    () => [roadMapItems.value.length, checklistItems.value.length],
+    async () => {
+        await nextTick();
+        updateFloatingProgressBounds();
+    }
+);
+
 onMounted(async () => {
     currentUser.value = await getCurrentUser();
     await syncProjectShowcaseUser();
     await loadProjectDetails();
+
+    await nextTick();
+    updateFloatingProgressBounds();
+
+    if (typeof window !== 'undefined') {
+        window.addEventListener('resize', updateFloatingProgressBounds);
+    }
+
+    if (typeof ResizeObserver !== 'undefined' && projectDetailsShellRef.value) {
+        floatingProgressResizeObserver = new ResizeObserver(() => {
+            updateFloatingProgressBounds();
+        });
+        floatingProgressResizeObserver.observe(projectDetailsShellRef.value);
+    }
+});
+
+onBeforeUnmount(() => {
+    if (typeof window !== 'undefined') {
+        window.removeEventListener('resize', updateFloatingProgressBounds);
+    }
+
+    if (floatingProgressResizeObserver) {
+        floatingProgressResizeObserver.disconnect();
+        floatingProgressResizeObserver = null;
+    }
 });
 </script>
 
@@ -1367,6 +1507,10 @@ onMounted(async () => {
         radial-gradient(1200px 220px at 10% 0%, rgba(var(--p-blue-500-rgb), 0.08), transparent 60%),
         linear-gradient(180deg, var(--project-bg-1) 0%, var(--project-bg-2) 85%);
     box-shadow: var(--project-shadow);
+}
+
+.project-details-shell-with-floating-progress {
+    padding-bottom: 9.5rem;
 }
 
 .project-details-header {
@@ -1411,6 +1555,91 @@ onMounted(async () => {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 1rem;
+}
+
+.project-floating-progress {
+    position: fixed;
+    z-index: 1200;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    padding: 0.95rem 1.05rem;
+    border-radius: 18px;
+    background: color-mix(in srgb, var(--p-bg-color-1) 90%, var(--p-primary-500) 10%);
+    border: 1px solid color-mix(in srgb, var(--p-content-border-color) 78%, var(--p-primary-500) 22%);
+    box-shadow:
+        0 14px 34px rgba(15, 23, 42, 0.12),
+        0 2px 10px rgba(15, 23, 42, 0.04);
+    backdrop-filter: blur(12px);
+}
+
+.project-floating-progress-main {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+    position: relative;
+    z-index: 1;
+}
+
+.project-floating-progress-copy {
+    min-width: 0;
+}
+
+.project-floating-progress-title {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.2rem;
+}
+
+.project-floating-progress-title h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.project-floating-progress-title span {
+    color: var(--p-grey-1);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.project-floating-progress-subline {
+    margin-top: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+}
+
+.project-floating-progress-subline small {
+    color: var(--p-grey-1);
+}
+
+.project-floating-progress-metric {
+    min-width: 88px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 0.15rem;
+    text-align: right;
+    padding: 0.45rem 0.65rem;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--p-bg-color-2) 88%, var(--p-primary-500) 12%);
+}
+
+.project-floating-progress-metric strong {
+    font-size: 1.5rem;
+    color: var(--p-text-color);
+    line-height: 1;
+}
+
+.project-floating-progress-metric small {
+    color: var(--p-grey-1);
+    font-size: 0.82rem;
 }
 
 .project-summary-card,
@@ -1470,10 +1699,6 @@ onMounted(async () => {
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
-}
-
-.project-summary-progress-card {
-    gap: 0.6rem;
 }
 
 .project-summary-card span,
@@ -1716,10 +1941,32 @@ onMounted(async () => {
         padding: 1rem;
     }
 
+    .project-details-shell-with-floating-progress {
+        padding-bottom: 12rem;
+    }
+
     .project-details-header,
     .project-section-head {
         flex-direction: column;
         align-items: stretch;
+    }
+
+    .project-floating-progress {
+        padding: 1rem;
+        border-radius: 20px;
+    }
+
+    .project-floating-progress-main,
+    .project-floating-progress-subline {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .project-floating-progress-metric {
+        min-width: 0;
+        width: 100%;
+        align-items: flex-start;
+        text-align: left;
     }
 
     .project-summary-grid,
