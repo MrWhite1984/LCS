@@ -70,12 +70,100 @@
                         <Textarea id="descriprion" v-model="description" class="form-input" rows="5" placeholder="Введите описание..."/>
                     </div>
                 </div>
+                <div class="row mb-4">
+                    <div class="col">
+                        <label class="ms-2 mb-2">Файлы</label>
+                        <FileDropzone
+                            :disabled="isSubmitting"
+                            :multiple="true"
+                            icon="pi pi-file-arrow-up"
+                            title="Перетащите файлы сюда"
+                            subtitle="или нажмите, чтобы выбрать через проводник"
+                            active-subtitle="Отпустите файлы для загрузки"
+                            @select="handleFilesSelected"
+                        />
+
+                        <div v-if="attachments.length" class="infra-attachments">
+                            <div
+                                v-for="attachment in attachments"
+                                :key="attachment.localId"
+                                class="infra-attachment-card"
+                                :class="`infra-attachment-card-${attachment.status}`"
+                            >
+                                <div class="infra-attachment-head">
+                                    <div class="infra-attachment-copy">
+                                        <strong :title="attachment.fileName">{{ attachment.fileName }}</strong>
+                                        <small>
+                                            {{
+                                                attachment.status === 'uploaded'
+                                                    ? 'Загружен'
+                                                    : attachment.status === 'uploading'
+                                                        ? 'Загрузка...'
+                                                        : attachment.status === 'error'
+                                                            ? 'Ошибка загрузки'
+                                                            : 'В очереди'
+                                            }}
+                                        </small>
+                                    </div>
+
+                                    <div class="infra-attachment-actions">
+                                        <Button
+                                            v-if="attachment.status === 'error'"
+                                            icon="pi pi-refresh"
+                                            text
+                                            rounded
+                                            severity="secondary"
+                                            :disabled="isSubmitting"
+                                            @click="retryAttachmentUpload(attachment.localId)"
+                                        />
+                                        <Button
+                                            icon="pi pi-times"
+                                            text
+                                            rounded
+                                            severity="danger"
+                                            :disabled="isSubmitting || attachment.status === 'uploading'"
+                                            @click="removeAttachment(attachment.localId)"
+                                        />
+                                    </div>
+                                </div>
+
+                                <ProgressBar
+                                    v-if="attachment.status === 'uploading' || attachment.status === 'uploaded'"
+                                    :mode="attachment.indeterminate ? 'indeterminate' : 'determinate'"
+                                    :value="attachment.progress"
+                                    :showValue="false"
+                                    style="height: 6px"
+                                />
+
+                                <small v-if="attachment.errorMessage" class="infra-attachment-error">
+                                    {{ attachment.errorMessage }}
+                                </small>
+                            </div>
+                        </div>
+
+                        <small v-if="attachments.length && hasUploadingAttachments" class="infra-attachment-hint">
+                            Дождитесь загрузки всех файлов, прежде чем создавать заявку.
+                        </small>
+                        <small v-else-if="attachments.length && hasAttachmentErrors" class="infra-attachment-hint infra-attachment-hint-error">
+                            Удалите файлы с ошибкой или повторите их загрузку.
+                        </small>
+                    </div>
+                </div>
                 <div class="row align-items-center justify-content-end">
                     <div class="col-auto">
-                        <Button text label="Создать заявку" severity="success" @click="createCall"/>
+                        <div class="create-call-action" @click="handleCreateClick">
+                            <Button
+                                text
+                                label="Создать заявку"
+                                severity="success"
+                                :loading="isSubmitting"
+                                :disabled="isSubmitting || isCreateBlocked"
+                                @click="createCall"
+                            />
+                        </div>
                     </div>
                     <div class="col-auto">
-                        <Button text label="Отмена" severity="danger" @click="handleCancel" />
+                        <Button text label="Отмена" severity="danger" :disabled="isSubmitting" @click="handleCancel" />
                     </div>
                 </div>
                 <div class="row">
@@ -88,9 +176,11 @@
 </template>
 
 <script setup>
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import axiosInstance from "@/utils/axios.js";
 import PrioritySelect from '@/components/InfraManager/PrioritySelect.vue';
+import FileDropzone from '@/components/Utils/FileDropzone.vue';
+import { fileToBase64 } from '@/utils/ido.js';
 
 import { usePriorityStore } from '@/stores/priorityStore.js';
 
@@ -112,8 +202,117 @@ const serviceTree = ref([]);
 const shortDescriprion = ref('');
 const inventoryNumber = ref('');
 const description = ref('');
+const attachments = ref([]);
+const isSubmitting = ref(false);
 
 const store = usePriorityStore();
+let attachmentSequence = 0;
+
+const hasUploadingAttachments = computed(() => attachments.value.some((attachment) => (
+    attachment.status === 'queued' || attachment.status === 'uploading'
+)));
+const hasAttachmentErrors = computed(() => attachments.value.some((attachment) => attachment.status === 'error'));
+const isCreateBlocked = computed(() => hasUploadingAttachments.value || hasAttachmentErrors.value);
+
+const createAttachmentRecord = (file) => ({
+    localId: `attachment-${Date.now()}-${attachmentSequence += 1}`,
+    file,
+    fileName: file.name,
+    status: 'queued',
+    progress: 0,
+    indeterminate: false,
+    filePostfix: '',
+    errorMessage: '',
+});
+
+const updateAttachment = (localId, patch) => {
+    attachments.value = attachments.value.map((attachment) => (
+        attachment.localId === localId ? { ...attachment, ...patch } : attachment
+    ));
+};
+
+const buildUploadErrorMessage = (error) => {
+    const detail = error?.response?.data?.message
+        || error?.response?.data?.detail
+        || error?.message;
+
+    return detail ? `Не удалось загрузить файл: ${detail}` : 'Не удалось загрузить файл.';
+};
+
+const uploadAttachment = async (localId) => {
+    const targetAttachment = attachments.value.find((attachment) => attachment.localId === localId);
+    if (!targetAttachment?.file) return;
+
+    updateAttachment(localId, {
+        status: 'uploading',
+        progress: 0,
+        indeterminate: false,
+        filePostfix: '',
+        errorMessage: '',
+    });
+
+    try {
+        const base64Content = await fileToBase64(targetAttachment.file);
+        const response = await axiosInstance.post('/api/infra-manager/documents', {
+            objectID: null,
+            fileName: targetAttachment.fileName,
+            content: base64Content,
+        }, {
+            onUploadProgress: (event) => {
+                const hasTotal = Number(event?.total) > 0;
+                const progress = hasTotal
+                    ? Math.min(100, Math.max(0, Math.round((event.loaded / event.total) * 100)))
+                    : 100;
+
+                updateAttachment(localId, {
+                    progress,
+                    indeterminate: !hasTotal,
+                });
+            },
+        });
+
+        updateAttachment(localId, {
+            status: 'uploaded',
+            progress: 100,
+            indeterminate: false,
+            filePostfix: String(response.data || ''),
+            errorMessage: '',
+        });
+    } catch (error) {
+        updateAttachment(localId, {
+            status: 'error',
+            progress: 0,
+            indeterminate: false,
+            filePostfix: '',
+            errorMessage: buildUploadErrorMessage(error),
+        });
+    }
+};
+
+const handleFilesSelected = async (files = []) => {
+    const nextAttachments = files.map(createAttachmentRecord);
+    attachments.value = [...attachments.value, ...nextAttachments];
+
+    await Promise.all(nextAttachments.map((attachment) => uploadAttachment(attachment.localId)));
+};
+
+const removeAttachment = (localId) => {
+    attachments.value = attachments.value.filter((attachment) => attachment.localId !== localId);
+};
+
+const retryAttachmentUpload = async (localId) => {
+    await uploadAttachment(localId);
+};
+
+const notify = (severity, detail) => {
+    window.dispatchEvent(new CustomEvent('toast', {
+        detail: {
+            severity,
+            summary: 'Заявки',
+            detail,
+        },
+    }));
+};
 
 
 const fetchMe = async () => {
@@ -206,7 +405,18 @@ const formatSelectedService = (key) => {
 };
 
 const createCall = async () => {
+    if (hasUploadingAttachments.value) {
+        notify('warn', 'Дождитесь загрузки всех файлов');
+        return;
+    }
+
+    if (hasAttachmentErrors.value) {
+        notify('warn', 'Удалите файлы с ошибкой или повторите их загрузку');
+        return;
+    }
+
     try {
+        isSubmitting.value = true;
         const payload = {
             userId: whoami.value.id,
             callSummaryName: shortDescriprion.value,
@@ -215,7 +425,13 @@ const createCall = async () => {
             urgencyId: store.selectedUrgencyId,
             priorityId: store.selectedPriorityId,
             inventoryNumber: inventoryNumber.value || null,
-            influenceId: store.selecetedInfluenceId
+            influenceId: store.selecetedInfluenceId,
+            callFiles: attachments.value
+                .filter((attachment) => attachment.status === 'uploaded' && attachment.filePostfix)
+                .map((attachment) => ({
+                    fileName: attachment.fileName,
+                    filePostfix: attachment.filePostfix,
+                })),
         };
         const response = await axiosInstance.post('/api/infra-manager/calls/register', payload);
         const createdCallId = response.data.callId;
@@ -224,26 +440,33 @@ const createCall = async () => {
 
         emit('refreshRequests', createdCallId);
 
-        window.dispatchEvent(new CustomEvent('toast', {
-            detail: {
-                severity: 'success',
-                summary: 'Заявки',
-                detail: 'Заявка успешно создана'
-            }
-        }));
+        notify('success', 'Заявка успешно создана');
     } catch (error) {
         console.debug('Ошибка при создании: ', error);
-        window.dispatchEvent(new CustomEvent('toast', {
-            detail: {
-                severity: 'error',
-                summary: 'Заявки',
-                detail: 'Ошибка при создании заявки'
-            }
-        }));
+        notify('error', 'Ошибка при создании заявки');
+    } finally {
+        isSubmitting.value = false;
+    }
+};
+
+const handleCreateClick = () => {
+    if (isSubmitting.value) return;
+    if (hasUploadingAttachments.value) {
+        notify('warn', 'Дождитесь загрузки всех файлов');
+        return;
+    }
+
+    if (hasAttachmentErrors.value) {
+        notify('warn', 'Удалите файлы с ошибкой или повторите их загрузку');
     }
 };
 
 watch(whoami, fetchServices);
+watch(visible, (nextVisible) => {
+    if (!nextVisible && !isSubmitting.value) {
+        resetForm();
+    }
+});
 
 const resetForm = () => {
     whoami.value = '';
@@ -252,6 +475,8 @@ const resetForm = () => {
     inventoryNumber.value = '';
     description.value = '';
     store.selectedPriority = null;
+    attachments.value = [];
+    serviceKey = '';
 }
 
 const handleCancel = () => {
@@ -290,6 +515,62 @@ defineExpose({
 }
 .custom-input {
     width: 100%;
+}
+.create-call-action {
+    display: inline-flex;
+}
+.infra-attachments {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 0.9rem;
+}
+.infra-attachment-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding: 0.85rem 0.95rem;
+    border-radius: 14px;
+    border: 1px solid rgba(var(--p-blue-500-rgb), 0.12);
+    background: rgba(var(--p-blue-500-rgb), 0.04);
+}
+.infra-attachment-card-uploaded {
+    border-color: rgba(var(--p-green-500-rgb), 0.24);
+    background: rgba(var(--p-green-500-rgb), 0.06);
+}
+.infra-attachment-card-error {
+    border-color: rgba(var(--p-red-500-rgb), 0.24);
+    background: rgba(var(--p-red-500-rgb), 0.05);
+}
+.infra-attachment-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+.infra-attachment-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+.infra-attachment-copy strong,
+.infra-attachment-copy small {
+    overflow-wrap: anywhere;
+}
+.infra-attachment-copy small,
+.infra-attachment-hint {
+    color: var(--p-grey-1);
+}
+.infra-attachment-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+    flex-shrink: 0;
+}
+.infra-attachment-error,
+.infra-attachment-hint-error {
+    color: var(--p-red-500);
 }
 .input-button {
     position: absolute;
