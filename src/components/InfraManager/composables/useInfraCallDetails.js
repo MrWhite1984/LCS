@@ -1,4 +1,5 @@
 import { ref } from 'vue';
+import { downloadBase64Document } from '@/utils/ido.js';
 
 export const useInfraCallDetails = ({ axiosInstance, loadCallById }) => {
     const isDialogVisible = ref(false);
@@ -7,6 +8,7 @@ export const useInfraCallDetails = ({ axiosInstance, loadCallById }) => {
     const negotiations = ref([]);
     const errorOccurred = ref(false);
     const timelineEvents = ref([]);
+    const downloadingDocumentId = ref(null);
 
     const fetchUserFullName = async (userId) => {
         if (!userId) return '';
@@ -80,6 +82,34 @@ export const useInfraCallDetails = ({ axiosInstance, loadCallById }) => {
         selectedCall.value = null;
     };
 
+    const downloadDocument = async (document) => {
+        if (!document?.id || !document?.name) return;
+
+        downloadingDocumentId.value = document.id;
+
+        try {
+            const response = await axiosInstance.get(`/api/infra-manager/documents/${document.id}`, {
+                params: {
+                    objectId: document.objectId || undefined,
+                    fileName: document.name,
+                },
+            });
+
+            downloadBase64Document(response.data, document.name);
+        } catch (error) {
+            console.error('Ошибка при скачивании документа:', error);
+            window.dispatchEvent(new CustomEvent('toast', {
+                detail: {
+                    severity: 'error',
+                    summary: 'Заявки',
+                    detail: `Не удалось скачать файл ${document.name}`,
+                },
+            }));
+        } finally {
+            downloadingDocumentId.value = null;
+        }
+    };
+
     return {
         isDialogVisible,
         selectedCall,
@@ -87,7 +117,9 @@ export const useInfraCallDetails = ({ axiosInstance, loadCallById }) => {
         negotiations,
         errorOccurred,
         timelineEvents,
+        downloadingDocumentId,
         openCallDetails,
         closeDialog,
+        downloadDocument,
     };
 };

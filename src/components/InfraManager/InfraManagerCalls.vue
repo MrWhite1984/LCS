@@ -110,8 +110,13 @@
                               <p>Дата загрузки: {{ formatUTCToOmsk(document.utcDateCreated) }}</p>
                             </div>
                             <div class="col-auto">
-                              <!-- <Button icon="pi pi-download" /> -->
-                              <img :src="`/src/assets/icons/${ document.name.split('.').pop().toLowerCase() }.png`" alt="Document icon" class="document-icon" />
+                              <Button
+                                icon="pi pi-download"
+                                text
+                                rounded
+                                :loading="downloadingDocumentId === document.id"
+                                @click="downloadDocument(document)"
+                              />
                             </div>
                           </div>
                         </div>
@@ -184,8 +189,10 @@ const {
   errorOccurred,
   negotiations,
   timelineEvents,
+  downloadingDocumentId,
   openCallDetails,
   closeDialog,
+  downloadDocument,
 } = useInfraCallDetails({
   axiosInstance,
   loadCallById: async (callId) => {
