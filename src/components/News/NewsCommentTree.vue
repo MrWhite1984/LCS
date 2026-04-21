@@ -20,6 +20,15 @@
         <div class="comment-actions">
             <div class="comment-buttons">
                 <Button
+                    v-if="canEdit"
+                    icon="pi pi-pencil"
+                    text
+                    size="small"
+                    rounded
+                    aria-label="Редактировать комментарий"
+                    @click="openEdit"
+                />
+                <Button
                     v-if="!localComment.isSoftDeleted"
                     icon="pi pi-reply"
                     text
@@ -51,6 +60,30 @@
                     <i class="pi pi-comments"></i>
                     <span v-if="visibleReplyCount > 0" class="replies-count">{{ visibleReplyCount }}</span>
                 </button>
+            </div>
+        </div>
+
+        <div v-if="editOpen" class="reply-form">
+            <NewsMarkdownEditor
+                v-model="editBody"
+                v-model:mediaIds="editMediaIds"
+                :initial-media-ids="editInitialMediaIds"
+                :rows="8"
+                placeholder="Измените комментарий…"
+            />
+            <div class="reply-actions">
+                <Button
+                    label="Отмена"
+                    severity="secondary"
+                    outlined
+                    @click="closeEdit"
+                />
+                <Button
+                    label="Сохранить"
+                    :loading="editSubmitting"
+                    :disabled="editSubmitting || isEditEmpty"
+                    @click="submitEdit"
+                />
             </div>
         </div>
 
@@ -105,14 +138,17 @@
 import { computed, ref, watch } from 'vue';
 import { useConfirm } from 'primevue/useconfirm';
 import { formatDateRuLongWithTime } from '@/utils/date.js';
-import { formatNewsAuthorName } from '@/utils/news.js';
+import { buildNewsMarkdown, formatNewsAuthorName, splitNewsMarkdown } from '@/utils/news.js';
 import {
+    addMediaToComment,
+    deleteMedia,
     NEWS_COMMENT_PAGE_SIZE,
     createCommentToComment,
     getComments,
     normalizeCommentsResponse,
     normalizeComment,
     softDeleteComment,
+    updateComment,
 } from '@/api/news.js';
 import NewsMarkdownEditor from '@/components/News/NewsMarkdownEditor.vue';
 import NewsMarkdownRenderer from '@/components/News/NewsMarkdownRenderer.vue';
@@ -161,6 +197,11 @@ const replyOpen = ref(false);
 const replyBody = ref('');
 const replyMediaIds = ref([]);
 const replySubmitting = ref(false);
+const editOpen = ref(false);
+const editBody = ref('');
+const editMediaIds = ref([]);
+const editInitialMediaIds = ref([]);
+const editSubmitting = ref(false);
 
 const authorName = computed(() => formatNewsAuthorName(localComment.value.author, 'Пользователь'));
 const formattedDate = computed(() => formatDateRuLongWithTime(localComment.value.createdAt, ''));
@@ -168,7 +209,9 @@ const canDelete = computed(() => {
     if (!props.currentUserId) return props.isAdmin;
     return props.isAdmin || props.currentUserId === localComment.value.author.id;
 });
+const canEdit = computed(() => !localComment.value.isSoftDeleted && canDelete.value);
 const isReplyEmpty = computed(() => !String(replyBody.value || '').trim() && replyMediaIds.value.length === 0);
+const isEditEmpty = computed(() => !String(editBody.value || '').trim() && editMediaIds.value.length === 0);
 const visibleReplyCount = computed(() => replies.value.length);
 
 watch(() => props.comment, (value) => {
@@ -213,6 +256,22 @@ function closeReply() {
     replyMediaIds.value = [];
 }
 
+function openEdit() {
+    const parsedBody = splitNewsMarkdown(localComment.value.body);
+    editBody.value = parsedBody.text;
+    editMediaIds.value = parsedBody.mediaIds;
+    editInitialMediaIds.value = parsedBody.mediaIds;
+    editOpen.value = true;
+    replyOpen.value = false;
+}
+
+function closeEdit() {
+    editOpen.value = false;
+    editBody.value = '';
+    editMediaIds.value = [];
+    editInitialMediaIds.value = [];
+}
+
 async function submitReply() {
     if (isReplyEmpty.value || replySubmitting.value) return;
 
@@ -236,6 +295,37 @@ async function submitReply() {
         await loadReplies(1, true);
     } finally {
         replySubmitting.value = false;
+    }
+}
+
+async function submitEdit() {
+    if (isEditEmpty.value || editSubmitting.value) return;
+
+    editSubmitting.value = true;
+
+    try {
+        const nextBody = String(editBody.value || '').trim();
+        const nextMediaIds = [...editMediaIds.value];
+        const mediaIdsToAdd = nextMediaIds.filter((id) => !editInitialMediaIds.value.includes(id));
+        const mediaIdsToDelete = editInitialMediaIds.value.filter((id) => !nextMediaIds.includes(id));
+
+        await updateComment(localComment.value.id, nextBody);
+
+        if (mediaIdsToAdd.length > 0) {
+            await addMediaToComment(localComment.value.id, mediaIdsToAdd, localComment.value.author.id);
+        }
+
+        if (mediaIdsToDelete.length > 0) {
+            await Promise.all(mediaIdsToDelete.map((mediaId) => deleteMedia(mediaId)));
+        }
+
+        localComment.value = {
+            ...localComment.value,
+            body: buildNewsMarkdown(editBody.value, editMediaIds.value),
+        };
+        closeEdit();
+    } finally {
+        editSubmitting.value = false;
     }
 }
 

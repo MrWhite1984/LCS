@@ -211,4 +211,3 @@ onMounted(() => {
     gap: 0.9rem;
 }
 </style>
-

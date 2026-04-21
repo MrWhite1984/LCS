@@ -89,7 +89,7 @@
                 :post="post"
                 :expanded="expandedPostId === post.id"
                 :bookmarked="bookmarkedIds.has(post.id)"
-                :show-bookmark-action="mode !== 'bookmarked'"
+                :show-bookmark-action="true"
                 :emojis="emojis"
                 :media-types="mediaTypes"
                 :current-user-id="currentUserId"
@@ -128,6 +128,7 @@ import {
     addMarkedPost,
     addPostView,
     canAccessNewsManagement,
+    deleteBookmarkedPost,
     getBookmarkedPosts,
     getEmojies,
     getMediaTypes,
@@ -291,17 +292,33 @@ async function togglePost(post) {
 }
 
 async function bookmarkPost(post) {
-    if (!post?.id || post.isMarked || bookmarkedIds.value.has(post.id)) return;
+    if (!post?.id) return;
+
+    const isBookmarked = post.isMarked || bookmarkedIds.value.has(post.id);
+
+    if (isBookmarked) {
+        await deleteBookmarkedPost(post.id);
+
+        const nextBookmarkedIds = new Set(bookmarkedIds.value);
+        nextBookmarkedIds.delete(post.id);
+        bookmarkedIds.value = nextBookmarkedIds;
+
+        if (mode.value === 'bookmarked') {
+            posts.value = posts.value.filter((item) => item.id !== post.id);
+        } else {
+            posts.value = posts.value.map((item) => item.id === post.id
+                ? { ...item, isMarked: false }
+                : item);
+        }
+
+        return;
+    }
 
     await addMarkedPost(post.id);
     bookmarkedIds.value = new Set([...bookmarkedIds.value, post.id]);
     posts.value = posts.value.map((item) => item.id === post.id
         ? { ...item, isMarked: true }
         : item);
-
-    if (mode.value === 'bookmarked') {
-        fetchPosts(true);
-    }
 }
 
 function loadMorePosts() {
