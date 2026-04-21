@@ -19,7 +19,7 @@
         :style="{ '--accent-preview': previewColor, '--accent-preview-gradient': previewGradient }"
     >
         <div class="accent-card-copy">
-            <span class="accent-eyebrow">Accent Lab</span>
+            <span class="accent-eyebrow">Тема оформления</span>
         </div>
         <div class="accent-card-preview">
             <span class="accent-card-glow"></span>

@@ -11,6 +11,7 @@ function createConnection() {
     return new HubConnectionBuilder()
         .withUrl(`${getBaseUrl()}/hubs/notifications`, {
             accessTokenFactory: () => getAccessToken() || '',
+            transport: 1,
         })
         .withAutomaticReconnect()
         .configureLogging(LogLevel.Error)
