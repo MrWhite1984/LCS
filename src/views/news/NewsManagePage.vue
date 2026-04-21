@@ -230,6 +230,7 @@ import { useRouter } from 'vue-router';
 import { useConfirm } from 'primevue/useconfirm';
 import { usePermissionStore } from '@/stores/permissions.js';
 import { formatDateRuLongWithTime } from '@/utils/date.js';
+import { extractNewsMediaIds, getNewsPlainText } from '@/utils/news.js';
 import {
     NEWS_PAGE_SIZE,
     changePostVisibility,
@@ -285,10 +286,13 @@ const canCreateEmoji = computed(() => hasNewsAdminPermission(permissionStore, 'C
 const canDeleteEmojiAction = computed(() => hasNewsAdminPermission(permissionStore, 'Delete'));
 
 function summarize(text) {
-    const value = String(text || '')
-        .replace(/media:\/\/[0-9a-f-]{36}/gi, '[медиа]')
+    const plainText = getNewsPlainText(text)
         .replace(/\s+/g, ' ')
         .trim();
+    const mediaCount = extractNewsMediaIds(text).length;
+    const suffix = mediaCount > 0 ? ` [медиа: ${mediaCount}]` : '';
+    const value = `${plainText}${suffix}`.trim();
+
     return value.length > 180 ? `${value.slice(0, 180).trim()}…` : value || 'Без текста';
 }
 

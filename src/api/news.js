@@ -59,6 +59,10 @@ export function updatePost(postId, payload) {
     });
 }
 
+export function addMediaToPost(postId, mediaIds = []) {
+    return axiosInstance.post(`${NEWS_BASE}/posts/${postId}/medias/add`, mediaIds);
+}
+
 export function changePostVisibility(postId, isVisible, options = {}) {
     const path = options.su ? `${NEWS_BASE}/su/posts/change-visible/${postId}` : `${NEWS_BASE}/posts/change-visible/${postId}`;
     return axiosInstance.put(path, null, {
@@ -73,6 +77,10 @@ export function softDeletePost(postId, options = {}) {
 
 export function addMarkedPost(postId) {
     return axiosInstance.post(`${NEWS_BASE}/posts/add-marked/${postId}`);
+}
+
+export function deleteBookmarkedPost(postId) {
+    return axiosInstance.delete(`${NEWS_BASE}/posts/${postId}/bookmarked`);
 }
 
 export function addPostView(postId) {
@@ -157,6 +165,12 @@ export function createCommentToComment(postId, payload) {
 export function updateComment(commentId, body) {
     return axiosInstance.put(`${NEWS_BASE}/comments/${commentId}`, null, {
         params: { body },
+    });
+}
+
+export function addMediaToComment(commentId, mediaIds = [], authorId = null) {
+    return axiosInstance.post(`${NEWS_BASE}/comments/${commentId}/medias/add`, mediaIds, {
+        params: authorId ? { authorId } : undefined,
     });
 }
 

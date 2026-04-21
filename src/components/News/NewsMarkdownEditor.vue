@@ -1,77 +1,96 @@
 <template>
     <div class="news-editor">
-        <div class="editor-toolbar">
-            <Button label="H2" text size="small" @click="wrapBlock('## ', '')" />
-            <Button text size="small" @click="wrapInline('**', '**', 'жирный текст')">
-                <svg viewBox="0 0 18 18"> <path class="ql-stroke" d="M5,4H9.5A2.5,2.5,0,0,1,12,6.5v0A2.5,2.5,0,0,1,9.5,9H5A0,0,0,0,1,5,9V4A0,0,0,0,1,5,4Z"></path> <path class="ql-stroke" d="M5,9h5.5A2.5,2.5,0,0,1,13,11.5v0A2.5,2.5,0,0,1,10.5,14H5a0,0,0,0,1,0,0V9A0,0,0,0,1,5,9Z"></path> </svg>
-            </Button>
-            <Button text size="small" @click="wrapInline('*', '*', 'курсив')">
-                <div>
-                    <svg viewBox="0 0 18 18"> <line class="ql-stroke" x1="7" x2="13" y1="4" y2="4"></line> <line class="ql-stroke" x1="5" x2="11" y1="14" y2="14"></line> <line class="ql-stroke" x1="8" x2="10" y1="14" y2="4"></line> </svg>
-                </div>
-            </Button>
-            <Button icon="pi pi-list" text size="small" @click="insertLine('- пункт')" />
-            <Button icon="pi pi-comments" text size="small" @click="insertLine('> цитата')" />
-            <Button icon="pi pi-code" text size="small" @click="wrapInline('`', '`', 'код')" />
-            <Button icon="pi pi-link" text size="small" @click="wrapInline('[ссылка](', ')', 'https://example.com')" />
+        <div class="editor-toolbar-shell">
+            <Editor
+                v-model="editorHtml"
+                :placeholder="placeholder"
+                :editorStyle="`height: ${editorHeight}`"
+                class="news-quill-editor"
+                @load="onEditorLoad"
+                @text-change="syncMarkdownFromEditor"
+            >
+                <template #toolbar>
+                    <span class="ql-formats">
+                        <select class="ql-header" :value="''">
+                            <option value="2">H2</option>
+                            <option value="">Текст</option>
+                        </select>
+                        <button class="ql-bold" type="button"></button>
+                        <button class="ql-italic" type="button"></button>
+                        <button class="ql-strike" type="button"></button>
+                        <button class="ql-blockquote" type="button"></button>
+                        <button class="ql-code-block" type="button"></button>
+                        <button class="ql-link" type="button"></button>
+                        <button class="ql-list" value="ordered" type="button"></button>
+                        <button class="ql-list" value="bullet" type="button"></button>
+                    </span>
+                </template>
+            </Editor>
         </div>
 
-        <div class="editor-layout">
+        <FileDropzone
+            v-if="allowMediaUpload"
+            class="editor-dropzone"
+            multiple
+            :disabled="uploading"
+            icon="pi pi-images"
+            title="Перетащите медиафайлы сюда"
+            subtitle="или нажмите, чтобы выбрать файлы через проводник"
+            active-subtitle="Отпустите файлы для загрузки в редактор"
+            compact
+            @select="onFilesSelected"
+        />
+
+        <div v-if="showMediaPanel" class="editor-layout">
             <div class="editor-source">
-                <FileDropzone
-                    v-if="allowMediaUpload"
-                    class="editor-dropzone"
-                    multiple
-                    :disabled="uploading"
-                    icon="pi pi-images"
-                    title="Перетащите медиафайлы сюда"
-                    subtitle="или нажмите, чтобы выбрать файлы через проводник"
-                    active-subtitle="Отпустите файлы для загрузки в редактор"
-                    compact
-                    @select="onFilesSelected"
-                />
-
-                <Textarea
-                    ref="textareaRef"
-                    :modelValue="modelValue"
-                    :rows="rows"
-                    autoResize
-                    class="editor-textarea"
-                    :placeholder="placeholder"
-                    @update:modelValue="emit('update:modelValue', $event)"
-                />
-
-                <div v-if="allowMediaUpload && localMedia.length > 0" class="editor-media-list">
+                <div v-if="mediaItems.length > 0" class="editor-media-list">
                     <div
-                        v-for="media in localMedia"
+                        v-for="media in mediaItems"
                         :key="media.id"
                         class="media-chip"
                     >
                         <i class="pi pi-paperclip"></i>
                         <span>{{ media.title }}</span>
+                        <Button
+                            icon="pi pi-times"
+                            text
+                            rounded
+                            size="small"
+                            severity="secondary"
+                            :loading="removingMediaIds.includes(media.id)"
+                            :disabled="removingMediaIds.includes(media.id)"
+                            :aria-label="`Удалить ${media.title}`"
+                            @click="removeMediaItem(media.id)"
+                        />
                     </div>
                 </div>
 
-                <div v-else-if="!allowMediaUpload && existingMediaNotice" class="editor-hint">
+                <div v-else-if="existingMediaNotice" class="editor-hint">
                     {{ existingMediaNotice }}
                 </div>
-            </div>
-
-            <div class="editor-preview">
-                <div class="preview-head">
-                    <span>Предпросмотр</span>
-                </div>
-                <NewsMarkdownRenderer :markdown="modelValue" :mediaTypes="mediaTypes" />
             </div>
         </div>
     </div>
 </template>
 
 <script setup>
-import { computed, nextTick, ref, watch } from 'vue';
-import { getMediaTypes, normalizeMediaType, uploadMedia } from '@/api/news.js';
-import { fileToBase64, insertAroundSelection, resolveMediaTypeId } from '@/utils/news.js';
-import NewsMarkdownRenderer from '@/components/News/NewsMarkdownRenderer.vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import {
+    deleteMedia,
+    getMedia,
+    getMediaTypes,
+    normalizeMediaResponse,
+    normalizeMediaType,
+    uploadMedia,
+} from '@/api/news.js';
+import {
+    editorHtmlToNewsMarkdown,
+    fileToBase64,
+    markdownToNewsEditorHtml,
+    normalizeNewsMediaIds,
+    resolveMediaTypeId,
+} from '@/utils/news.js';
+import { attachPlainTextPasteToQuill } from '@/utils/faqHtml.js';
 import FileDropzone from '@/components/Utils/FileDropzone.vue';
 
 const props = defineProps({
@@ -80,6 +99,10 @@ const props = defineProps({
         default: '',
     },
     mediaIds: {
+        type: Array,
+        default: () => [],
+    },
+    initialMediaIds: {
         type: Array,
         default: () => [],
     },
@@ -103,12 +126,24 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'update:mediaIds']);
 
-const textareaRef = ref(null);
 const mediaTypes = ref([]);
 const uploading = ref(false);
-const localMedia = ref([]);
+const knownMedia = ref({});
+const removingMediaIds = ref([]);
+const editorHtml = ref(markdownToNewsEditorHtml(props.modelValue));
+const detachPasteHandler = ref(() => {});
+const isSyncingEditor = ref(false);
 
-const normalizedMediaIds = computed(() => Array.isArray(props.mediaIds) ? props.mediaIds : []);
+const normalizedMediaIds = computed(() => normalizeNewsMediaIds(props.mediaIds));
+const initialMediaIdSet = computed(() => new Set(normalizeNewsMediaIds(props.initialMediaIds)));
+const editorHeight = computed(() => `${Math.max(Number(props.rows || 14) * 22, 240)}px`);
+const mediaItems = computed(() => normalizedMediaIds.value.map((mediaId) => (
+    knownMedia.value[mediaId] || {
+        id: mediaId,
+        title: 'Медиафайл',
+    }
+)));
+const showMediaPanel = computed(() => mediaItems.value.length > 0 || Boolean(props.existingMediaNotice));
 
 async function ensureMediaTypes() {
     if (mediaTypes.value.length > 0) return;
@@ -117,40 +152,41 @@ async function ensureMediaTypes() {
     mediaTypes.value = Array.isArray(data) ? data.map(normalizeMediaType) : [];
 }
 
-function updateTextareaValue(nextState) {
-    emit('update:modelValue', nextState.value);
+async function ensureMediaDetails(mediaIds = []) {
+    const missingMediaIds = mediaIds.filter((mediaId) => !knownMedia.value[mediaId]);
+    if (missingMediaIds.length === 0) return;
 
-    nextTick(() => {
-        const textarea = textareaRef.value?.$el?.querySelector('textarea') || textareaRef.value?.$el || textareaRef.value;
-        if (!textarea) return;
+    const entries = await Promise.all(missingMediaIds.map(async (mediaId) => {
+        try {
+            const { data } = await getMedia(mediaId);
+            const media = normalizeMediaResponse(data).media;
 
-        textarea.focus();
-        textarea.setSelectionRange(nextState.selectionStart, nextState.selectionEnd);
-    });
+            return [mediaId, {
+                id: mediaId,
+                title: media?.title || 'Медиафайл',
+            }];
+        } catch {
+            return [mediaId, {
+                id: mediaId,
+                title: 'Медиафайл',
+            }];
+        }
+    }));
+
+    knownMedia.value = {
+        ...knownMedia.value,
+        ...Object.fromEntries(entries),
+    };
 }
 
-function getTextareaElement() {
-    return textareaRef.value?.$el?.querySelector('textarea') || textareaRef.value?.$el || textareaRef.value;
+function syncMarkdownFromEditor() {
+    if (isSyncingEditor.value) return;
+    emit('update:modelValue', editorHtmlToNewsMarkdown(editorHtml.value));
 }
 
-function wrapInline(prefix, suffix, placeholder) {
-    const textarea = getTextareaElement();
-    updateTextareaValue(insertAroundSelection(textarea, prefix, suffix, placeholder));
-}
-
-function wrapBlock(prefix, suffix = '') {
-    const textarea = getTextareaElement();
-    updateTextareaValue(insertAroundSelection(textarea, prefix, suffix, 'подзаголовок'));
-}
-
-function insertLine(template) {
-    const textarea = getTextareaElement();
-    const nextState = insertAroundSelection(textarea, `${template}\n`, '', '');
-    updateTextareaValue({
-        ...nextState,
-        selectionStart: nextState.selectionStart + template.length + 1,
-        selectionEnd: nextState.selectionStart + template.length + 1,
-    });
+function onEditorLoad(quill) {
+    detachPasteHandler.value?.();
+    detachPasteHandler.value = attachPlainTextPasteToQuill(quill);
 }
 
 async function onFilesSelected(files) {
@@ -184,12 +220,10 @@ async function onFilesSelected(files) {
         }
 
         if (uploaded.length > 0) {
-            const currentBody = String(props.modelValue || '').trimEnd();
-            const mediaTokens = uploaded.map((item) => `media://${item.id}`).join('\n');
-            const nextBody = currentBody ? `${currentBody}\n\n${mediaTokens}` : mediaTokens;
-
-            localMedia.value = [...localMedia.value, ...uploaded];
-            emit('update:modelValue', nextBody);
+            knownMedia.value = {
+                ...knownMedia.value,
+                ...Object.fromEntries(uploaded.map((item) => [item.id, item])),
+            };
             emit('update:mediaIds', [...new Set([...normalizedMediaIds.value, ...uploaded.map((item) => item.id)])]);
         }
     } finally {
@@ -197,9 +231,50 @@ async function onFilesSelected(files) {
     }
 }
 
-watch(() => props.mediaIds, () => {
-    localMedia.value = localMedia.value.filter((item) => normalizedMediaIds.value.includes(item.id));
-}, { deep: true });
+async function removeMediaItem(mediaId) {
+    if (!mediaId || removingMediaIds.value.includes(mediaId)) return;
+
+    const shouldDeleteImmediately = !initialMediaIdSet.value.has(mediaId);
+    removingMediaIds.value = [...removingMediaIds.value, mediaId];
+
+    try {
+        if (shouldDeleteImmediately) {
+            await deleteMedia(mediaId);
+        }
+
+        const nextMediaIds = normalizedMediaIds.value.filter((item) => item !== mediaId);
+        emit('update:mediaIds', nextMediaIds);
+    } finally {
+        removingMediaIds.value = removingMediaIds.value.filter((item) => item !== mediaId);
+    }
+}
+
+watch(
+    normalizedMediaIds,
+    (mediaIds) => {
+        ensureMediaDetails(mediaIds);
+    },
+    { immediate: true }
+);
+
+watch(
+    () => props.modelValue,
+    (value) => {
+        const nextHtml = markdownToNewsEditorHtml(value);
+        if (nextHtml === editorHtml.value) return;
+
+        isSyncingEditor.value = true;
+        editorHtml.value = nextHtml;
+        queueMicrotask(() => {
+            isSyncingEditor.value = false;
+        });
+    },
+    { immediate: true }
+);
+
+onBeforeUnmount(() => {
+    detachPasteHandler.value?.();
+});
 </script>
 
 <style scoped>
@@ -209,34 +284,31 @@ watch(() => props.mediaIds, () => {
     gap: 0.9rem;
 }
 
-.editor-toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0.45rem;
-    border-radius: 16px;
-    background: rgba(var(--p-blue-500-rgb), 0.05);
-    border: 1px solid rgba(var(--p-blue-500-rgb), 0.12);
+.editor-toolbar-shell {
+    border-radius: 22px;
+    overflow: hidden;
+    border: 1px solid rgba(var(--p-blue-500-rgb), 0.1);
+    background: var(--p-bg-color-1);
 }
 
-.editor-toolbar :deep(.p-button svg) {
-    display: block;
-    width: 1rem;
-    height: 1rem;
+.news-quill-editor :deep(.ql-toolbar.ql-snow) {
+    border: none;
+    border-bottom: 1px solid rgba(var(--p-blue-500-rgb), 0.1);
+    background: rgba(var(--p-blue-500-rgb), 0.04);
 }
 
-.editor-toolbar :deep(.p-button .ql-stroke) {
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 1.6;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+.news-quill-editor :deep(.ql-container.ql-snow) {
+    border: none;
+}
+
+.news-quill-editor :deep(.ql-editor) {
+    line-height: 1.65;
+    font-size: 1rem;
 }
 
 .editor-layout {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
     gap: 1rem;
 }
 
@@ -249,19 +321,8 @@ watch(() => props.mediaIds, () => {
     border: 1px solid rgba(var(--p-blue-500-rgb), 0.1);
 }
 
-.editor-textarea {
-    width: 100%;
-}
-
-.editor-textarea :deep(textarea) {
-    width: 100%;
-    min-height: 300px;
-    font-family: 'SFMono-Regular', ui-monospace, monospace;
-    line-height: 1.6;
-}
-
 .editor-dropzone {
-    margin-bottom: 0.85rem;
+    margin-top: 0.1rem;
 }
 
 .preview-head {
@@ -283,7 +344,7 @@ watch(() => props.mediaIds, () => {
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
-    padding: 0.48rem 0.7rem;
+    padding: 0.38rem 0.45rem 0.38rem 0.7rem;
     border-radius: 999px;
     background: rgba(var(--p-blue-500-rgb), 0.08);
     border: 1px solid rgba(var(--p-blue-500-rgb), 0.14);
@@ -291,11 +352,10 @@ watch(() => props.mediaIds, () => {
 }
 
 .editor-hint {
-    margin-top: 0.85rem;
     padding: 0.85rem 1rem;
     border-radius: 16px;
-    background: rgba(245, 158, 11, 0.12);
-    color: #9a6700;
+    background: rgba(var(--p-blue-500-rgb), 0.08);
+    color: var(--p-text-color);
     font-size: 0.92rem;
 }
 

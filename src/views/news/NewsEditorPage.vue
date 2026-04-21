@@ -4,7 +4,7 @@
             <div>
                 <div class="page-kicker">News</div>
                 <h1>{{ isEdit ? 'Редактирование поста' : 'Новый пост' }}</h1>
-                <p>{{ isEdit ? 'Обновите текст, теги и видимость' : 'Создайте пост с markdown, тегами и вложенным контентом' }}</p>
+                <p>{{ isEdit ? 'Обновите текст, медиа, теги и видимость' : 'Создайте пост с текстом, тегами и вложенным контентом' }}</p>
             </div>
             <Button
                 label="Назад"
@@ -67,8 +67,7 @@
             <NewsMarkdownEditor
                 v-model="body"
                 v-model:mediaIds="mediaIds"
-                :allow-media-upload="!isEdit"
-                :existing-media-notice="existingMediaNotice"
+                :initial-media-ids="initialMediaIds"
             />
 
             <div class="save-actions">
@@ -93,12 +92,14 @@
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { usePermissionStore } from '@/stores/permissions.js';
-import { extractNewsMediaIds } from '@/utils/news.js';
+import { buildNewsMarkdown, splitNewsMarkdown } from '@/utils/news.js';
 import {
     addTagToPost,
+    addMediaToPost,
     changePostVisibility,
     createPost,
     createTag,
+    deleteMedia,
     getAuthorPosts,
     getPost,
     hasNewsPermission,
@@ -123,19 +124,16 @@ const tagSuggestions = ref([]);
 const newTagName = ref('');
 const isVisible = ref(true);
 const mediaIds = ref([]);
+const initialMediaIds = ref([]);
 const initialTagIds = ref([]);
 const initialVisibility = ref(true);
 
 const isEdit = computed(() => Boolean(route.params.postId));
 const canManageVisibility = computed(() => hasNewsPermission(permissionStore, 'Update'));
-const isInvalid = computed(() => !String(title.value || '').trim() || !String(body.value || '').trim());
-const existingMediaNotice = computed(() => {
-    if (!isEdit.value) return '';
-    const existingMediaCount = extractNewsMediaIds(body.value).length;
-    return existingMediaCount > 0
-        ? 'В v1 медиа у существующих постов не редактируются: можно менять текст, теги и видимость, а загруженный ранее контент только просматривать'
-        : 'В v1 для уже созданных постов можно редактировать только текст, теги и видимость';
-});
+const isInvalid = computed(() => (
+    !String(title.value || '').trim()
+    || (!String(body.value || '').trim() && mediaIds.value.length === 0)
+));
 
 async function completeTagSearch(event) {
     const query = String(event?.query || '').trim();
@@ -198,12 +196,14 @@ async function loadPost() {
     try {
         const { data } = await getPost(route.params.postId);
         const post = normalizePost(data?.post);
+        const parsedBody = splitNewsMarkdown(post.body);
 
         title.value = post.title;
-        body.value = post.body;
+        body.value = parsedBody.text;
         selectedTags.value = post.tags;
         isVisible.value = post.isVisible;
-        mediaIds.value = extractNewsMediaIds(post.body);
+        mediaIds.value = parsedBody.mediaIds;
+        initialMediaIds.value = parsedBody.mediaIds;
         initialTagIds.value = post.tags.map((tag) => tag.id);
         initialVisibility.value = post.isVisible;
     } finally {
@@ -218,7 +218,7 @@ async function savePost() {
 
     try {
         const nextTitle = title.value.trim();
-        const nextBody = body.value.trim();
+        const nextBody = buildNewsMarkdown(body.value, mediaIds.value);
 
         if (!isEdit.value) {
             const { data } = await createPost({
@@ -237,6 +237,14 @@ async function savePost() {
             }
         } else {
             const postId = route.params.postId;
+            const nextMediaIds = [...mediaIds.value];
+            const mediaIdsToAdd = nextMediaIds.filter((id) => !initialMediaIds.value.includes(id));
+            const mediaIdsToDelete = initialMediaIds.value.filter((id) => !nextMediaIds.includes(id));
+
+            if (mediaIdsToAdd.length > 0) {
+                await addMediaToPost(postId, mediaIdsToAdd);
+            }
+
             await updatePost(postId, {
                 title: nextTitle,
                 body: nextBody,
@@ -256,6 +264,10 @@ async function savePost() {
 
             if (isVisible.value !== initialVisibility.value) {
                 await changePostVisibility(postId, isVisible.value);
+            }
+
+            if (mediaIdsToDelete.length > 0) {
+                await Promise.all(mediaIdsToDelete.map((mediaId) => deleteMedia(mediaId)));
             }
         }
 

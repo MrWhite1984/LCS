@@ -1,4 +1,6 @@
-const MEDIA_TOKEN_REGEX = /media:\/\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})/gi;
+const NEWS_MEDIA_ID_PATTERN = '[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}';
+const MEDIA_TOKEN_REGEX = new RegExp(`media:\\/\\/(${NEWS_MEDIA_ID_PATTERN})`, 'gi');
+const MEDIA_ID_REGEX = new RegExp(`^${NEWS_MEDIA_ID_PATTERN}$`, 'i');
 const FILE_EXTENSION_MIME_MAP = {
     jpg: 'image/jpeg',
     jpeg: 'image/jpeg',
@@ -39,6 +41,12 @@ function escapeAttribute(value = '') {
     return escapeHtml(value).replace(/`/g, '&#96;');
 }
 
+function escapeMarkdownText(value = '') {
+    return String(value || '')
+        .replace(/\\/g, '\\\\')
+        .replace(/([`*_[\]~])/g, '\\$1');
+}
+
 export function extractNewsMediaIds(markdown = '') {
     const ids = new Set();
 
@@ -48,6 +56,194 @@ export function extractNewsMediaIds(markdown = '') {
     });
 
     return [...ids];
+}
+
+export function normalizeNewsMediaIds(mediaIds = []) {
+    const ids = [];
+    const uniqueIds = new Set();
+
+    for (const mediaId of Array.isArray(mediaIds) ? mediaIds : []) {
+        const normalizedId = String(mediaId || '').trim();
+        if (!MEDIA_ID_REGEX.test(normalizedId) || uniqueIds.has(normalizedId)) continue;
+
+        uniqueIds.add(normalizedId);
+        ids.push(normalizedId);
+    }
+
+    return ids;
+}
+
+function normalizeNewsText(value = '') {
+    return String(value || '')
+        .replace(/\r\n/g, '\n')
+        .replace(/[ \t]+\n/g, '\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+}
+
+export function splitNewsMarkdown(markdown = '') {
+    const mediaIds = extractNewsMediaIds(markdown);
+    const text = normalizeNewsText(
+        String(markdown || '').replace(MEDIA_TOKEN_REGEX, '')
+    );
+
+    return {
+        text,
+        mediaIds,
+    };
+}
+
+export function getNewsPlainText(markdown = '') {
+    return splitNewsMarkdown(markdown).text;
+}
+
+export function buildNewsMarkdown(text = '', mediaIds = []) {
+    const normalizedText = normalizeNewsText(text);
+    const mediaTokens = normalizeNewsMediaIds(mediaIds)
+        .map((mediaId) => `media://${mediaId}`)
+        .join('\n');
+
+    if (normalizedText && mediaTokens) {
+        return `${normalizedText}\n\n${mediaTokens}`;
+    }
+
+    return normalizedText || mediaTokens;
+}
+
+function normalizeEditorHtmlRoot(root) {
+    root.querySelectorAll('.news-markdown-empty').forEach((node) => {
+        node.innerHTML = '';
+    });
+
+    root.querySelectorAll('.news-media-placeholder').forEach((node) => {
+        node.remove();
+    });
+
+    if (!root.innerHTML.trim()) {
+        root.innerHTML = '<p><br></p>';
+    }
+
+    return root;
+}
+
+export function markdownToNewsEditorHtml(markdown = '') {
+    if (typeof document === 'undefined') {
+        return String(markdown || '');
+    }
+
+    const root = document.createElement('div');
+    root.innerHTML = renderNewsMarkdown(markdown);
+
+    return normalizeEditorHtmlRoot(root).innerHTML;
+}
+
+function stringifyInlineNode(node) {
+    if (!node) return '';
+
+    if (node.nodeType === Node.TEXT_NODE) {
+        return escapeMarkdownText(node.textContent || '');
+    }
+
+    if (node.nodeType !== Node.ELEMENT_NODE) {
+        return '';
+    }
+
+    const tag = node.tagName.toLowerCase();
+    const content = Array.from(node.childNodes).map(stringifyInlineNode).join('');
+
+    if (tag === 'br') return '\n';
+    if (tag === 'strong' || tag === 'b') return `**${content}**`;
+    if (tag === 'em' || tag === 'i') return `*${content}*`;
+    if (tag === 's' || tag === 'strike' || tag === 'del') return `~~${content}~~`;
+    if (tag === 'code') return `\`${String(node.textContent || '').replace(/`/g, '\\`')}\``;
+    if (tag === 'a') {
+        const href = String(node.getAttribute('href') || '').trim();
+        return href ? `[${content || escapeMarkdownText(href)}](${href})` : content;
+    }
+
+    return content;
+}
+
+function stringifyBlockNode(node) {
+    if (!node) return '';
+
+    if (node.nodeType === Node.TEXT_NODE) {
+        return escapeMarkdownText(node.textContent || '').trim();
+    }
+
+    if (node.nodeType !== Node.ELEMENT_NODE) {
+        return '';
+    }
+
+    const tag = node.tagName.toLowerCase();
+    const inlineContent = Array.from(node.childNodes).map(stringifyInlineNode).join('').trim();
+
+    if (tag === 'p' || tag === 'div') {
+        return inlineContent;
+    }
+
+    if (/^h[1-6]$/.test(tag)) {
+        const level = Number(tag.slice(1));
+        return `${'#'.repeat(level)} ${inlineContent}`.trim();
+    }
+
+    if (tag === 'blockquote') {
+        return inlineContent
+            .split('\n')
+            .map((line) => `> ${line}`.trimEnd())
+            .join('\n');
+    }
+
+    if (tag === 'pre') {
+        const codeText = node.textContent || '';
+        return `\`\`\`\n${codeText.replace(/\n$/, '')}\n\`\`\``;
+    }
+
+    if (tag === 'ul' || tag === 'ol') {
+        return Array.from(node.children)
+            .filter((child) => child.tagName?.toLowerCase() === 'li')
+            .map((child, index) => {
+                const isOrdered = tag === 'ol' && child.getAttribute('data-list') !== 'bullet';
+                const marker = isOrdered ? `${index + 1}. ` : '- ';
+                const value = Array.from(child.childNodes).map(stringifyInlineNode).join('').trim();
+                return `${marker}${value}`;
+            })
+            .join('\n');
+    }
+
+    if (tag === 'li') {
+        const isOrdered = node.getAttribute('data-list') !== 'bullet';
+        const value = Array.from(node.childNodes).map(stringifyInlineNode).join('').trim();
+        return `${isOrdered ? '1. ' : '- '}${value}`;
+    }
+
+    return inlineContent;
+}
+
+export function editorHtmlToNewsMarkdown(html = '') {
+    if (typeof document === 'undefined') {
+        return String(html || '').trim();
+    }
+
+    const root = document.createElement('div');
+    root.innerHTML = String(html || '');
+
+    const blocks = [];
+    const children = Array.from(root.childNodes);
+
+    for (const node of children) {
+        const block = stringifyBlockNode(node).trim();
+        if (block) {
+            blocks.push(block);
+        }
+    }
+
+    if (blocks.length === 0) {
+        const fallback = Array.from(root.childNodes).map(stringifyInlineNode).join('').trim();
+        return fallback;
+    }
+
+    return blocks.join('\n\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
 export function formatNewsAuthorName(author = null, fallback = 'Пользователь') {
@@ -177,7 +373,7 @@ export function resolveMediaTypeId(file, mediaTypes = []) {
 }
 
 function renderMediaHtml(mediaId, mediaHtmlMap) {
-    return mediaHtmlMap[mediaId] || `<span class="news-media-placeholder">media://${escapeHtml(mediaId)}</span>`;
+    return mediaHtmlMap[mediaId] || '';
 }
 
 function applyInlineMarkdown(text, mediaHtmlMap = {}) {
@@ -305,7 +501,7 @@ export function renderNewsMarkdown(markdown = '', mediaHtmlMap = {}) {
 
 export function createNewsMediaHtml(media = null, mediaTypes = []) {
     if (!media?.id || !media?.content) {
-        return '<span class="news-media-placeholder">Контент недоступен</span>';
+        return '';
     }
 
     const kind = classifyMediaKind(media, mediaTypes);
@@ -318,7 +514,7 @@ export function createNewsMediaHtml(media = null, mediaTypes = []) {
     const downloadName = escapeAttribute(media.title || `media-${media.id}`);
 
     if (!dataUrl) {
-        return `<span class="news-media-placeholder">${title}</span>`;
+        return '';
     }
 
     if (kind === 'image') {
@@ -354,26 +550,4 @@ export function createNewsMediaHtml(media = null, mediaTypes = []) {
             <span>${title}</span>
         </a>
     `;
-}
-
-export function insertAroundSelection(textarea, prefix, suffix = prefix, placeholder = 'текст') {
-    const element = textarea;
-    if (!element) {
-        return { value: '', selectionStart: 0, selectionEnd: 0 };
-    }
-
-    const value = element.value || '';
-    const selectionStart = element.selectionStart ?? value.length;
-    const selectionEnd = element.selectionEnd ?? value.length;
-    const hasSelection = selectionEnd > selectionStart;
-    const selectedText = hasSelection ? value.slice(selectionStart, selectionEnd) : placeholder;
-    const nextValue = `${value.slice(0, selectionStart)}${prefix}${selectedText}${suffix}${value.slice(selectionEnd)}`;
-    const cursorStart = selectionStart + prefix.length;
-    const cursorEnd = cursorStart + selectedText.length;
-
-    return {
-        value: nextValue,
-        selectionStart: cursorStart,
-        selectionEnd: cursorEnd,
-    };
 }
