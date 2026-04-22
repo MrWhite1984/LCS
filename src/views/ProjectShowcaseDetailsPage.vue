@@ -1559,7 +1559,7 @@ onBeforeUnmount(() => {
 
 .project-floating-progress {
     position: fixed;
-    z-index: 1200;
+    z-index: 900;
     display: flex;
     flex-direction: column;
     gap: 0.8rem;
