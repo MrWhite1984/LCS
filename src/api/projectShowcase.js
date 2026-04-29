@@ -28,6 +28,7 @@ import {
     mockGetProjectTypes,
     mockGetResourceTypes,
     mockGetRoadMap,
+    mockGetScientificDirectionsSystem,
     mockGetUserByLksId,
     mockInitiateProject,
     mockSearchLksUsers,
@@ -165,6 +166,13 @@ export function getProjectTypes() {
         return wrapMockResponse(mockGetProjectTypes());
     }
     return axiosInstance.get(`${PROJECT_SHOWCASE_BASE}/projects/get-project-types`);
+}
+
+export function getScientificDirectionsSystem() {
+    if (USE_PROJECT_SHOWCASE_MOCK_DATA) {
+        return wrapMockResponse(mockGetScientificDirectionsSystem());
+    }
+    return axiosInstance.get(`${PROJECT_SHOWCASE_BASE}/scientific-directions/system`);
 }
 
 export function addProjectGeneralInformation(projectId, payload) {

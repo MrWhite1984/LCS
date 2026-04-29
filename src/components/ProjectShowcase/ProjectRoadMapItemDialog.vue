@@ -21,9 +21,15 @@
                 />
             </div>
 
-            <div class="project-field">
+            <div v-if="isEditMode" class="project-field">
                 <label for="roadmap-order">Порядок</label>
-                <InputNumber id="roadmap-order" v-model="form.order" class="w-100" :min="1" :useGrouping="false" />
+                <InputNumber
+                    id="roadmap-order"
+                    v-model="form.order"
+                    class="w-100"
+                    :min="1"
+                    :useGrouping="false"
+                />
             </div>
 
             <div class="project-field project-field-wide">
@@ -182,6 +188,21 @@ const flattenRoadMap = (items, prefix = []) => items.flatMap((item) => {
     ];
 });
 
+const findRoadMapItemById = (items = [], itemId) => {
+    for (const item of items) {
+        if (item.id === itemId) {
+            return item;
+        }
+
+        const nestedItem = findRoadMapItemById(item.roadMapItems || [], itemId);
+        if (nestedItem) {
+            return nestedItem;
+        }
+    }
+
+    return null;
+};
+
 const parentOptions = computed(() => {
     const options = flattenRoadMap(props.roadMapItems || []);
     if (!props.item?.id) return options;
@@ -201,6 +222,27 @@ const documentOptions = computed(() => (props.availableDocuments || []).map((doc
     id: document.id,
     label: document.name || `Документ #${document.id}`,
 })));
+
+const getSiblingRoadMapItems = (parentId = null) => {
+    if (!parentId) return props.roadMapItems || [];
+
+    const parentItem = findRoadMapItemById(props.roadMapItems || [], parentId);
+    return parentItem?.roadMapItems || [];
+};
+
+const resolveNextRoadMapOrder = (parentId = null) => {
+    const siblingItems = getSiblingRoadMapItems(parentId);
+    const maxOrder = siblingItems.reduce((currentMax, item) => (
+        Math.max(currentMax, Number(item?.order) || 0)
+    ), 0);
+
+    return maxOrder + 1 || 1;
+};
+
+const syncAutoOrder = () => {
+    if (isEditMode.value) return;
+    form.order = resolveNextRoadMapOrder(form.parentId);
+};
 
 const reset = () => {
     form.parentId = null;
@@ -227,6 +269,7 @@ const parseDate = (value) => {
 const fillForm = () => {
     if (!isEditMode.value || !props.item) {
         reset();
+        syncAutoOrder();
         return;
     }
 
@@ -345,6 +388,23 @@ watch(
     () => {
         if (props.visible) {
             fillForm();
+        }
+    },
+    { deep: true },
+);
+
+watch(
+    () => form.parentId,
+    () => {
+        syncAutoOrder();
+    },
+);
+
+watch(
+    () => props.roadMapItems,
+    () => {
+        if (props.visible) {
+            syncAutoOrder();
         }
     },
     { deep: true },

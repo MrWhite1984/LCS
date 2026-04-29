@@ -40,6 +40,7 @@
                 :value="projects"
                 :loading="loading"
                 :rows="rowsPerPage"
+                :first="(currentPage - 1) * rowsPerPage"
                 :totalRecords="totalRecords"
                 :rowsPerPageOptions="[5, 10, 20]"
                 @page="onPage"
@@ -59,12 +60,12 @@
                                 <p>
                                     {{
                                         selectedMode === 'public'
-                                            ? 'Публичные проекты, доступные всем пользователям.'
+                                            ? 'Публичные проекты, доступные всем пользователям'
                                             : selectedMode === 'me'
-                                                ? 'Ваши проекты и проекты, в которых вы участвуете.'
+                                                ? 'Ваши проекты и проекты, в которых вы участвуете'
                                                 : selectedMode === 'for-project-office-solution'
-                                                    ? 'Проекты, ожидающие решения проектного офиса.'
-                                                    : 'Полный список проектов для расширенного доступа.'
+                                                    ? 'Проекты, ожидающие решения проектного офиса'
+                                                    : 'Полный список проектов для расширенного доступа'
                                     }}
                                 </p>
                             </div>
@@ -140,7 +141,7 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useToast } from 'primevue/usetoast';
 import { usePermissionStore } from '@/stores/permissions.js';
 import { getCurrentUser } from '@/utils/currentUser.js';
@@ -167,6 +168,7 @@ import ProjectInitiationDialog from '@/components/ProjectShowcase/ProjectInitiat
 
 const permissionStore = usePermissionStore();
 const router = useRouter();
+const route = useRoute();
 const toast = useToast();
 
 const loading = ref(false);
@@ -181,6 +183,13 @@ const currentPage = ref(1);
 const showcaseUserId = ref(getStoredProjectShowcaseUserId());
 const selectedMode = ref('public');
 const createDialogVisible = ref(false);
+let projectQueryHydrating = false;
+let projectModeWatchReady = false;
+
+const parsePositiveNumber = (value, fallback) => {
+    const normalized = Number(value);
+    return Number.isFinite(normalized) && normalized > 0 ? normalized : fallback;
+};
 
 const availableModes = computed(() => buildProjectShowcaseListModes(permissionStore, Boolean(showcaseUserId.value)));
 
@@ -198,6 +207,39 @@ const ensureSelectedMode = () => {
     if (!allowedModes.includes(selectedMode.value)) {
         selectedMode.value = resolveDefaultProjectShowcaseMode(permissionStore, Boolean(showcaseUserId.value));
     }
+};
+
+const hydrateProjectQueryState = () => {
+    currentPage.value = parsePositiveNumber(route.query.page, 1);
+    rowsPerPage.value = parsePositiveNumber(route.query.pageSize, 10);
+
+    if (typeof route.query.mode === 'string' && route.query.mode.trim()) {
+        selectedMode.value = route.query.mode;
+    }
+};
+
+const buildProjectQuery = () => ({
+    mode: selectedMode.value,
+    page: String(currentPage.value),
+    pageSize: String(rowsPerPage.value),
+});
+
+const buildProjectListLocation = () => ({
+    name: 'ProjectShowcaseList',
+    query: buildProjectQuery(),
+});
+
+const syncProjectQueryState = async () => {
+    const nextQuery = buildProjectQuery();
+    const currentQuery = route.query;
+    const nextKeys = Object.keys(nextQuery);
+    const currentKeys = Object.keys(currentQuery);
+    const sameLength = nextKeys.length === currentKeys.length;
+    const sameEntries = nextKeys.every((key) => String(currentQuery[key] ?? '') === String(nextQuery[key] ?? ''));
+
+    if (sameLength && sameEntries) return;
+
+    await router.replace({ query: nextQuery });
 };
 
 const syncProjectShowcaseUser = async ({ createIfMissing = false } = {}) => {
@@ -250,6 +292,7 @@ const loadProjects = async () => {
     loading.value = true;
 
     try {
+        await syncProjectQueryState();
         const response = await getProjectsList(selectedMode.value, {
             page: currentPage.value,
             pageSize: rowsPerPage.value,
@@ -317,6 +360,11 @@ const openProject = (event) => {
     router.push({
         name: 'ProjectShowcaseDetails',
         params: { id: String(project.id) },
+        query: {
+            returnMode: selectedMode.value,
+            returnPage: String(currentPage.value),
+            returnPageSize: String(rowsPerPage.value),
+        },
     });
 };
 
@@ -337,13 +385,19 @@ watch(availableModes, ensureSelectedMode);
 
 watch(selectedMode, async (newMode, oldMode) => {
     if (newMode === oldMode) return;
+    if (!projectModeWatchReady) return;
+    if (projectQueryHydrating) return;
     currentPage.value = 1;
     await loadProjects();
 });
 
-onMounted(() => {
+onMounted(async () => {
+    projectQueryHydrating = true;
     selectedMode.value = resolveDefaultProjectShowcaseMode(permissionStore, Boolean(showcaseUserId.value));
-    loadPageContext();
+    hydrateProjectQueryState();
+    projectQueryHydrating = false;
+    await loadPageContext();
+    projectModeWatchReady = true;
 });
 </script>
 

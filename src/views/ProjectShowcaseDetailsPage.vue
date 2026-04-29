@@ -1,91 +1,128 @@
 <template>
     <main class="project-details-page">
-        <section
-            ref="projectDetailsShellRef"
-            class="project-details-shell"
-            :class="{ 'project-details-shell-with-floating-progress': showFloatingProgress }"
-        >
-            <header class="project-details-header">
-                <div class="project-details-copy">
-                    <Button
-                        label="Назад к списку"
-                        icon="pi pi-arrow-left"
-                        text
-                        class="project-back-button"
-                        @click="router.push({ name: 'ProjectShowcaseList' })"
-                    />
-                    <div class="project-details-title-row">
-                        <h2>{{ project?.name || 'Карточка проекта' }}</h2>
-                        <Tag :severity="project?.isPublic ? 'success' : 'secondary'" :value="describeProjectVisibility(project)" />
-                        <Tag v-if="detailsMode === 'su'" severity="contrast" value="Режим SU" />
+        <section class="project-details-shell">
+            <div class="project-details-top">
+                <header class="project-details-header">
+                    <div class="project-details-copy">
+                        <Button
+                            label="Назад к списку"
+                            icon="pi pi-arrow-left"
+                            text
+                            class="project-back-button"
+                            @click="goBackToProjectList"
+                        />
+                        <div class="project-details-title-row">
+                            <h2>{{ project?.name || 'Карточка проекта' }}</h2>
+                            <Tag :severity="project?.isPublic ? 'success' : 'secondary'" :value="describeProjectVisibility(project)" />
+                            <Tag v-if="detailsMode === 'su'" severity="contrast" value="Режим SU" />
+                        </div>
+                        <p>{{ project?.shortDescription || 'Описание проекта пока не заполнено.' }}</p>
                     </div>
-                    <p>{{ project?.shortDescription || 'Описание проекта пока не заполнено.' }}</p>
+
+                    <div class="project-details-actions">
+                        <Button
+                            icon="pi pi-refresh"
+                            label="Обновить"
+                            outlined
+                            severity="secondary"
+                            :loading="loading"
+                            @click="refreshProject"
+                        />
+                        <Button
+                            v-if="canCreateSolutionAction"
+                            label="Создать решение"
+                            icon="pi pi-check-square"
+                            :loading="ensuringShowcaseIdentity"
+                            @click="openSolutionDialog"
+                        />
+                        <Button
+                            v-if="canPublishAction"
+                            label="Опубликовать"
+                            icon="pi pi-globe"
+                            severity="success"
+                            :loading="publishing"
+                            @click="publishProjectVisibility"
+                        />
+                    </div>
+                </header>
+
+                <div v-if="loading && !project" class="project-details-loading">
+                    <ProgressSpinner style="width: 48px; height: 48px" />
                 </div>
 
-                <div class="project-details-actions">
-                    <Button
-                        icon="pi pi-refresh"
-                        label="Обновить"
-                        outlined
-                        severity="secondary"
-                        :loading="loading"
-                        @click="refreshProject"
-                    />
-                    <Button
-                        v-if="canCreateSolutionAction"
-                        label="Создать решение"
-                        icon="pi pi-check-square"
-                        :loading="ensuringShowcaseIdentity"
-                        @click="openSolutionDialog"
-                    />
-                    <Button
-                        v-if="canPublishAction"
-                        label="Опубликовать"
-                        icon="pi pi-globe"
-                        severity="success"
-                        :loading="publishing"
-                        @click="publishProjectVisibility"
-                    />
-                </div>
-            </header>
+                <template v-else-if="project">
+                    <section class="project-summary-grid">
+                        <article class="project-summary-card">
+                            <span>Инициатор</span>
+                            <strong>{{ buildProjectShowcaseFullName(project.initiator?.user) }}</strong>
+                        </article>
+                        <article class="project-summary-card">
+                            <span>Менеджер</span>
+                            <strong>{{ buildProjectShowcaseFullName(project.projectManager?.user) }}</strong>
+                        </article>
+                        <article class="project-summary-card">
+                            <span>Срок</span>
+                            <strong>{{ formatDateRuLong(project.estimatedImplementationPeriod, 'Не указан') }}</strong>
+                        </article>
+                        <article class="project-summary-card">
+                            <span>Обновлено</span>
+                            <strong>{{ formatDateRuShortWithTime(project.updatedAt, '-') }}</strong>
+                        </article>
+                    </section>
 
-            <div v-if="loading && !project" class="project-details-loading">
-                <ProgressSpinner style="width: 48px; height: 48px" />
+                    <section
+                        v-if="showFloatingProgress"
+                        ref="projectProgressInlineRef"
+                        class="project-progress-panel project-progress-panel-inline"
+                        :style="{ opacity: `${inlineProgressOpacity}` }"
+                    >
+                        <div class="project-progress-panel-main">
+                            <div class="project-progress-panel-copy">
+                                <div class="project-progress-panel-title">
+                                    <span>Прогресс проекта</span>
+                                    <h3>{{ floatingProgressCompactTitle }}</h3>
+                                </div>
+                                <div class="project-progress-panel-subline">
+                                    <Tag :severity="floatingProgressTag.severity" :value="floatingProgressTag.label" />
+                                    <small v-if="checklistVisible && checklistItems.length">
+                                        Чек-лист: {{ completedChecklistCount }}/{{ checklistItems.length }}
+                                    </small>
+                                    <small v-else>
+                                        Шагов: {{ roadMapCompletedCount }}/{{ roadMapTotalCount || 0 }}
+                                    </small>
+                                </div>
+                            </div>
+
+                            <div class="project-progress-panel-metric">
+                                <strong>{{ roadMapProgress }}%</strong>
+                                <small>{{ roadMapCompletedCount }}/{{ roadMapTotalCount || 0 }}</small>
+                            </div>
+                        </div>
+
+                        <ProgressBar :value="roadMapProgress" :showValue="false" style="height: 0.8rem" />
+                    </section>
+                </template>
+
+                <div v-else class="project-empty-state">
+                    <i class="pi pi-folder-open"></i>
+                    <h4>Проект не найден</h4>
+                    <p>Возможно, у вас нет доступа к этой карточке или проект был удалён.</p>
+                </div>
             </div>
 
-            <template v-else-if="project">
-                <section class="project-summary-grid">
-                    <article class="project-summary-card">
-                        <span>Инициатор</span>
-                        <strong>{{ buildProjectShowcaseFullName(project.initiator?.user) }}</strong>
-                    </article>
-                    <article class="project-summary-card">
-                        <span>Менеджер</span>
-                        <strong>{{ buildProjectShowcaseFullName(project.projectManager?.user) }}</strong>
-                    </article>
-                    <article class="project-summary-card">
-                        <span>Срок</span>
-                        <strong>{{ formatDateRuLong(project.estimatedImplementationPeriod, 'Не указан') }}</strong>
-                    </article>
-                    <article class="project-summary-card">
-                        <span>Обновлено</span>
-                        <strong>{{ formatDateRuShortWithTime(project.updatedAt, '-') }}</strong>
-                    </article>
-                </section>
+            <Tabs v-if="project" v-model:value="activeTab" class="project-tabs">
+                <TabList>
+                    <Tab value="general" as="div">Общая информация</Tab>
+                    <Tab value="team" as="div">Команда проекта</Tab>
+                    <Tab value="journal" as="div">Журнал</Tab>
+                    <Tab value="consultations" as="div">Консультации</Tab>
+                    <Tab value="roadmap" as="div">Дорожная карта</Tab>
+                    <Tab value="documents" as="div">Документы</Tab>
+                </TabList>
 
-                <Tabs v-model:value="activeTab">
-                    <TabList>
-                        <Tab value="general" as="div">Общая информация</Tab>
-                        <Tab value="team" as="div">Команда проекта</Tab>
-                        <Tab value="journal" as="div">Журнал</Tab>
-                        <Tab value="consultations" as="div">Консультации</Tab>
-                        <Tab value="roadmap" as="div">Дорожная карта</Tab>
-                        <Tab value="documents" as="div">Документы</Tab>
-                    </TabList>
-
-                    <TabPanels>
-                        <TabPanel value="general">
-                            <div class="project-tab-content">
+                <TabPanels>
+                    <TabPanel value="general">
+                        <div class="project-tab-content">
                                 <section v-if="projectRejected" class="project-rejected-card">
                                     <div class="project-rejected-icon">
                                         <i class="pi pi-times-circle"></i>
@@ -161,6 +198,18 @@
                                             <span>Плановое число участников</span>
                                             <strong>{{ project.plannedNumberOfTeamMembers || 'Не указано' }}</strong>
                                         </div>
+                                        <div class="project-info-item">
+                                            <span>Объект проекта</span>
+                                            <strong>{{ project.object || 'Не указан' }}</strong>
+                                        </div>
+                                        <div class="project-info-item">
+                                            <span>Этап жизненного цикла объекта</span>
+                                            <strong>{{ project.objectStatement || 'Не указан' }}</strong>
+                                        </div>
+                                        <div class="project-info-item">
+                                            <span>Грейд проекта</span>
+                                            <strong>{{ formatProjectGrade(project.grade) }}</strong>
+                                        </div>
                                         <div class="project-info-item project-info-item-wide">
                                             <span>Цель проекта</span>
                                             <strong>{{ project.projectGoal || 'Не указана' }}</strong>
@@ -169,6 +218,20 @@
                                             <span>Ожидаемые результаты</span>
                                             <strong>{{ project.expectedResults || 'Не указаны' }}</strong>
                                         </div>
+                                    </div>
+
+                                    <div class="project-subsection">
+                                        <span class="project-subsection-title">Научные направления</span>
+                                        <div v-if="project.scientificDirections?.length" class="project-chip-grid">
+                                            <article
+                                                v-for="direction in project.scientificDirections"
+                                                :key="`${direction.rootId}-${direction.id ?? direction.name}`"
+                                                class="project-chip-card"
+                                            >
+                                                <strong>{{ direction.name }}</strong>
+                                            </article>
+                                        </div>
+                                        <p v-else class="project-empty-text">Научные направления пока не заполнены.</p>
                                     </div>
                                 </section>
 
@@ -537,16 +600,9 @@
                                     </div>
                                 </section>
                             </div>
-                        </TabPanel>
-                    </TabPanels>
-                </Tabs>
-            </template>
-
-            <div v-else class="project-empty-state">
-                <i class="pi pi-folder-open"></i>
-                <h4>Проект не найден</h4>
-                <p>Возможно, у вас нет доступа к этой карточке или проект был удалён.</p>
-            </div>
+                    </TabPanel>
+                </TabPanels>
+            </Tabs>
         </section>
 
         <ProjectSolutionDialog
@@ -601,33 +657,34 @@
         <Teleport to="body">
             <section
                 v-if="showFloatingProgress"
-                class="project-floating-progress"
+                ref="projectProgressFloatingRef"
+                class="project-progress-panel project-progress-panel-floating"
                 :style="floatingProgressStyle"
             >
-                <div class="project-floating-progress-main">
-                    <div class="project-floating-progress-copy">
-                        <div class="project-floating-progress-title">
+                <div class="project-progress-panel-main">
+                    <div class="project-progress-panel-copy">
+                        <div class="project-progress-panel-title">
                             <span>Прогресс проекта</span>
                             <h3>{{ floatingProgressCompactTitle }}</h3>
                         </div>
-                        <div class="project-floating-progress-subline">
+                        <div class="project-progress-panel-subline">
                             <Tag :severity="floatingProgressTag.severity" :value="floatingProgressTag.label" />
                             <small v-if="checklistVisible && checklistItems.length">
-                                Чек-лист: {{ completedChecklistCount }}/{{ checklistItems.length }}
+                                {{ completedChecklistCount }}/{{ checklistItems.length }}
                             </small>
                             <small v-else>
-                                Шагов: {{ roadMapCompletedCount }}/{{ roadMapTotalCount || 0 }}
+                                {{ roadMapCompletedCount }}/{{ roadMapTotalCount || 0 }} шагов
                             </small>
                         </div>
                     </div>
 
-                    <div class="project-floating-progress-metric">
+                    <div class="project-progress-panel-metric">
                         <strong>{{ roadMapProgress }}%</strong>
                         <small>{{ roadMapCompletedCount }}/{{ roadMapTotalCount || 0 }}</small>
                     </div>
                 </div>
 
-                <ProgressBar :value="roadMapProgress" :showValue="false" style="height: 0.8rem" />
+                <ProgressBar :value="roadMapProgress" :showValue="false" style="height: 0.5rem" />
             </section>
         </Teleport>
     </main>
@@ -728,11 +785,27 @@ const resourceDialogVisible = ref(false);
 const participantDialogVisible = ref(false);
 const roadMapDialogVisible = ref(false);
 const activeRoadMapItem = ref(null);
-const projectDetailsShellRef = ref(null);
+const projectProgressInlineRef = ref(null);
+const projectProgressFloatingRef = ref(null);
+const progressMorph = ref(0);
 const floatingProgressStyle = ref({});
-let floatingProgressResizeObserver = null;
+const inlineProgressOpacity = computed(() => Math.max(0.12, 1 - (progressMorph.value * 0.92)).toFixed(3));
+let progressSyncFrame = null;
 
 const projectId = computed(() => Number(route.params.id));
+const returnMode = computed(() => (
+    typeof route.query.returnMode === 'string' && route.query.returnMode.trim()
+        ? route.query.returnMode
+        : null
+));
+const returnPage = computed(() => {
+    const value = Number(route.query.returnPage);
+    return Number.isFinite(value) && value > 0 ? value : null;
+});
+const returnPageSize = computed(() => {
+    const value = Number(route.query.returnPageSize);
+    return Number.isFinite(value) && value > 0 ? value : null;
+});
 const detailsMode = computed(() => getProjectDetailsMode(permissionStore));
 const isTeacher = computed(() => isTeacherRole(currentUser.value));
 const isCurrentProjectInitiator = computed(() => isProjectInitiator(project.value, showcaseUserId.value));
@@ -797,6 +870,14 @@ const flattenRoadMapItems = (items = []) => items.flatMap((item) => [
     item,
     ...flattenRoadMapItems(item.roadMapItems || []),
 ]);
+
+const formatProjectGrade = (value) => {
+    const normalized = String(value || '').trim();
+    if (!normalized) return 'Не указан';
+    if (normalized === '1') return '1 (минимальная сложность)';
+    if (normalized === '6') return '6 (максимальная сложность, стратегический)';
+    return normalized;
+};
 
 const normalizeProjectDocument = (document) => ({
     ...document,
@@ -895,25 +976,106 @@ const floatingProgressTag = computed(() => {
     };
 });
 
-const updateFloatingProgressBounds = () => {
-    const element = projectDetailsShellRef.value;
-    if (!element || typeof window === 'undefined') {
-        floatingProgressStyle.value = {};
+const goBackToProjectList = () => {
+    if (returnMode.value && returnPage.value && returnPageSize.value) {
+        router.push({
+            name: 'ProjectShowcaseList',
+            query: {
+                mode: returnMode.value,
+                page: String(returnPage.value),
+                pageSize: String(returnPageSize.value),
+            },
+        });
         return;
     }
 
-    const rect = element.getBoundingClientRect();
-    const viewportWidth = window.innerWidth || 0;
-    const horizontalInset = viewportWidth <= 768 ? 12 : 18;
-    const bottomInset = viewportWidth <= 768 ? 12 : 18;
-    const width = Math.max(0, rect.width - (horizontalInset * 2));
-    const left = rect.left + horizontalInset;
+    router.push({ name: 'ProjectShowcaseList' });
+};
+
+const getProgressCompactTargetRect = () => {
+    if (typeof window === 'undefined') return null;
+
+    const top = window.innerWidth <= 768 ? 12 : 16;
+    const right = window.innerWidth <= 768 ? 12 : 16;
+    const width = Math.min(window.innerWidth <= 768 ? 320 : 360, window.innerWidth - (right * 2));
+
+    return {
+        top,
+        left: Math.max(right, window.innerWidth - right - width),
+        width,
+    };
+};
+
+const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value));
+const easeOutCubic = (value) => 1 - ((1 - value) ** 3);
+
+const updateProgressPresentation = () => {
+    if (typeof window === 'undefined' || !showFloatingProgress.value) {
+        progressMorph.value = 0;
+        floatingProgressStyle.value = {
+            opacity: '0',
+            pointerEvents: 'none',
+        };
+        return;
+    }
+
+    const inlineElement = projectProgressInlineRef.value;
+    const floatingElement = projectProgressFloatingRef.value;
+    if (!inlineElement || !floatingElement) return;
+
+    const sourceRect = inlineElement.getBoundingClientRect();
+    const targetRect = floatingElement.getBoundingClientRect();
+    const compactTarget = getProgressCompactTargetRect();
+
+    const startOffset = window.innerWidth <= 768 ? 160 : 190;
+    const endOffset = window.innerWidth <= 768 ? 88 : 104;
+    const positionMorph = clamp((startOffset - sourceRect.bottom) / Math.max(1, startOffset - endOffset));
+    const scrollTop = window.scrollY || window.pageYOffset || 0;
+    const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+    const assistWindow = Math.min(220, Math.max(80, maxScroll * 0.55));
+    const assistStart = Math.max(0, maxScroll - assistWindow);
+    const assistProgress = maxScroll > 0
+        ? clamp((scrollTop - assistStart) / Math.max(1, maxScroll - assistStart))
+        : 0;
+    const assistedMorph = positionMorph + ((1 - positionMorph) * easeOutCubic(assistProgress));
+    const nextMorph = clamp(Math.max(positionMorph, assistedMorph));
+
+    progressMorph.value = nextMorph;
+
+    const deltaX = sourceRect.left - targetRect.left;
+    const deltaY = sourceRect.top - targetRect.top;
+    const sourceScaleX = sourceRect.width / targetRect.width;
+    const sourceScaleY = sourceRect.height / targetRect.height;
+
+    const translateX = deltaX * (1 - nextMorph);
+    const translateY = deltaY * (1 - nextMorph);
+    const scaleX = 1 + ((sourceScaleX - 1) * (1 - nextMorph));
+    const scaleY = 1 + ((sourceScaleY - 1) * (1 - nextMorph));
 
     floatingProgressStyle.value = {
-        left: `${Math.max(horizontalInset, left)}px`,
-        width: `${width}px`,
-        bottom: `${bottomInset}px`,
+        opacity: `${nextMorph}`,
+        pointerEvents: nextMorph > 0.92 ? 'auto' : 'none',
+        transform: `translate3d(${translateX}px, ${translateY}px, 0) scale(${scaleX}, ${scaleY})`,
+        transformOrigin: 'top right',
+        top: `${compactTarget?.top ?? 16}px`,
+        left: `${compactTarget?.left ?? 16}px`,
+        width: `${compactTarget?.width ?? targetRect.width}px`,
     };
+};
+
+const syncProgressPresentation = async () => {
+    await nextTick();
+    updateProgressPresentation();
+};
+
+const requestProgressPresentationSync = () => {
+    if (typeof window === 'undefined') return;
+    if (progressSyncFrame) return;
+
+    progressSyncFrame = window.requestAnimationFrame(() => {
+        progressSyncFrame = null;
+        updateProgressPresentation();
+    });
 };
 
 const syncProjectShowcaseUser = async ({ createIfMissing = false } = {}) => {
@@ -1441,17 +1603,8 @@ watch(
 );
 
 watch(showFloatingProgress, async () => {
-    await nextTick();
-    updateFloatingProgressBounds();
+    await syncProgressPresentation();
 });
-
-watch(
-    () => [roadMapItems.value.length, checklistItems.value.length],
-    async () => {
-        await nextTick();
-        updateFloatingProgressBounds();
-    }
-);
 
 onMounted(async () => {
     currentUser.value = await getCurrentUser();
@@ -1459,28 +1612,23 @@ onMounted(async () => {
     await loadProjectDetails();
 
     await nextTick();
-    updateFloatingProgressBounds();
+    await syncProgressPresentation();
 
     if (typeof window !== 'undefined') {
-        window.addEventListener('resize', updateFloatingProgressBounds);
-    }
-
-    if (typeof ResizeObserver !== 'undefined' && projectDetailsShellRef.value) {
-        floatingProgressResizeObserver = new ResizeObserver(() => {
-            updateFloatingProgressBounds();
-        });
-        floatingProgressResizeObserver.observe(projectDetailsShellRef.value);
+        window.addEventListener('scroll', requestProgressPresentationSync, { passive: true });
+        window.addEventListener('resize', requestProgressPresentationSync);
     }
 });
 
 onBeforeUnmount(() => {
-    if (typeof window !== 'undefined') {
-        window.removeEventListener('resize', updateFloatingProgressBounds);
+    if (typeof window !== 'undefined' && progressSyncFrame) {
+        window.cancelAnimationFrame(progressSyncFrame);
+        progressSyncFrame = null;
     }
 
-    if (floatingProgressResizeObserver) {
-        floatingProgressResizeObserver.disconnect();
-        floatingProgressResizeObserver = null;
+    if (typeof window !== 'undefined') {
+        window.removeEventListener('scroll', requestProgressPresentationSync);
+        window.removeEventListener('resize', requestProgressPresentationSync);
     }
 });
 </script>
@@ -1492,15 +1640,13 @@ onBeforeUnmount(() => {
     --project-border: var(--p-grey-4);
     --project-shadow: 0 12px 32px rgba(15, 23, 42, 0.07);
     min-height: 100%;
-    padding: 1.25rem;
+    padding: 10px;
 }
 
 .project-details-shell {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
     min-height: 100%;
-    padding: 1.25rem;
     border-radius: 18px;
     border: 1px solid var(--project-border);
     background:
@@ -1509,8 +1655,16 @@ onBeforeUnmount(() => {
     box-shadow: var(--project-shadow);
 }
 
-.project-details-shell-with-floating-progress {
-    padding-bottom: 9.5rem;
+.project-tabs {
+    border-radius: 18px;
+    overflow: hidden;
+}
+
+.project-details-top {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1.25rem;
 }
 
 .project-details-header {
@@ -1535,7 +1689,6 @@ onBeforeUnmount(() => {
 .project-details-copy p {
     margin: 0.65rem 0 0;
     color: var(--p-grey-1);
-    max-width: 72ch;
 }
 
 .project-details-actions {
@@ -1554,12 +1707,10 @@ onBeforeUnmount(() => {
 .project-summary-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 1rem;
+    gap: .5rem;
 }
 
-.project-floating-progress {
-    position: fixed;
-    z-index: 900;
+.project-progress-panel {
     display: flex;
     flex-direction: column;
     gap: 0.8rem;
@@ -1571,9 +1722,26 @@ onBeforeUnmount(() => {
         0 14px 34px rgba(15, 23, 42, 0.12),
         0 2px 10px rgba(15, 23, 42, 0.04);
     backdrop-filter: blur(12px);
+    transform-origin: top right;
 }
 
-.project-floating-progress-main {
+.project-progress-panel-inline {
+    width: 100%;
+    transition: opacity 0.2s ease-out;
+}
+
+.project-progress-panel-floating {
+    position: fixed;
+    z-index: 900;
+    top: 1rem;
+    right: 1rem;
+    width: min(360px, calc(100vw - 2rem));
+    transform-origin: top right;
+    will-change: transform, opacity;
+    pointer-events: none;
+}
+
+.project-progress-panel-main {
     display: flex;
     justify-content: space-between;
     gap: 1rem;
@@ -1582,31 +1750,31 @@ onBeforeUnmount(() => {
     z-index: 1;
 }
 
-.project-floating-progress-copy {
+.project-progress-panel-copy {
     min-width: 0;
 }
 
-.project-floating-progress-title {
+.project-progress-panel-title {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     gap: 0.2rem;
 }
 
-.project-floating-progress-title h3 {
+.project-progress-panel-title h3 {
     margin: 0;
     font-size: 1rem;
     font-weight: 600;
 }
 
-.project-floating-progress-title span {
+.project-progress-panel-title span {
     color: var(--p-grey-1);
     font-size: 0.78rem;
     text-transform: uppercase;
     letter-spacing: 0.06em;
 }
 
-.project-floating-progress-subline {
+.project-progress-panel-subline {
     margin-top: 0.5rem;
     display: flex;
     align-items: center;
@@ -1614,11 +1782,11 @@ onBeforeUnmount(() => {
     flex-wrap: wrap;
 }
 
-.project-floating-progress-subline small {
+.project-progress-panel-subline small {
     color: var(--p-grey-1);
 }
 
-.project-floating-progress-metric {
+.project-progress-panel-metric {
     min-width: 88px;
     display: flex;
     flex-direction: column;
@@ -1631,13 +1799,13 @@ onBeforeUnmount(() => {
     background: color-mix(in srgb, var(--p-bg-color-2) 88%, var(--p-primary-500) 12%);
 }
 
-.project-floating-progress-metric strong {
+.project-progress-panel-metric strong {
     font-size: 1.5rem;
     color: var(--p-text-color);
     line-height: 1;
 }
 
-.project-floating-progress-metric small {
+.project-progress-panel-metric small {
     color: var(--p-grey-1);
     font-size: 0.82rem;
 }
@@ -1645,7 +1813,7 @@ onBeforeUnmount(() => {
 .project-summary-card,
 .project-section-card,
 .project-checklist-card {
-    padding: 1rem 1.15rem;
+    padding: .75rem 1rem;
     border-radius: 18px;
     background: var(--p-content-background);
     border: 1px solid var(--p-content-border-color);
@@ -1738,28 +1906,44 @@ onBeforeUnmount(() => {
 
 .project-info-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.9rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
 }
 
 .project-info-item {
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
-    padding: 0.9rem 1rem;
+    gap: 0.25rem;
+    padding: 0.75rem 0.85rem;
     border-radius: 14px;
     background: rgba(var(--p-blue-500-rgb), 0.04);
     border: 1px solid rgba(var(--p-blue-500-rgb), 0.08);
+    min-width: 0;
 }
 
 .project-info-item strong {
-    font-size: 0.98rem;
+    font-size: 0.95rem;
+    line-height: 1.45;
     color: var(--p-text-color);
     white-space: pre-wrap;
+    overflow-wrap: anywhere;
 }
 
 .project-info-item-wide {
     grid-column: 1 / -1;
+}
+
+.project-subsection {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    margin-top: 1rem;
+}
+
+.project-subsection-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--p-text-color);
 }
 
 .project-bullet-list {
@@ -1930,6 +2114,10 @@ onBeforeUnmount(() => {
     .project-summary-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+
+    .project-info-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 @media (max-width: 768px) {
@@ -1937,12 +2125,8 @@ onBeforeUnmount(() => {
         padding: 0.75rem;
     }
 
-    .project-details-shell {
+    .project-details-top {
         padding: 1rem;
-    }
-
-    .project-details-shell-with-floating-progress {
-        padding-bottom: 12rem;
     }
 
     .project-details-header,
@@ -1951,18 +2135,24 @@ onBeforeUnmount(() => {
         align-items: stretch;
     }
 
-    .project-floating-progress {
+    .project-progress-panel {
         padding: 1rem;
         border-radius: 20px;
     }
 
-    .project-floating-progress-main,
-    .project-floating-progress-subline {
+    .project-progress-panel-floating {
+        top: 0.75rem;
+        right: 0.75rem;
+        width: min(320px, calc(100vw - 1.5rem));
+    }
+
+    .project-progress-panel-main,
+    .project-progress-panel-subline {
         flex-direction: column;
         align-items: flex-start;
     }
 
-    .project-floating-progress-metric {
+    .project-progress-panel-metric {
         min-width: 0;
         width: 100%;
         align-items: flex-start;
