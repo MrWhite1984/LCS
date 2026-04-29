@@ -11,7 +11,7 @@
                 icon="pi pi-arrow-left"
                 outlined
                 severity="secondary"
-                @click="router.push('/news/manage')"
+                @click="goBackToNewsManage"
             />
         </section>
 
@@ -75,7 +75,7 @@
                     label="Отмена"
                     outlined
                     severity="secondary"
-                    @click="router.push('/news/manage')"
+                    @click="goBackToNewsManage"
                 />
                 <Button
                     :label="isEdit ? 'Сохранить изменения' : 'Опубликовать пост'"
@@ -129,6 +129,11 @@ const initialTagIds = ref([]);
 const initialVisibility = ref(true);
 
 const isEdit = computed(() => Boolean(route.params.postId));
+const returnTo = computed(() => (
+    typeof route.query.returnTo === 'string' && route.query.returnTo.trim()
+        ? route.query.returnTo
+        : '/news/manage'
+));
 const canManageVisibility = computed(() => hasNewsPermission(permissionStore, 'Update'));
 const isInvalid = computed(() => (
     !String(title.value || '').trim()
@@ -211,6 +216,10 @@ async function loadPost() {
     }
 }
 
+function goBackToNewsManage() {
+    router.push(returnTo.value);
+}
+
 async function savePost() {
     if (isInvalid.value || saving.value) return;
 
@@ -271,7 +280,7 @@ async function savePost() {
             }
         }
 
-        router.push('/news/manage');
+        router.push(returnTo.value);
     } finally {
         saving.value = false;
     }

@@ -353,7 +353,7 @@ h3 {
     position: relative;
     display: flex;
     flex-direction: column;
-    padding: 10px 2rem;
+    padding: var(--app-page-padding-y) var(--app-page-padding-x) 1.5rem;
     gap: 24px;
     isolation: isolate;
     overflow: hidden;
@@ -754,7 +754,7 @@ h3 {
 
 @media (max-width: 1024px) {
     .dashboard {
-        padding: 20px 2rem;
+        padding-bottom: 1.5rem;
     }
     .hero h1 {
         font-size: 2rem;
@@ -763,7 +763,31 @@ h3 {
 
 @media (max-width: 640px) {
     .dashboard {
-        padding: 16px;
+        padding-bottom: var(--app-mobile-bottom-offset);
+        gap: 18px;
+    }
+    .hero {
+        padding: 18px 16px;
+    }
+    .hero h1 {
+        font-size: 1.65rem;
+        line-height: 1.15;
+    }
+    .hero-pill {
+        margin-bottom: 10px;
+    }
+    .actions-grid,
+    .overview-grid {
+        grid-template-columns: 1fr;
+    }
+    .action-card,
+    .panel-card {
+        border-radius: 18px;
+    }
+    .panel-header {
+        align-items: flex-start;
+        gap: 0.75rem;
+        flex-wrap: wrap;
     }
     .status-grid {
         grid-template-columns: 1fr;

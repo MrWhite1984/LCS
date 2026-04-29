@@ -101,7 +101,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import axiosInstance from "@/utils/axios.js";
 import { getQuarterPeriod } from '@/utils/formatSeason.js';
 
@@ -114,6 +114,7 @@ import JobPositionTable from '@/components/Microservice/Rating/Tables/JobPositio
 import DepartmentTable from '@/components/Microservice/Rating/Tables/DepartmentTable.vue';
 
 const router = useRouter();
+const route = useRoute();
 
 // Меню для сезонов
 const menus = ref([]);
@@ -142,6 +143,9 @@ const toggle = (event, index) => {
 const goToSeason = (seasonId) => {
     router.push({ 
         path: `/services/rating/season/${seasonId}`, 
+        query: {
+            returnTo: route.fullPath,
+        },
     });
 };
 

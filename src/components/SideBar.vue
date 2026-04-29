@@ -4,9 +4,9 @@
         class="sidebar-container" 
         :class="[
             ['season-' + currentSeason, 'bg-image-' + currentSeason],
+            { 'sidebar-mobile': isMobileMode },
             { 'sidebar-collapsed': collapsed, 'sidebar-expanded': !collapsed }
         ]"
-        v-if="isMobile"
     >
         <div class="rectangle" :class="{ 'season-overlay': !collapsed, 'collapsed': collapsed }">
             <div class="sidebar-top">
@@ -41,36 +41,27 @@
 
             <div class="sidebar-middle">
                 <div class="menu" :class="{ 'mt-3': !collapsed, 'my-4': collapsed }">
-                    <router-link 
-                        to="/overview" 
-                        class="menu-item" 
+                    <router-link
+                        v-for="item in topItems"
+                        :key="item.path"
+                        :to="item.path"
+                        class="menu-item"
                         active-class="active-link"
-                        v-tooltip.right="collapsed ? 'Главная' : ''"
+                        v-tooltip.right="collapsed ? item.name : ''"
                     >
                         <div class="menu-item-content">
-                            <i class="pi pi-home"></i>
-                            <div v-if="!collapsed" class="menucrumb">Главная</div>
-                        </div>
-                    </router-link>
-                    <router-link 
-                        to="/notif" 
-                        class="menu-item" 
-                        active-class="active-link"
-                        v-tooltip.right="collapsed ? 'Уведомления' : ''"
-                    >
-                        <div class="menu-item-content">
-                            <OverlayBadge 
-                                v-if="collapsed && notificationStore.unreadCount > 0" 
-                                :value="notificationStore.unreadCount" 
-                                severity="danger" 
+                            <OverlayBadge
+                                v-if="item.path === '/notif' && collapsed && notificationStore.unreadCount > 0"
+                                :value="notificationStore.unreadCount"
+                                severity="danger"
                                 class="notification-badge-collapsed"
                             />
-                            <i class="pi pi-bell"></i>
+                            <i :class="item.icon"></i>
                             <div v-if="!collapsed" class="menucrumb">
-                                <span>Уведомления</span>
+                                <span>{{ item.name }}</span>
                             </div>
-                            <Badge 
-                                v-if="!collapsed && notificationStore.unreadCount > 0"
+                            <Badge
+                                v-if="item.path === '/notif' && !collapsed && notificationStore.unreadCount > 0"
                                 :value="notificationStore.unreadCount"
                                 class="p-badge ms-3"
                             />
@@ -79,13 +70,12 @@
                 </div>
     
                 <div class="menu" :class="{ 'mb-4': collapsed }">
-                    <div v-if="!collapsed && menuItems" class="general mt-2">Сервисы</div>
-                    <div v-for="item in menuItems" :key="item.path">
+                    <div v-if="!collapsed && serviceItems.length" class="general mt-2">Сервисы</div>
+                    <div v-for="item in serviceItems" :key="item.path">
                         <router-link 
                             :to="item.path" 
                             class="menu-item" 
                             active-class="active-link"
-                            v-if="shouldShowMenuItem(item.path)"
                             v-tooltip.right="collapsed ? item.name : ''"
                         >
                             <div class="menu-item-content">
@@ -163,28 +153,6 @@
                             </div>
                         </Transition>
                     </div>
-                    <router-link 
-                        to="/schedule" 
-                        class="menu-item" 
-                        active-class="active-link"
-                        v-tooltip.right="collapsed ? 'Расписание' : ''"
-                    >
-                        <div class="menu-item-content">
-                            <i class="pi pi-calendar"></i>
-                            <div v-if="!collapsed" class="menucrumb">Расписание</div>
-                        </div>
-                    </router-link>
-                    <router-link 
-                        to="/faq" 
-                        class="menu-item" 
-                        active-class="active-link"
-                        v-tooltip.right="collapsed ? 'Вопросы и ответы' : ''"
-                    >
-                        <div class="menu-item-content">
-                            <i class="pi pi-question-circle"></i>
-                            <div v-if="!collapsed" class="menucrumb">Вопросы и ответы</div>
-                        </div>
-                    </router-link>
                 </div>
     
                 <div class="menu">
@@ -194,7 +162,6 @@
                             :to="item.path" 
                             class="menu-item"
                             active-class="active-link"
-                            v-if="checkPermission(item.path)"
                             v-tooltip.right="collapsed ? item.name : ''"
                         >
                             <div class="menu-item-content">
@@ -227,7 +194,7 @@
                     />
                 </div>
 
-                <AccentColorEditor :isSideBarCollapse="collapsed" :season="currentSeason" />
+                <AccentColorEditor :isSideBarCollapse="collapsed" />
 
                 <router-link 
                     class="profile" 
@@ -270,8 +237,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
-import axiosInstance from '@/utils/axios.js';
+import { ref, computed, watch, onMounted } from 'vue';
 
 import Lcs from '@/assets/logo/lcs.svg';
 
@@ -285,12 +251,11 @@ import { useConfirm } from "primevue/useconfirm";
 import { useToast } from "primevue/usetoast";
 import { useRoute, useRouter } from 'vue-router';
 import { clearAuthData } from '@/utils/TokenService.js';
-import { getRequestAccess, resetRequestAccessCache } from '@/utils/requestAccess.js';
+import { resetRequestAccessCache } from '@/utils/requestAccess.js';
 import { getCurrentUser, resetCurrentUserCache } from '@/utils/currentUser.js';
-import { idoSuResource } from '@/api/ido.js';
-import { projectShowcaseInitiatorResource, projectShowcaseSuResource } from '@/api/projectShowcase.js';
-import { ENABLE_PROJECT_OFFICE } from '@/config/features.js';
 import { runLogoutClipTransition } from '@/composables/logoutTransition';
+import { useResponsiveLayout } from '@/composables/useResponsiveLayout.js';
+import { useAppNavigation } from '@/composables/useAppNavigation.js';
 
 // Импортируем утилиты для сезонов
 import { 
@@ -302,6 +267,10 @@ import { syncPrimaryTheme } from '@/utils/accentTheme.js';
 
 const props = defineProps({
     collapsed: {
+        type: Boolean,
+        default: false
+    },
+    mobile: {
         type: Boolean,
         default: false
     }
@@ -320,6 +289,8 @@ const debugMode = ref(false);
 const allowSeasonSelection = ref(false);
 const currentSeason = ref(getCurrentSeason());
 const selectedSeason = ref(null);
+const { isPhone } = useResponsiveLayout();
+const isMobileMode = computed(() => props.mobile || isPhone.value);
 
 // Опции для выбора сезона
 const seasonOptions = [
@@ -337,9 +308,18 @@ const email = ref('');
 const initials = ref('');
 const fullName = ref('');
 const searchQuery = ref('');
-const showRequests = ref(false);
 const idoMenuOpen = ref(false);
 const projectOfficeMenuOpen = ref(false);
+const {
+    hasPermission,
+    topItems,
+    serviceItems,
+    adminItems,
+    idoItems: visibleIdoMenuItems,
+    projectOfficeItems: visibleProjectOfficeMenuItems,
+    showIdoMenu,
+    showProjectOfficeMenu,
+} = useAppNavigation();
 
 // Вычисляемые свойства для сезона
 const seasonName = computed(() => getSeasonName(currentSeason.value));
@@ -350,60 +330,11 @@ const profileLink = computed(() => {
     const params = new URLSearchParams({ id: String(userId.value) });
     return `/profile?${params.toString()}`;
 });
-
-const menuItemsAdmin = [
-    { name: 'Пользователи', path: '/users', icon: 'pi pi-users' },
-    { name: 'Роли', path: '/rbac', icon: 'pi pi-sitemap' },
-    { name: 'Микросервисы', path: '/services', icon: 'pi pi-desktop' },
-    { name: 'Настройка SSO', path: '/sso/config', icon: 'pi pi-cog' },
-    { name: 'Авто-Роли', path: '/autorole', icon: 'pi pi-objects-column' },
-    { name: 'Ответственные (справки)', path: '/tickets/responsibles', icon: 'pi pi-user-plus' }
-];
-
-const menuItems = [
-    { name: 'Заявки', path: '/requests', icon: 'pi pi-pen-to-square' },
-    { name: 'Справки', path: '/tickets', icon: 'pi pi-ticket' }
-];
-
-const showIdoMenu = computed(() => true);
-const canReadIdoSettings = computed(() => hasPermission(idoSuResource, 'Read'));
-const idoMenuItems = computed(() => ([
-    { name: 'Подать заявку', path: '/ido/consultations', icon: 'pi pi-file-edit', visible: true },
-    { name: 'Список консультаций', path: '/ido/orders', icon: 'pi pi-list-check', visible: true },
-    { name: 'Настройки ИДО', path: '/ido/settings', icon: 'pi pi-sliders-h', visible: canReadIdoSettings.value }
-]));
-const visibleIdoMenuItems = computed(() => idoMenuItems.value.filter((item) => item.visible));
 const isIdoRoute = computed(() => route.path.startsWith('/ido'));
-const showProjectOfficeMenu = computed(() => ENABLE_PROJECT_OFFICE);
-const canReadProjectShowcaseAll = computed(() => hasPermission(projectShowcaseSuResource, 'Read'));
-const canCreateProjectShowcase = computed(() => hasPermission(projectShowcaseInitiatorResource, 'Create'));
-const projectOfficeMenuItems = computed(() => ([
-    {
-        name: 'Банк проектов',
-        path: '/project-office/projects',
-        icon: 'pi pi-folder-open',
-        visible: true,
-    },
-    {
-        name: 'Мои проекты',
-        path: '/project-office/projects',
-        icon: 'pi pi-user-edit',
-        visible: canCreateProjectShowcase.value || canReadProjectShowcaseAll.value,
-    },
-]));
-const visibleProjectOfficeMenuItems = computed(() => {
-    const uniqueItems = new Map();
-    projectOfficeMenuItems.value
-        .filter((item) => item.visible)
-        .forEach((item) => {
-            if (!uniqueItems.has(item.path)) uniqueItems.set(item.path, item);
-        });
-    return [...uniqueItems.values()];
-});
 const isProjectOfficeRoute = computed(() => route.path.startsWith('/project-office'));
 
 const filteredMenuItems = computed(() => {
-    return menuItemsAdmin.filter(item =>
+    return adminItems.value.filter(item =>
         item.name.toLowerCase().startsWith(searchQuery.value.toLowerCase())
     );
 });
@@ -413,8 +344,6 @@ const getInitials = (firstName, lastName) => {
     const initials = `${firstName[0] || ''}${lastName[0] || ''}`.toUpperCase();
     return initials;
 };
-
-const hasPermission = (type, action) => permissionStore.hasPermission(type, action);
 
 const toggleIdoMenu = () => {
     if (props.collapsed) {
@@ -432,25 +361,6 @@ const toggleProjectOfficeMenu = () => {
     }
 
     projectOfficeMenuOpen.value = !projectOfficeMenuOpen.value;
-};
-
-const checkPermission = (path) => {
-    const permissionMap = {
-        '/rbac': hasPermission('Rbac', 'Read'),
-        '/users': hasPermission('User', 'Read'),
-        '/sso/config': hasPermission('SsoResource', 'Read'),
-        '/autorole': hasPermission('RoleAutoAssigner', 'Read'),
-        '/faq': hasPermission('FAQ', 'Read'),
-        '/tickets': hasPermission('Tickets', 'Read'),
-        '/tickets/responsibles' : hasPermission('ResponsibleTicketStudentGroup', 'Read'),
-        '/services': hasPermission('InfraManager', 'Read'),
-    };
-    return permissionMap[path] !== undefined ? permissionMap[path] : true;
-};
-
-const shouldShowMenuItem = (path) => {
-    if (path === '/requests') return checkPermission(path) && showRequests.value;
-    return checkPermission(path);
 };
 
 // Функции для работы с сезонами
@@ -500,8 +410,8 @@ const loadSeasonPreference = () => {
     }
 };
 
-watch(currentSeason, (season) => {
-    syncPrimaryTheme(season);
+watch(currentSeason, () => {
+    syncPrimaryTheme();
 });
 
 watch(
@@ -517,29 +427,7 @@ watch(
     { immediate: true }
 );
 
-// Проверка изменения месяца
 let lastCheckedMonth = null;
-
-const checkMonthChange = () => {
-    const currentMonth = new Date().getMonth();
-    const savedSeason = localStorage.getItem('seasonOverride');
-    
-    if (!savedSeason && currentMonth !== lastCheckedMonth) {
-        currentSeason.value = getCurrentSeason();
-        lastCheckedMonth = currentMonth;
-        
-        if (lastCheckedMonth !== null) {
-            toast.add({
-                severity: 'info',
-                summary: 'Смена сезона',
-                detail: `Теперь у вас ${seasonName.value.toLowerCase()}!`,
-                life: 3000
-            });
-        }
-    }
-};
-
-let monthCheckInterval = null;
 
 const confirmLogout = () => {
     confirm.require({
@@ -580,7 +468,7 @@ const logout = async () => {
 
 onMounted(async () => {
     loadSeasonPreference();
-    syncPrimaryTheme(currentSeason.value);
+    syncPrimaryTheme();
     lastCheckedMonth = new Date().getMonth();
 
     try {
@@ -596,28 +484,10 @@ onMounted(async () => {
         userId.value = response.id;
         localStorage.setItem('firstName', response.firstName);
 
-        const requestAccess = await getRequestAccess();
-        showRequests.value = requestAccess.showRequests;
-
     } catch (error) {
         console.debug('Ошибка при получении информации о пользователе: ', error);
     }
-
-    checkIsMobile();
-    window.addEventListener('resize', checkIsMobile);
 });
-
-onBeforeUnmount(() => {
-    window.removeEventListener('resize', checkIsMobile);
-    if (monthCheckInterval) {
-        clearInterval(monthCheckInterval);
-    }
-});
-
-const isMobile = ref(false);
-const checkIsMobile = () => {
-    isMobile.value = window.innerWidth > 768;
-};
 </script>
 
 <style scoped>
@@ -645,6 +515,11 @@ const checkIsMobile = () => {
 
 .sidebar-container.sidebar-expanded {
     width: 100% !important;
+}
+
+.sidebar-container.sidebar-mobile {
+    min-height: 100%;
+    height: 100%;
 }
 
 /* ============ ФОНОВОЕ ИЗОБРАЖЕНИЕ ============ */
@@ -1502,15 +1377,21 @@ const checkIsMobile = () => {
 
 /* ============ RESPONSIVE ADJUSTMENTS ============ */
 @media (max-width: 768px) {
-    .sidebar-container {
+    .sidebar-container:not(.sidebar-mobile) {
         width: 90px !important;
         max-width: 90px;
         border-radius: 0;
     }
     
-    .sidebar-container.sidebar-expanded {
+    .sidebar-container.sidebar-expanded:not(.sidebar-mobile) {
         width: 280px !important;
         max-width: 280px;
+    }
+
+    .sidebar-container.sidebar-mobile {
+        width: 100% !important;
+        max-width: none;
+        border-radius: 0;
     }
     
     .rectangle {

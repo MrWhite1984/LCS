@@ -1,7 +1,18 @@
-import { applyPrimaryPalette, applySeasonPrimaryTheme } from '@/utils/seasonTheme.js';
-
 const ACCENT_STORAGE_KEY = 'accentTheme';
 const DEFAULT_STATE_DELTA = 50;
+const DEFAULT_PRIMARY_PALETTE = {
+    50: '#eef6ff',
+    100: '#d8eaff',
+    200: '#b8d8ff',
+    300: '#8fc0ff',
+    400: '#64a5ff',
+    500: '#448fff',
+    600: '#3272db',
+    700: '#285ab0',
+    800: '#244f91',
+    900: '#23457a',
+    950: '#172b4c',
+};
 const DEFAULT_LIGHTNESS_MAP = {
     50: 0.97,
     100: 0.93,
@@ -17,6 +28,46 @@ const DEFAULT_LIGHTNESS_MAP = {
 };
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+const hexToRgb = (hex) => {
+    const normalized = hex.replace('#', '');
+    const value = normalized.length === 3
+        ? normalized.split('').map((char) => char + char).join('')
+        : normalized;
+
+    const int = Number.parseInt(value, 16);
+    const r = (int >> 16) & 255;
+    const g = (int >> 8) & 255;
+    const b = int & 255;
+    return `${r}, ${g}, ${b}`;
+};
+
+const applyPrimaryPalette = (palette) => {
+    if (typeof document === 'undefined') return;
+
+    const root = document.documentElement;
+    const shades = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
+
+    shades.forEach((shade) => {
+        const color = palette[shade];
+        root.style.setProperty(`--p-primary-${shade}`, color, 'important');
+        root.style.setProperty(`--p-primary-${shade}-rgb`, hexToRgb(color), 'important');
+        root.style.setProperty(`--p-blue-${shade}`, color, 'important');
+    });
+
+    root.style.setProperty('--p-primary-color', palette[500], 'important');
+    root.style.setProperty('--p-primary-color-rgb', hexToRgb(palette[500]), 'important');
+    root.style.setProperty('--p-primary-hover-color', palette[600], 'important');
+    root.style.setProperty('--p-primary-active-color', palette[700], 'important');
+    root.style.setProperty('--p-primary-contrast-color', '#ffffff', 'important');
+
+    root.style.setProperty('--p-blue-500-rgb', hexToRgb(palette[500]), 'important');
+    root.style.setProperty(
+        '--p-blue-500-low-op',
+        `color-mix(in srgb, ${palette[500]} 22%, transparent)`,
+        'important',
+    );
+};
+
 const normalizeStateDelta = (value) => {
     const numeric = Number(value);
     return clamp(Number.isFinite(numeric) ? Math.round(numeric) : DEFAULT_STATE_DELTA, 0, 100);
@@ -386,7 +437,11 @@ export const clearAccentThemePreference = () => {
     localStorage.removeItem(ACCENT_STORAGE_KEY);
 };
 
-export const syncPrimaryTheme = (season) => {
+const applyDefaultPrimaryTheme = () => {
+    applyPrimaryPalette(DEFAULT_PRIMARY_PALETTE);
+};
+
+export const syncPrimaryTheme = () => {
     const accentPreference = getAccentThemePreference();
 
     if (accentPreference?.color) {
@@ -395,13 +450,13 @@ export const syncPrimaryTheme = (season) => {
         return 'accent';
     }
 
-    applySeasonPrimaryTheme(season);
+    applyDefaultPrimaryTheme();
     if (typeof document !== 'undefined') {
         document.documentElement.style.removeProperty('--accent-editor-color');
     }
     clearStateDeltaOverrides();
     applySmartTextContrast();
-    return 'season';
+    return 'default';
 };
 
 export const refreshAccentForThemeChange = () => {
@@ -410,8 +465,9 @@ export const refreshAccentForThemeChange = () => {
         applyAccentTheme(accentPreference.color, { stateDelta: accentPreference.stateDelta });
         return 'accent';
     }
+    applyDefaultPrimaryTheme();
     applySmartTextContrast();
-    return 'season';
+    return 'default';
 };
 
 export const normalizeAccentHex = normalizeHex;

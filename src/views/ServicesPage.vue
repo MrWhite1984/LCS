@@ -354,7 +354,7 @@ main {
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
-    padding: 10px 2rem 2rem;
+    padding: var(--app-page-padding-y) var(--app-page-padding-x) 1.5rem;
     overflow: auto;
     color: var(--p-text-color);
     gap: 1.5rem;
@@ -579,7 +579,7 @@ main {
 
 @media (max-width: 768px) {
     .content-wrapper {
-        padding: 20px;
+        padding-bottom: var(--app-mobile-bottom-offset);
     }
 
     .services-hero {
@@ -606,6 +606,10 @@ main {
     .health-grid,
     .services-cards {
         grid-template-columns: 1fr;
+    }
+
+    .health-card {
+        min-height: 0;
     }
 }
 </style>

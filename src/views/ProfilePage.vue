@@ -82,14 +82,6 @@
                         <Button label="Сохранить" icon="pi pi-check" class="w-100 mt-4" @click="changeMePass"/>
                     </form>
                 </Dialog>
-                <Button label="Сменить email" text icon="pi pi-at" class="d-flex justify-content-between w-100" iconPos="right" @click="visibleEmail = true" />
-                <Dialog v-model:visible="visibleEmail" modal header="Сменить e-mail" :style="{ 'max-width': '25rem' }">
-                    <div class="">
-                        <label for="newEmail" class="ms-2">Новый e-mail</label>
-                        <InputText id="newEmail" name="newEmail" v-model="newEmail" class="form-input w-100" placeholder="Введите e-mail" />
-                    </div>
-                    <Button label="Сохранить" icon="pi pi-check" class="w-100 mt-4" @click="changeEmail"/>
-                </Dialog>
             </div>
 
             
@@ -204,13 +196,30 @@
         
 
         <div class="content-wrap">
+            <Breadcrumb v-if="profileBreadcrumbs.length" :model="profileBreadcrumbs" class="profile-breadcrumbs">
+                <template #item="{ item, props }">
+                    <a
+                        v-if="item.to"
+                        v-bind="props.action"
+                        href=""
+                        class="profile-breadcrumb-link"
+                        @click.prevent="router.push(item.to)"
+                    >
+                        <span>{{ item.label }}</span>
+                    </a>
+                    <span v-else v-bind="props.action" class="profile-breadcrumb-current">
+                        {{ item.label }}
+                    </span>
+                </template>
+            </Breadcrumb>
+
             <div v-if="activeProfile === 'user'">
                 <div class="profile-card profile-card-user">
                     <!-- <div class="profile-header">
                         <img src="../assets/backgrounds/profBack.webp" alt="Profile Header" class="header-image"/>
                     </div> -->
-                    <div class="row mx-0">
-                        <div class="col-auto d-flex align-items-center justify-content-center">
+                    <div class="row mx-0 profile-user-header">
+                        <div class="col-auto d-flex align-items-center justify-content-center profile-user-avatar-col">
                             <div
                                 class="avatar-wrapper"
                                 :class="{ 'avatar-wrapper-dragover': isAvatarDragOver }"
@@ -234,9 +243,9 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col d-flex align-items-center">
+                        <div class="col d-flex align-items-center profile-user-main-col">
                             <div class="profile-body w-100">
-                                <div class="row justify-content-between">
+                                <div class="row justify-content-between profile-user-summary-row">
                                     <div class="col">
                                         <h2>{{ fullName }}</h2>
                                         <p class="profile-email">{{ email }}</p>
@@ -256,7 +265,7 @@
                                             </template>
                                         </div>
                                     </div>
-                                    <div class="col-auto d-flex align-items-center">
+                                    <div class="col-auto d-flex align-items-center profile-user-action-col">
                                         <UpdateUser v-if="!isCurrentUser && hasPermission('User', 'Update')" :userId="userId"/>
                                     </div>
                                 </div>
@@ -568,7 +577,7 @@
 
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import axiosInstance from '@/utils/axios.js';
 import { usePermissionStore } from '@/stores/permissions.js';
 import { getSessionUserId } from '@/utils/TokenService.js';
@@ -580,6 +589,7 @@ import MePermissionsPage from '@/views/MePermissionsPage.vue';
 import GetOtpButton from '@/components/Users/GetOtpButton.vue';
 
 const permissionStore = usePermissionStore();
+const router = useRouter();
 
 const hasPermission = (type, action) => permissionStore.hasPermission(type, action);
 
@@ -588,12 +598,41 @@ const isCurrentUser = computed(() => {
 });
 
 const route = useRoute();
+const returnTo = computed(() => (
+    typeof route.query.returnTo === 'string' && route.query.returnTo.trim()
+        ? route.query.returnTo
+        : null
+));
+const returnRoute = computed(() => {
+    if (!returnTo.value) return null;
+
+    try {
+        return router.resolve(returnTo.value);
+    } catch {
+        return null;
+    }
+});
+const profileBreadcrumbs = computed(() => {
+    if (!returnRoute.value) return [];
+
+    const sourceLabel = returnRoute.value.meta?.title
+        || (typeof returnRoute.value.name === 'string' ? returnRoute.value.name : 'Назад');
+
+    return [
+        {
+            label: sourceLabel,
+            to: returnTo.value,
+        },
+        {
+            label: fullName.value || 'Профиль',
+        },
+    ];
+});
 
 const srcAvatar = ref(null);
 const loading = ref(true);
 const visible = ref(false);
 const visiblePass = ref(false);
-const visibleEmail = ref(false);
 const fileInput = ref(null);
 const isAvatarDragOver = ref(false);
 const sidebarVisible = ref(false);
@@ -606,7 +645,6 @@ const fullName = ref('');
 const email = ref('');
 const userRoles = ref([]);
 
-const newEmail = ref('');
 const oldPass = ref('');
 const newPass = ref('');
 const confirmPass = ref('');
@@ -1437,28 +1475,6 @@ watch(() => route.query.id, async (newId) => {
     await fetchExternalAccounts();
 });
 
-const changeEmail = async () => {
-    try {
-        await axiosInstance.patch('/api/users/me/email', newEmail.value.toString());
-        window.dispatchEvent(new CustomEvent('toast', {
-            detail: { 
-                severity: 'success', 
-                summary: 'Мой профиль', 
-                detail: `Email успешно изменен`,
-            }
-        }));
-        fetchUserProfile(userId.value);
-    } catch (error) {
-        console.debug('Ошибка при обновлении email: ', error);
-        window.dispatchEvent(new CustomEvent('toast', {
-            detail: { 
-                severity: 'error', 
-                summary: 'Мой профиль', 
-                detail: `Ошибка при обновлении Email`,
-            }
-        }));
-    }
-}
 const changeMePass = async () => {
     try {
         await axiosInstance.patch('/api/users/me/password', {
@@ -1501,7 +1517,8 @@ main {
     position: relative;
     display: flex;
     height: 100%;
-    padding: 10px;
+    padding: var(--app-page-padding-y) var(--app-page-padding-x);
+    gap: 10px;
 }
 .menu-item {
     position: relative;
@@ -1628,6 +1645,29 @@ main {
     padding-inline: 10px;
     overflow-y: auto;
     color: var(--p-text-color);
+}
+.profile-breadcrumbs {
+    margin-bottom: 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(var(--p-blue-500-rgb), 0.12);
+    background: rgba(var(--p-blue-500-rgb), 0.04);
+}
+.profile-breadcrumb-link,
+.profile-breadcrumb-current {
+    display: inline-flex;
+    align-items: center;
+    color: var(--p-text-color);
+    text-decoration: none;
+    font-weight: 500;
+}
+.profile-breadcrumb-link {
+    transition: color 0.2s ease;
+}
+.profile-breadcrumb-link:hover {
+    color: var(--p-primary-color);
+}
+.profile-breadcrumb-current {
+    color: var(--p-text-muted-color, var(--p-text-color));
 }
 .profile-card {
     border-width: 2px;
@@ -2064,6 +2104,64 @@ p {
 }
 
 @media (max-width: 960px) {
+    main {
+        flex-direction: column;
+        gap: 0.9rem;
+    }
+
+    .sidebar {
+        position: relative;
+        width: 100%;
+        height: auto;
+        max-height: none;
+    }
+
+    .button-group {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.65rem;
+    }
+
+    .menu-item,
+    .sidebar :deep(.p-button) {
+        margin-bottom: 0 !important;
+    }
+
+    .content-wrap {
+        margin-left: 0;
+        padding-inline: 0;
+        overflow: visible;
+        padding-bottom: var(--app-mobile-bottom-offset);
+    }
+
+    .profile-user-header {
+        row-gap: 1rem;
+    }
+
+    .profile-user-avatar-col,
+    .profile-user-main-col,
+    .profile-user-action-col {
+        width: 100%;
+    }
+
+    .profile-user-main-col {
+        justify-content: flex-start !important;
+    }
+
+    .profile-user-summary-row {
+        row-gap: 1rem;
+    }
+
+    .profile-role {
+        flex-wrap: wrap;
+    }
+
+    .external-form-grid,
+    .external-edit-row,
+    .external-add-row {
+        grid-template-columns: 1fr;
+    }
+
     .external-header {
         flex-direction: column;
     }
@@ -2100,6 +2198,33 @@ p {
         padding-top: 0;
         padding-left: 1rem;
         padding-bottom: 0.9rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .profile-card,
+    .profile-card-user {
+        padding: 16px;
+    }
+
+    .profile-info-body {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .profile-info-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .external-header > .d-flex {
+        width: 100%;
+        flex-direction: column;
+    }
+
+    .external-header > .d-flex :deep(.p-button) {
+        width: 100%;
     }
 }
 </style>

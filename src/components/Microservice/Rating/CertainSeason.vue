@@ -227,6 +227,11 @@ import IndicatorScoresManager from "@/components/Microservice/Rating/IndicatorSc
 
 const router = useRouter();
 const route = useRoute();
+const returnTo = computed(() => (
+    typeof route.query.returnTo === 'string' && route.query.returnTo.trim()
+        ? route.query.returnTo
+        : '/services/rating'
+));
 
 const seasonId = ref(parseInt(route.params.idSeason));
 const certainSeason = ref({});
@@ -411,7 +416,7 @@ const treeNodes = computed(() => {
 });
 
 // Methods
-const goBack = () => router.back();
+const goBack = () => router.push(returnTo.value);
 
 const calculateIndicatorsTotal = (mainGroupName) => {
     return rawIndicators.value.filter(ind => {

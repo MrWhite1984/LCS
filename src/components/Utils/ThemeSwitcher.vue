@@ -4,7 +4,16 @@
             <i :class="slotProps.option.icon"></i>
         </template>
     </SelectButton>
-    <div class="col-lg-auto" @click="themeToggle" v-if="isAuthPage">
+    <button type="button" class="bt-inline" @click="themeToggle" v-if="isAuthPage && authInline">
+        <span class="bt-inline-copy">
+            <span class="bt-inline-label">Тема оформления</span>
+            <span class="bt-inline-value">{{ currentThemeLabel }}</span>
+        </span>
+        <span class="bt-inline-icon">
+            <i :class="`pi ${ iconClass }`"></i>
+        </span>
+    </button>
+    <div class="col-lg-auto" @click="themeToggle" v-else-if="isAuthPage">
         <div class="bt" optionValue="value">
             <i :class="`pi ${ iconClass }`" class="me-2 me-lg-0"></i>
             <span class="d-lg-none fs-6">{{ currentThemeLabel }}</span>
@@ -24,6 +33,10 @@ import { refreshAccentForThemeChange } from '@/utils/accentTheme.js';
 
 const props = defineProps({
     isSideBarCollapse: {
+        type: Boolean,
+        default: false
+    },
+    authInline: {
         type: Boolean,
         default: false
     }
@@ -137,10 +150,71 @@ function themeToggle() {
     background-color: var(--p-grey-3);
 }
 
+.bt-inline {
+    width: 100%;
+    margin-top: 0.4rem;
+    padding: 0.95rem 1rem;
+    border: 1px solid color-mix(in srgb, var(--p-text-muted-color) 18%, transparent);
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--p-bg-color-2) 84%, transparent);
+    color: var(--p-text-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.9rem;
+    cursor: pointer;
+    transition: background-color 0.35s ease, border-color 0.35s ease, transform 0.25s ease, color 0.35s ease;
+}
+
+.bt-inline:hover {
+    background: color-mix(in srgb, var(--p-blue-400) 16%, var(--p-bg-color-2));
+    border-color: color-mix(in srgb, var(--p-blue-400) 30%, transparent);
+    transform: translateY(-1px);
+}
+
+.bt-inline-copy {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.18rem;
+    text-align: left;
+}
+
+.bt-inline-label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--p-text-muted-color);
+}
+
+.bt-inline-value {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--p-text-color);
+}
+
+.bt-inline-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--p-blue-400) 14%, transparent);
+    color: var(--p-blue-400);
+    flex-shrink: 0;
+    transition: background-color 0.35s ease, color 0.35s ease;
+}
+
 @media (max-width: 896px) {
     .bt {
         width: 22%;
         padding: 18px 50px;
+    }
+
+    .bt-inline {
+        padding: 0.9rem 0.95rem;
     }
 }
 </style>

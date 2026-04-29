@@ -17,17 +17,12 @@ import AppState from './plugins/appState.js';
 import { createPinia } from 'pinia';
 
 import Tooltip from 'primevue/tooltip';
-import { getCurrentSeason } from '@/utils/seasons.js';
 import { syncPrimaryTheme } from '@/utils/accentTheme.js';
 
 const app = createApp(App);
 const pinia = createPinia();
 
-const seasonOverride = localStorage.getItem('seasonOverride');
-const initialSeason = ['winter', 'spring', 'summer', 'autumn'].includes(seasonOverride)
-    ? seasonOverride
-    : getCurrentSeason();
-syncPrimaryTheme(initialSeason);
+syncPrimaryTheme();
 
 app.use(PrimeVue, {
     theme: {

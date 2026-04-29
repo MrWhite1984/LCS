@@ -214,10 +214,6 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
-    season: {
-        type: String,
-        required: true,
-    },
 });
 
 const presets = [
@@ -418,7 +414,7 @@ const syncPreviewFromTheme = () => {
 const switchToSeasonMode = () => {
     clearAccentThemePreference();
     syncCustomEnabled();
-    syncPrimaryTheme(props.season);
+    syncPrimaryTheme();
     syncPreviewFromTheme();
 };
 
@@ -485,13 +481,6 @@ watch(() => saturation.value, () => {
 watch(() => stateDelta.value, () => {
     if (!customEnabled.value || !workingColor.value) return;
     applyAndPersistAccent(workingColor.value);
-});
-
-watch(() => props.season, () => {
-    if (!customEnabled.value) {
-        syncPreviewFromTheme();
-    }
-    syncCustomEnabled();
 });
 
 watch(

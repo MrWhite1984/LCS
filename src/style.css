@@ -121,6 +121,14 @@ body {
   font-weight: 400 !important;
   font-size: 1rem !important;
   color: var(--p-text-color) !important;
+  min-width: 320px;
+  overflow-x: hidden;
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
 }
 
 h1,
@@ -297,6 +305,10 @@ svg.lcs {
 }
 
 :root {
+  --app-page-padding-x: clamp(1rem, 3vw, 2rem);
+  --app-page-padding-y: 0.625rem;
+  --app-mobile-bottom-offset: calc(env(safe-area-inset-bottom, 0px) + 5.8rem);
+
   --p-bg-color-0: rgba(255, 255, 255, 0.5);
   --p-bg-color-1: rgba(255,255,255,1.0);
   --p-bg-color-2: rgba(242,242,247,1.0);
@@ -418,4 +430,64 @@ svg.lcs {
 
 :root.logout-view-transition::view-transition-new(root) {
   z-index: 1;
+}
+
+@media (max-width: 768px) {
+  :root {
+    --app-page-padding-x: 1rem;
+    --app-page-padding-y: 0.75rem;
+  }
+
+  .p-dialog {
+    width: min(calc(100vw - 1rem), 36rem) !important;
+    max-width: calc(100vw - 1rem) !important;
+    max-height: calc(100dvh - 1rem) !important;
+    margin: 0.5rem !important;
+  }
+
+  .p-dialog .p-dialog-header,
+  .p-dialog .p-dialog-content,
+  .p-dialog .p-dialog-footer {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  .p-select,
+  .p-multiselect,
+  .p-autocomplete,
+  .p-inputtext,
+  .p-password,
+  .p-textarea,
+  .p-inputnumber,
+  .p-iconfield,
+  .p-selectbutton,
+  .p-breadcrumb,
+  .p-paginator,
+  .p-datepicker,
+  .p-tree-select {
+    max-width: 100%;
+  }
+
+  .p-selectbutton {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  }
+
+  .p-selectbutton .p-togglebutton {
+    min-width: 0;
+  }
+
+  .p-breadcrumb {
+    overflow-x: auto;
+  }
+
+  .p-datatable-table-container {
+    overflow-x: auto;
+  }
+
+  div.p-datatable-header,
+  div.p-paginator {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
 }

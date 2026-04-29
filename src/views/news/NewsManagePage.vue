@@ -12,7 +12,7 @@
                     v-if="canCreatePosts"
                     label="Новый пост"
                     icon="pi pi-plus"
-                    @click="router.push('/news/manage/create')"
+                    @click="openCreatePost"
                 />
                 <Button
                     icon="pi pi-refresh"
@@ -70,7 +70,7 @@
                             label="Редактировать"
                             icon="pi pi-pencil"
                             text
-                            @click="router.push(`/news/manage/${post.id}/edit`)"
+                            @click="openEditPost(post)"
                         />
                         <Button
                             v-if="canUpdatePosts"
@@ -225,8 +225,8 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { computed, onMounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useConfirm } from 'primevue/useconfirm';
 import { usePermissionStore } from '@/stores/permissions.js';
 import { formatDateRuLongWithTime } from '@/utils/date.js';
@@ -249,6 +249,7 @@ import {
 } from '@/api/news.js';
 
 const router = useRouter();
+const route = useRoute();
 const confirm = useConfirm();
 const permissionStore = usePermissionStore();
 
@@ -285,6 +286,69 @@ const canDeleteTags = computed(() => hasNewsAdminPermission(permissionStore, 'De
 const canCreateEmoji = computed(() => hasNewsAdminPermission(permissionStore, 'Create'));
 const canDeleteEmojiAction = computed(() => hasNewsAdminPermission(permissionStore, 'Delete'));
 
+const parsePositiveNumber = (value, fallback) => {
+    const normalized = Number(value);
+    return Number.isFinite(normalized) && normalized > 0 ? normalized : fallback;
+};
+
+const hydrateNewsManageState = () => {
+    if (typeof route.query.section === 'string' && route.query.section.trim()) {
+        section.value = route.query.section;
+    }
+
+    postsPage.value = parsePositiveNumber(route.query.page, 1);
+    tagQuery.value = typeof route.query.tagQuery === 'string' ? route.query.tagQuery : '';
+};
+
+const buildNewsManageQuery = () => {
+    const nextQuery = {
+        section: section.value,
+    };
+
+    if (section.value === 'posts' && postsPage.value > 1) {
+        nextQuery.page = String(postsPage.value);
+    }
+
+    if (section.value === 'tags' && tagQuery.value.trim()) {
+        nextQuery.tagQuery = tagQuery.value.trim();
+    }
+
+    return nextQuery;
+};
+
+const syncNewsManageQuery = async () => {
+    const nextQuery = buildNewsManageQuery();
+    const currentQuery = route.query;
+    const nextKeys = Object.keys(nextQuery);
+    const currentKeys = Object.keys(currentQuery);
+    const sameLength = nextKeys.length === currentKeys.length;
+    const sameEntries = nextKeys.every((key) => String(currentQuery[key] ?? '') === String(nextQuery[key] ?? ''));
+
+    if (sameLength && sameEntries) return;
+
+    await router.replace({ query: nextQuery });
+};
+
+const openCreatePost = () => {
+    router.push({
+        path: '/news/manage/create',
+        query: {
+            returnTo: route.fullPath,
+        },
+    });
+};
+
+const openEditPost = (post) => {
+    if (!post?.id) return;
+
+    router.push({
+        path: `/news/manage/${post.id}/edit`,
+        query: {
+            returnTo: route.fullPath,
+        },
+    });
+};
+
 function summarize(text) {
     const plainText = getNewsPlainText(text)
         .replace(/\s+/g, ' ')
@@ -300,6 +364,7 @@ async function loadPosts() {
     postsLoading.value = true;
 
     try {
+        await syncNewsManageQuery();
         const { data } = await getAuthorPosts({
             page: postsPage.value,
             pageSize,
@@ -347,6 +412,7 @@ async function loadTags() {
     tagsLoading.value = true;
 
     try {
+        await syncNewsManageQuery();
         const { data } = await searchTags(tagQuery.value || '');
         tags.value = Array.isArray(data) ? data : [];
         tagDrafts.value = Object.fromEntries(tags.value.map((tag) => [tag.id, tag.name]));
@@ -395,6 +461,7 @@ async function loadEmoji() {
     emojiLoading.value = true;
 
     try {
+        await syncNewsManageQuery();
         const { data } = await getEmojies();
         emojis.value = Array.isArray(data) ? data : [];
     } finally {
@@ -436,14 +503,43 @@ function refreshCurrentSection() {
     return loadEmoji();
 }
 
-onMounted(async () => {
-    const tasks = [loadEmoji()];
+watch(section, async (nextSection, previousSection) => {
+    if (nextSection === previousSection) return;
 
-    if (canReadPosts.value) {
-        tasks.unshift(loadPosts());
+    if (nextSection === 'posts') {
+        postsPage.value = 1;
+        await loadPosts();
+        return;
     }
 
-    await Promise.allSettled(tasks);
+    if (nextSection === 'tags') {
+        await loadTags();
+        return;
+    }
+
+    await loadEmoji();
+});
+
+onMounted(async () => {
+    hydrateNewsManageState();
+
+    if (section.value === 'posts') {
+        const tasks = [loadEmoji()];
+
+        if (canReadPosts.value) {
+            tasks.unshift(loadPosts());
+        }
+
+        await Promise.allSettled(tasks);
+        return;
+    }
+
+    if (section.value === 'tags') {
+        await Promise.allSettled([loadTags(), loadEmoji()]);
+        return;
+    }
+
+    await loadEmoji();
 });
 </script>
 
