@@ -1,9 +1,10 @@
 <template>
     <div class="d-flex justify-content-center">
 
-        <Dialog v-model:visible="showSearchInfraUser" modal header="Поиск пользователей" :style="{ 'max-width': '110rem', 'min-width': '35rem' }">
-            <div class="row mb-4">
-                <div class="col">
+        <Dialog v-model:visible="showSearchInfraUser" modal header="Поиск пользователей" :style="{ width: '100%', maxWidth: '110rem' }">
+            <div class="search-user-layout">
+                <div class="row mb-4">
+                    <div class="col">
                     <h5>Пользователь InfraManager</h5>
                     <AutoComplete 
                         v-model="selectedInfraUser" 
@@ -16,61 +17,63 @@
                         @clear="clearInfraUserSelection"
                     />
                 </div>
-            </div>
-            <Divider v-if="selectedInfraUserDetails" class="my-4"/>
-            <div v-if="loadingDetails" class="row mt-4">
-                <div class="col">
-                    <h4 class="mb-3"><strong>Информация о пользователе</strong></h4>
-                    <Skeleton width="50%" height="1.2rem" class="mb-2" />
-                    <Skeleton width="42%" height="1.2rem" class="mb-2" />
-                    <Skeleton width="40%" height="1.2rem" class="mb-2" />
-                    <Skeleton width="38%" height="1.2rem" />
                 </div>
-            </div>
-            <div v-else-if="selectedInfraUserDetails" class="row mt-4">
-                <div class="col">
-                    <h4 class="mb-3"><strong>Информация о пользователе</strong></h4>
-                    <p>ФИО: {{ selectedInfraUserDetails.fullName }}</p>
-                    <p>Email: {{ selectedInfraUserDetails.email }}</p>
-                    <p>Должность: {{ selectedInfraUserDetails.positionName }}</p>
-                    <p v-if="selectedInfraUserLocation">Местоположение: {{ selectedInfraUserLocation.roomName }}</p>
+                <Divider v-if="selectedInfraUserDetails" class="my-4"/>
+                <div v-if="loadingDetails" class="row mt-4">
+                    <div class="col">
+                        <h4 class="mb-3"><strong>Информация о пользователе</strong></h4>
+                        <Skeleton width="50%" height="1.2rem" class="mb-2" />
+                        <Skeleton width="42%" height="1.2rem" class="mb-2" />
+                        <Skeleton width="40%" height="1.2rem" class="mb-2" />
+                        <Skeleton width="38%" height="1.2rem" />
+                    </div>
                 </div>
-            </div>
-            <Divider v-if="selectedInfraUserDetails || loadingDetails" class="my-4"/>
-            <div v-if="loadingDetails" class="row my-4">
-                <div class="col">
-                    <h4 class="mb-3"><strong>Доступные сервисы</strong></h4>
-                    <Skeleton width="65%" height="1.1rem" class="mb-2" />
-                    <Skeleton width="48%" height="1.1rem" class="mb-2" />
-                    <Skeleton width="72%" height="1.1rem" class="mb-2" />
+                <div v-else-if="selectedInfraUserDetails" class="row mt-4">
+                    <div class="col">
+                        <h4 class="mb-3"><strong>Информация о пользователе</strong></h4>
+                        <p>ФИО: {{ selectedInfraUserDetails.fullName }}</p>
+                        <p>Email: {{ selectedInfraUserDetails.email }}</p>
+                        <p>Должность: {{ selectedInfraUserDetails.positionName }}</p>
+                        <p v-if="selectedInfraUserLocation">Местоположение: {{ selectedInfraUserLocation.roomName }}</p>
+                    </div>
                 </div>
-            </div>
-            <div v-else-if="selectedInfraUserDetails" class="row my-4">
-                <div class="col">
-                    <h4 class="mb-3"><strong>Доступные сервисы</strong></h4>
-                    <Tree 
-                        :value="servicesTree" 
-                        :expanded-keys="expandedKeys" 
-                        @node-expand="onNodeExpand" 
-                        @node-collapse="onNodeCollapse"
-                        loadingMode="icon"
-                    >
-                        <template #default="{ node }">
-                            <span>{{ node.label }}</span>
-                            <Tag 
-                                v-if="node.isAvailable !== undefined"
-                                :severity="node.isAvailable ? 'success' : 'danger'"
-                                :icon="node.isAvailable ? 'pi pi-check' : 'pi pi-times'"
-                                class="ms-2"
-                            />
-                        </template>
-                    </Tree>
+                <Divider v-if="selectedInfraUserDetails || loadingDetails" class="my-4"/>
+                <div v-if="loadingDetails" class="row my-4">
+                    <div class="col">
+                        <h4 class="mb-3"><strong>Доступные сервисы</strong></h4>
+                        <Skeleton width="65%" height="1.1rem" class="mb-2" />
+                        <Skeleton width="48%" height="1.1rem" class="mb-2" />
+                        <Skeleton width="72%" height="1.1rem" class="mb-2" />
+                    </div>
                 </div>
-            </div>
-            <Divider v-if="selectedInfraUserDetails || loadingDetails" class="my-4"/>
-            <div class="row my-4">
-                <div class="col">
-                    <InfraManagerCalls v-if="selectedInfraUserDetails && !loadingDetails" :userId="selectedInfraUser.id" />
+                <div v-else-if="selectedInfraUserDetails" class="row my-4">
+                    <div class="col">
+                        <h4 class="mb-3"><strong>Доступные сервисы</strong></h4>
+                        <Tree 
+                            :value="servicesTree" 
+                            :expanded-keys="expandedKeys" 
+                            @node-expand="onNodeExpand" 
+                            @node-collapse="onNodeCollapse"
+                            loadingMode="icon"
+                            class="infra-user-tree"
+                        >
+                            <template #default="{ node }">
+                                <span>{{ node.label }}</span>
+                                <Tag 
+                                    v-if="node.isAvailable !== undefined"
+                                    :severity="node.isAvailable ? 'success' : 'danger'"
+                                    :icon="node.isAvailable ? 'pi pi-check' : 'pi pi-times'"
+                                    class="ms-2"
+                                />
+                            </template>
+                        </Tree>
+                    </div>
+                </div>
+                <Divider v-if="selectedInfraUserDetails || loadingDetails" class="my-4"/>
+                <div class="row my-4">
+                    <div class="col">
+                        <InfraManagerCalls v-if="selectedInfraUserDetails && !loadingDetails" :userId="selectedInfraUser.id" />
+                    </div>
                 </div>
             </div>
         </Dialog>
@@ -206,5 +209,24 @@ defineExpose({ openDialogSearch });
 p {
     margin-bottom: 5px;
     font-size: 1.1rem;
+}
+
+.search-user-layout {
+    min-width: 0;
+}
+
+.infra-user-tree {
+    min-width: 0;
+}
+
+:deep(.p-tree) {
+    overflow-x: auto;
+}
+
+@media (max-width: 768px) {
+    p {
+        font-size: 1rem;
+        overflow-wrap: anywhere;
+    }
 }
 </style>

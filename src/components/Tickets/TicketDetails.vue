@@ -4,7 +4,7 @@
         @update:visible="$emit('update:visible', $event)"
         modal 
         :header="selectedTicket?.requestType?.name || 'Детали заявки'"
-        :style="{ 'min-width': '60rem', 'max-width': '100rem' }"
+        :style="{ width: '100%', maxWidth: '100rem' }"
         :draggable="false"
         @hide="closeModal"
     >
@@ -984,12 +984,15 @@ const getRequesterName = computed(() => {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 20px;
+    min-width: 0;
 }
 .details-section {
     padding: 20px;
     border-radius: 12px;
     background-color: var(--p-grey-7);
     color: var(--p-text-color);
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 .details-section h4 {
     margin-top: 0;
@@ -1011,6 +1014,7 @@ const getRequesterName = computed(() => {
     display: flex;
     align-items: center;
     gap: 4px;
+    flex-wrap: wrap;
 }
 
 .status-tag.clickable {
@@ -1057,6 +1061,7 @@ const getRequesterName = computed(() => {
 
 .user-info {
     flex: 1;
+    min-width: 0;
 }
 
 .user-name {
@@ -1126,6 +1131,7 @@ const getRequesterName = computed(() => {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 1rem;
 }
 
 .certificate-type {
@@ -1146,6 +1152,8 @@ const getRequesterName = computed(() => {
     border-radius: 8px;
     border: 1px solid var(--p-grey-5);
     width: calc(100% - 40px);
+    max-width: 100%;
+    overflow-wrap: anywhere;
 }
 
 .certificate-field-item strong {
@@ -1293,6 +1301,8 @@ const getRequesterName = computed(() => {
     font-size: 0.95rem;
     font-weight: 500;
     color: var(--p-text-color);
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .error-message {
@@ -1333,6 +1343,8 @@ const getRequesterName = computed(() => {
 .comment-body {
     color: var(--p-text-color);
     line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
 }
 
 .comment-attachments {
@@ -1486,6 +1498,7 @@ const getRequesterName = computed(() => {
 
     font-size: 0.85rem;
     animation: fadeInUp 0.2s ease;
+    max-width: 100%;
 }
 
 .attachment-chip .pi {
@@ -1494,7 +1507,7 @@ const getRequesterName = computed(() => {
 }
 
 .chip-name {
-    max-width: 160px;
+    max-width: min(100%, 160px);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1537,6 +1550,7 @@ const getRequesterName = computed(() => {
     background-color: var(--p-grey-7);
     margin-bottom: 10px;
     transition: transform 0.2s;
+    min-width: 0;
 }
 
 .attachment-card:hover {
@@ -1560,12 +1574,40 @@ const getRequesterName = computed(() => {
     max-height: 70vh;
     overflow-y: auto;
     padding-right: 8px;
+    min-width: 0;
+}
+
+.ticket-details :deep(.p-autocomplete),
+.ticket-details :deep(.p-autocomplete-input),
+.ticket-details :deep(.p-tabs),
+.ticket-details :deep(.p-tabpanels),
+.ticket-details :deep(.p-timeline),
+.ticket-details :deep(.p-togglebutton),
+.ticket-details :deep(.p-select),
+.ticket-details :deep(.p-multiselect) {
+    max-width: 100%;
+}
+
+.ticket-details :deep(.p-tablist-tab-list) {
+    flex-wrap: wrap;
+}
+
+.ticket-details :deep(.p-tab) {
+    white-space: normal;
 }
 
 /* Адаптивность */
 @media (max-width: 768px) {
     .call-details {
         grid-template-columns: 1fr;
+    }
+
+    .details-section,
+    .add-comment-section,
+    .attachment-card,
+    .comment-card,
+    .field-category {
+        padding: 16px;
     }
     
     .user-card {
@@ -1590,16 +1632,40 @@ const getRequesterName = computed(() => {
         width: 100%;
     }
 
+    .participant-item {
+        align-items: flex-start;
+    }
+
     .comment-header {
         flex-direction: column;
         align-items: flex-start;
         gap: 8px;
+    }
+
+    .comment-actions {
+        position: static;
+        justify-content: flex-end;
+        margin-top: 0.75rem;
+    }
+
+    .comment-textarea {
+        padding-right: 12px;
+    }
+
+    .ticket-details {
+        max-height: none;
+        padding-right: 0;
     }
 }
 
 @media (max-width: 640px) {
     .field-grid {
         grid-template-columns: 1fr;
+    }
+
+    .attachment-chip {
+        width: 100%;
+        justify-content: space-between;
     }
 }
 </style>

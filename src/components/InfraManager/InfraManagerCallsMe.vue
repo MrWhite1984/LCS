@@ -4,7 +4,7 @@
         <div class="service-card mt-3">
 
             <!-- Модальное окно для подробной информации -->
-            <Dialog v-model:visible="isDialogVisible" maximizable  modal :style="{ 'min-width': '60rem', 'max-width': '100rem' }" @hide="closeDialog">
+            <Dialog v-model:visible="isDialogVisible" maximizable modal :style="{ width: '100%', maxWidth: '100rem' }" @hide="closeDialog">
                 <Transition name="content-fade" mode="out-in">
                   <div key="infra-calls-me-error" v-if="errorOccurred" class="error-message">
                     <p>Произошла ошибка при загрузке данных</p>
@@ -146,12 +146,12 @@
                   </div>
 
                   <div key="infra-calls-me-skeleton" v-else class="call-details">
-                    <Skeleton width="530px" height="200px" class="mb-2"/>
-                    <Skeleton width="530px" height="200px" class="mb-2"/>
-                    <Skeleton width="530px" height="200px" class="mb-2"/>
-                    <Skeleton width="530px" height="200px" class="mb-2"/>
-                    <Skeleton width="530px" height="200px" class="mb-2"/>
-                    <Skeleton width="530px" height="200px" class="mb-2"/>
+                    <Skeleton width="100%" height="200px" class="mb-2"/>
+                    <Skeleton width="100%" height="200px" class="mb-2"/>
+                    <Skeleton width="100%" height="200px" class="mb-2"/>
+                    <Skeleton width="100%" height="200px" class="mb-2"/>
+                    <Skeleton width="100%" height="200px" class="mb-2"/>
+                    <Skeleton width="100%" height="200px" class="mb-2"/>
                   </div>
                 </Transition>
             </Dialog>
@@ -226,11 +226,14 @@ defineExpose({ openCallDetails });
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
+  min-width: 0;
 }
 .details-section {
   padding: 20px;
   border-radius: 12px;
   background-color: var(--p-grey-7);
+  min-width: 0;
+  overflow-wrap: anywhere;
   .pi {
     margin-right: 10px;
     color: var(--primary-color);
@@ -266,6 +269,7 @@ h2 {
   border-radius: 12px;
   background-color: var(--p-grey-7);
   margin-bottom: 10px;
+  min-width: 0;
 }
 .document-card h5 {
   margin: 0;
@@ -319,5 +323,37 @@ h2 {
 .user-item {
   /* padding-left: 1rem; */
   position: relative;
+  overflow-wrap: anywhere;
+}
+
+:deep(.p-tablist-tab-list) {
+  flex-wrap: wrap;
+}
+
+:deep(.p-tab) {
+  white-space: normal;
+}
+
+:deep(.p-timeline),
+:deep(.p-tabs),
+:deep(.p-tabpanels) {
+  max-width: 100%;
+}
+
+@media (max-width: 768px) {
+  .call-details {
+    grid-template-columns: 1fr;
+  }
+
+  .details-section,
+  .document-card,
+  .negotiation-card {
+    padding: 16px;
+  }
+
+  .document-card .row,
+  .negotiation-card .row {
+    row-gap: 0.75rem;
+  }
 }
 </style>

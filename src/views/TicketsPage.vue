@@ -2,163 +2,352 @@
     <div class="content">
         <div class="content-wrapper">
             <Transition name="content-fade" mode="out-in">
-                <!-- Основная таблица -->
-                <DataTable 
-                    key="tickets-content"
-                    lazy
-                    v-if="isFirstLoadDone"
-                    :value="tickets"
-                    paginator
-                    scrollable
-                    stripedRows
-                    :rows="rowsPerPage"
-                    :rowClass="rowClass"
-                    @row-click="(event) => openTicketModal(event.data.id)"
-                    :totalRecords="totalRecords"
-                    @page="onPage"
-                    :rowsPerPageOptions="[5, 10, 15]"
-                    filterDisplay="row"
-                    class="tickets-table"
-                >
-                <template #header>
-                    <div class="page-header">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div class="page-title">
-                                <h3 class="m-0">
-                                    Справки
-                                </h3>
-                                <p class="text-color-secondary m-0 mt-1">Управление и отслеживание справок</p>
+                <div v-if="isFirstLoadDone" key="tickets-content">
+                    <section v-if="isCardMode" class="tickets-mobile-layout">
+                        <div class="tickets-mobile-toolbar">
+                            <div>
+                                <h3 class="m-0">Справки</h3>
+                                <p class="tickets-mobile-subtitle">Управление и отслеживание справок.</p>
                             </div>
-                            <div class="page-controls">
-                                <div class="d-flex gap-2 align-items-center">
-                                    <Button
-                                        icon="pi pi-sliders-h"
-                                        outlined
-                                        severity="secondary"
-                                        @click="toggleSpecialFeaturesPanel"
-                                    />
-                                    <OverlayPanel ref="specialFeaturesPanel">
-                                        <div class="special-features-panel">
-                                            <Button
-                                                label="Автоназначение ответственных"
-                                                icon="pi pi-users"
-                                                :loading="autoAssignLoading"
-                                                :disabled="autoAssignLoading"
-                                                @click="runAutoAssignResponsible"
-                                            />
-                                        </div>
-                                    </OverlayPanel>
-                                    <MultiSelect 
-                                        :modelValue="selectedColumns"
-                                        :options="columns"
-                                        optionLabel="header"
-                                        @update:modelValue="onToggle"
-                                        display="chip"
-                                        placeholder="Выберите поля"
-                                        class="column-selector"
-                                    />
-                                    <Button 
-                                        icon="pi pi-sync"
-                                        outlined
-                                        severity="secondary"
-                                        @click="fetchTickets"
-                                        :loading="loading"
-                                        :disabled="loading"
+                            <div class="tickets-mobile-toolbar-actions">
+                                <Button
+                                    icon="pi pi-sliders-h"
+                                    outlined
+                                    severity="secondary"
+                                    @click="toggleSpecialFeaturesPanel"
+                                />
+                                <Button
+                                    icon="pi pi-filter"
+                                    outlined
+                                    severity="secondary"
+                                    @click="showMobileFilters = !showMobileFilters"
+                                />
+                                <Button
+                                    icon="pi pi-sync"
+                                    outlined
+                                    severity="secondary"
+                                    @click="fetchTickets"
+                                    :loading="loading"
+                                    :disabled="loading"
+                                />
+                            </div>
+                        </div>
+
+                        <OverlayPanel ref="specialFeaturesPanel">
+                            <div class="special-features-panel">
+                                <Button
+                                    label="Автоназначение ответственных"
+                                    icon="pi pi-users"
+                                    :loading="autoAssignLoading"
+                                    :disabled="autoAssignLoading"
+                                    @click="runAutoAssignResponsible"
+                                />
+                            </div>
+                        </OverlayPanel>
+
+                        <div class="tickets-mobile-switch">
+                            <Checkbox
+                                v-model="onlyMyTickets"
+                                binary
+                                inputId="onlyMyTicketsMobile"
+                                :disabled="!canReadTickets"
+                                @change="onAssigneeToggle"
+                            />
+                            <label for="onlyMyTicketsMobile" class="cursor-pointer">
+                                Только мои заявки
+                            </label>
+                        </div>
+
+                        <div v-if="showMobileFilters" class="tickets-mobile-filters">
+                            <InputText
+                                :model-value="filters.number"
+                                placeholder="Поиск по номеру"
+                                @update:model-value="newValue => onFilter('number', newValue)"
+                            />
+                            <Select
+                                v-model="filters.status"
+                                :options="statusOptions"
+                                optionLabel="label"
+                                optionValue="value"
+                                placeholder="Выберите статус"
+                                @change="onFilter('status', $event.value)"
+                            />
+                            <Select
+                                v-model="filters.priority"
+                                :options="priorityOptions"
+                                optionLabel="label"
+                                optionValue="value"
+                                placeholder="Выберите приоритет"
+                                @change="onFilter('priority', $event.value)"
+                            />
+                            <InputText
+                                :model-value="filters.requesterId"
+                                placeholder="Поиск по ID инициатора"
+                                @update:model-value="newValue => onFilter('requesterId', newValue)"
+                            />
+                            <div class="tickets-mobile-filter-actions">
+                                <Select
+                                    v-model="rowsPerPage"
+                                    :options="rowsPerPageOptions"
+                                    optionLabel="label"
+                                    optionValue="value"
+                                    placeholder="Строк на странице"
+                                    @change="onRowsPerPageChange"
+                                />
+                                <Button
+                                    label="Сбросить"
+                                    text
+                                    severity="secondary"
+                                    @click="resetMobileFilters"
+                                />
+                            </div>
+                        </div>
+
+                        <div class="tickets-mobile-summary">
+                            <span>Всего заявок: {{ totalRecords }}</span>
+                            <span>Показано: {{ currentPageTickets.length }}</span>
+                        </div>
+
+                        <div v-if="currentPageTickets.length" class="tickets-card-list">
+                            <article
+                                v-for="ticket in currentPageTickets"
+                                :key="ticket.id"
+                                class="tickets-card"
+                                @click="openTicketModal(ticket.id)"
+                            >
+                                <div class="tickets-card-head">
+                                    <div class="tickets-card-title">
+                                        <strong>№ {{ ticket.number || '—' }}</strong>
+                                        <span>{{ ticket.requestType?.name || 'Тип заявки не указан' }}</span>
+                                    </div>
+                                    <Tag
+                                        :severity="getStatusSeverity(ticket.status)"
+                                        :value="getStatusLabel(ticket.status)"
+                                        :icon="getStatusIcon(ticket.status)"
                                     />
                                 </div>
+
+                                <div class="tickets-card-meta">
+                                    <Tag
+                                        :severity="getPrioritySeverity(ticket.priority)"
+                                        :value="getPriorityLabel(ticket.priority)"
+                                        class="priority-tag"
+                                    />
+                                    <span class="tickets-card-chip">
+                                        <i class="pi pi-user"></i>
+                                        {{ ticket.requesterName || 'Заявитель не указан' }}
+                                    </span>
+                                </div>
+
+                                <div class="tickets-card-row">
+                                    <span class="tickets-card-label">Система-источник</span>
+                                    <span class="tickets-card-value">{{ ticket.requesterSystem || 'Не указана' }}</span>
+                                </div>
+
+                                <div class="tickets-card-row">
+                                    <span class="tickets-card-label">Дата создания</span>
+                                    <span class="tickets-card-value">{{ formatDate(ticket.createdAt) }}</span>
+                                </div>
+
+                                <div class="tickets-card-footer">
+                                    <span>ID {{ ticket.id }}</span>
+                                    <Button
+                                        label="Открыть"
+                                        size="small"
+                                        outlined
+                                        severity="secondary"
+                                        @click.stop="openTicketModal(ticket.id)"
+                                    />
+                                </div>
+                            </article>
+                        </div>
+
+                        <div v-else class="empty-table-state tickets-empty-mobile">
+                            <div class="empty-state-icon">
+                                <i class="pi pi-ticket fs-3 text-gray-400"></i>
+                            </div>
+                            <h4 class="mt-3 mb-2">Справки не найдены</h4>
+                            <p class="text-color-secondary mb-4">
+                                {{ hasActiveFilters ?
+                                    'Попробуйте изменить параметры фильтрации' :
+                                    'У вас пока нет справок или они не назначены на вас'
+                                }}
+                            </p>
+                            <div class="empty-state-actions">
+                                <Button
+                                    label="Обновить"
+                                    icon="pi pi-refresh"
+                                    @click="fetchTickets"
+                                    outlined
+                                />
                             </div>
                         </div>
-                        
-                    </div>
-                </template>
 
-                <template #paginatorstart>
-                    <div class="table-stats">
-                        <div class="stats-item">
-                            <span>Всего заявок: <strong>{{ totalRecords }}</strong></span>
-                        </div>
-                    </div>
-                </template>
-
-                <template #paginatorend>
-                    <div class="d-flex align-items-center gap-2">
-                        <Checkbox 
-                            v-model="onlyMyTickets"
-                            binary
-                            inputId="onlyMyTickets"
-                            :disabled="!canReadTickets"
-                            @change="onAssigneeToggle"
-                        />
-                        <label for="onlyMyTickets" class="cursor-pointer">
-                            Только мои заявки
-                        </label>
-                    </div>
-                </template>
-
-                <template #empty>
-                    <div class="empty-table-state">
-                        <div class="empty-state-icon">
-                            <i class="pi pi-ticket fs-3 text-gray-400"></i>
-                        </div>
-                        <h4 class="mt-3 mb-2">Справки не найдены</h4>
-                        <p class="text-color-secondary mb-4">
-                            {{ hasActiveFilters ? 
-                                'Попробуйте изменить параметры фильтрации' : 
-                                'У вас пока нет справок или они не назначены на вас' 
-                            }}
-                        </p>
-                        <div class="empty-state-actions">
-                            <Button 
-                                label="Обновить" 
-                                icon="pi pi-refresh" 
-                                @click="fetchTickets"
-                                outlined
+                        <div class="tickets-mobile-paginator">
+                            <Paginator
+                                :rows="rowsPerPage"
+                                :first="firstRowIndex"
+                                :totalRecords="totalRecords"
+                                @page="onPage"
                             />
                         </div>
-                    </div>
-                </template>
+                    </section>
 
-                <template #loading>
-                    <div class="loading-state">
-                        <ProgressSpinner style="width: 50px; height: 50px" />
-                        <p class="mt-3 text-color-secondary">Загрузка заявок...</p>
-                    </div>
-                </template>
-
-                <Column
-                    v-for="col in ordinaryColumns"
-                    :field="col.field"
-                    :key="col.field"
-                    :header="col.header"
-                    :style="col.style"
-                    :showFilterMenu="false"
-                    :sortable="false"
-                >
-                    <template #body="{ data }">
-                        <div class="cell-content" :class="col.field">
-                            <span v-if="col.field === 'createdAt' || col.field === 'updatedAt' || col.field === 'resolvedAt' || col.field === 'closedAt'">
-                                {{ formatDate(data[col.field]) }}
-                            </span>
-                            <span v-else-if="col.field === 'requestType'">
-                                <div class="request-type-cell">
-                                    {{ data.requestType?.name || 'Не указан' }}
+                    <DataTable
+                        v-else
+                        lazy
+                        :value="tickets"
+                        paginator
+                        scrollable
+                        stripedRows
+                        :rows="rowsPerPage"
+                        :first="firstRowIndex"
+                        :rowClass="rowClass"
+                        @row-click="(event) => openTicketModal(event.data.id)"
+                        :totalRecords="totalRecords"
+                        @page="onPage"
+                        :rowsPerPageOptions="[5, 10, 15]"
+                        filterDisplay="row"
+                        class="tickets-table"
+                    >
+                    <template #header>
+                        <div class="page-header">
+                            <div class="d-flex justify-content-between align-items-center tickets-table-header">
+                                <div class="page-title">
+                                    <h3 class="m-0">
+                                        Справки
+                                    </h3>
+                                    <p class="text-color-secondary m-0 mt-1">Управление и отслеживание справок</p>
                                 </div>
-                            </span>
-                            <span v-else>
-                                {{ data[col.field] }}
-                            </span>
+                                <div class="page-controls">
+                                    <div class="d-flex gap-2 align-items-center tickets-table-actions">
+                                        <Button
+                                            icon="pi pi-sliders-h"
+                                            outlined
+                                            severity="secondary"
+                                            @click="toggleSpecialFeaturesPanel"
+                                        />
+                                        <OverlayPanel ref="specialFeaturesPanel">
+                                            <div class="special-features-panel">
+                                                <Button
+                                                    label="Автоназначение ответственных"
+                                                    icon="pi pi-users"
+                                                    :loading="autoAssignLoading"
+                                                    :disabled="autoAssignLoading"
+                                                    @click="runAutoAssignResponsible"
+                                                />
+                                            </div>
+                                        </OverlayPanel>
+                                        <MultiSelect
+                                            :modelValue="selectedColumns"
+                                            :options="columns"
+                                            optionLabel="header"
+                                            @update:modelValue="onToggle"
+                                            display="chip"
+                                            placeholder="Выберите поля"
+                                            class="column-selector"
+                                        />
+                                        <Button
+                                            icon="pi pi-sync"
+                                            outlined
+                                            severity="secondary"
+                                            @click="fetchTickets"
+                                            :loading="loading"
+                                            :disabled="loading"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </template>
 
-                    <template #filter>
-                        <InputText 
-                            v-if="['string', 'number'].includes(col.filterType)"
-                            :model-value="filters[col.field]"
-                            :placeholder="col.placeholder" 
-                            @update:model-value="newValue => onFilter(col.field, newValue)"
-                            autocomplete="off"
-                            class="filter-input"
-                        />
+                    <template #paginatorstart>
+                        <div class="table-stats">
+                            <div class="stats-item">
+                                <span>Всего заявок: <strong>{{ totalRecords }}</strong></span>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template #paginatorend>
+                        <div class="d-flex align-items-center gap-2">
+                            <Checkbox
+                                v-model="onlyMyTickets"
+                                binary
+                                inputId="onlyMyTickets"
+                                :disabled="!canReadTickets"
+                                @change="onAssigneeToggle"
+                            />
+                            <label for="onlyMyTickets" class="cursor-pointer">
+                                Только мои заявки
+                            </label>
+                        </div>
+                    </template>
+
+                    <template #empty>
+                        <div class="empty-table-state">
+                            <div class="empty-state-icon">
+                                <i class="pi pi-ticket fs-3 text-gray-400"></i>
+                            </div>
+                            <h4 class="mt-3 mb-2">Справки не найдены</h4>
+                            <p class="text-color-secondary mb-4">
+                                {{ hasActiveFilters ?
+                                    'Попробуйте изменить параметры фильтрации' :
+                                    'У вас пока нет справок или они не назначены на вас'
+                                }}
+                            </p>
+                            <div class="empty-state-actions">
+                                <Button
+                                    label="Обновить"
+                                    icon="pi pi-refresh"
+                                    @click="fetchTickets"
+                                    outlined
+                                />
+                            </div>
+                        </div>
+                    </template>
+
+                    <template #loading>
+                        <div class="loading-state">
+                            <ProgressSpinner style="width: 50px; height: 50px" />
+                            <p class="mt-3 text-color-secondary">Загрузка заявок...</p>
+                        </div>
+                    </template>
+
+                    <Column
+                        v-for="col in ordinaryColumns"
+                        :field="col.field"
+                        :key="col.field"
+                        :header="col.header"
+                        :style="col.style"
+                        :showFilterMenu="false"
+                        :sortable="false"
+                    >
+                        <template #body="{ data }">
+                            <div class="cell-content" :class="col.field">
+                                <span v-if="col.field === 'createdAt' || col.field === 'updatedAt' || col.field === 'resolvedAt' || col.field === 'closedAt'">
+                                    {{ formatDate(data[col.field]) }}
+                                </span>
+                                <span v-else-if="col.field === 'requestType'">
+                                    <div class="request-type-cell">
+                                        {{ data.requestType?.name || 'Не указан' }}
+                                    </div>
+                                </span>
+                                <span v-else>
+                                    {{ data[col.field] }}
+                                </span>
+                            </div>
+                        </template>
+
+                        <template #filter>
+                            <InputText
+                                v-if="['string', 'number'].includes(col.filterType)"
+                                :model-value="filters[col.field]"
+                                :placeholder="col.placeholder"
+                                @update:model-value="newValue => onFilter(col.field, newValue)"
+                                autocomplete="off"
+                                class="filter-input"
+                            />
                         <Select 
                             v-else-if="col.filterType === 'select'"
                             v-model="filters[col.field]" 
@@ -166,64 +355,54 @@
                             optionLabel="label"
                             optionValue="value"
                             :placeholder="col.placeholder"
-                            @change="onFilter" 
+                            @change="onFilter(col.field, $event.value)" 
                             class="filter-select"
                         />
-                    </template>
-                </Column>
+                        </template>
+                    </Column>
 
-                <Column field="status" header="Статус" :showFilterMenu="false" v-if="selectedColumnFields.includes('status')">
-                    <template #body="{ data }">
-                        <Tag 
-                            :severity="getStatusSeverity(data.status)" 
-                            :value="getStatusLabel(data.status)" 
-                            :icon="getStatusIcon(data.status)"
-                            class="status-tag"
-                        />
-                    </template>
-                    <template #filter>
+                    <Column field="status" header="Статус" :showFilterMenu="false" v-if="selectedColumnFields.includes('status')">
+                        <template #body="{ data }">
+                            <Tag
+                                :severity="getStatusSeverity(data.status)"
+                                :value="getStatusLabel(data.status)"
+                                :icon="getStatusIcon(data.status)"
+                                class="status-tag"
+                            />
+                        </template>
+                        <template #filter>
                         <Select 
                             v-model="filters.status" 
                             :options="statusOptions"
                             optionLabel="label"
                             optionValue="value"
                             placeholder="Выберите статус" 
-                            @change="onFilter" 
+                            @change="onFilter('status', $event.value)" 
                         />
-                    </template>
-                </Column>
+                        </template>
+                    </Column>
 
-                <Column field="priority" header="Приоритет" :showFilterMenu="false" v-if="selectedColumnFields.includes('priority')">
-                    <template #body="{ data }">
-                        <Tag 
-                            :severity="getPrioritySeverity(data.priority)" 
-                            :value="getPriorityLabel(data.priority)" 
-                            class="priority-tag"
-                        />
-                    </template>
-                    <template #filter>
+                    <Column field="priority" header="Приоритет" :showFilterMenu="false" v-if="selectedColumnFields.includes('priority')">
+                        <template #body="{ data }">
+                            <Tag
+                                :severity="getPrioritySeverity(data.priority)"
+                                :value="getPriorityLabel(data.priority)"
+                                class="priority-tag"
+                            />
+                        </template>
+                        <template #filter>
                         <Select 
                             v-model="filters.priority" 
                             :options="priorityOptions"
                             optionLabel="label"
                             optionValue="value"
                             placeholder="Выберите приоритет" 
-                            @change="onFilter" 
+                            @change="onFilter('priority', $event.value)" 
                         />
-                    </template>
-                </Column>
-
-                <!-- <Column :exportable="false" header="Действия" style="width: 100px">
-                    <template #body="{ data }">
-                        <Button 
-                            icon="pi pi-eye" 
-                            class="p-button-rounded p-button-text p-button-sm"
-                            @click.stop="openTicketModal(data.id)"
-                            title="Просмотреть детали"
-                        />
-                    </template>
-                </Column> -->
-                </DataTable>
+                        </template>
+                    </Column>
+                    </DataTable>
+                </div>
 
                 <!-- Состояние загрузки при первом открытии -->
                 <div key="tickets-skeleton" v-else-if="loading" class="skeleton-container">
@@ -259,6 +438,8 @@ import { USE_MOCK_DATA } from '@/mocks/config.js';
 import { formatDateRuLongWithTime as formatDate } from '@/utils/date.js';
 import { getSessionUserId } from '@/utils/TokenService';
 import { getCurrentUser } from '@/utils/currentUser.js';
+import { useResponsiveLayout } from '@/composables/useResponsiveLayout.js';
+import { useMobileTableView } from '@/composables/useMobileTableView.js';
 
 const permissionStore = usePermissionStore();
 
@@ -269,6 +450,12 @@ const isFirstLoadDone = ref(false);
 const useMockData = ref(USE_MOCK_DATA);
 const specialFeaturesPanel = ref(null);
 const autoAssignLoading = ref(false);
+const rowsPerPageOptions = [
+    { label: '5', value: 5 },
+    { label: '10', value: 10 },
+    { label: '15', value: 15 },
+];
+const { isPhone } = useResponsiveLayout();
 
 
 // Модальное окно
@@ -369,6 +556,18 @@ const ordinaryColumns = computed(() =>
 
 const currentPage = ref(1);
 const rowsPerPage = ref(10);
+const {
+    isCardMode,
+    firstRowIndex,
+    currentPageItems: currentPageTickets,
+    showMobileFilters,
+} = useMobileTableView({
+    items: tickets,
+    currentPage,
+    rowsPerPage,
+    isPhone,
+    sliceItems: false,
+});
 
 // Маппинг статусов (английский → русский)
 const statusMap = {
@@ -438,6 +637,17 @@ const debouncedFetchTickets = debounce(async () => {
 
 const rowClass = () => {
     return [{ 'pointer': true }];
+};
+
+const resetMobileFilters = async () => {
+    currentPage.value = 1;
+    filters.value = {
+        number: null,
+        status: null,
+        priority: null,
+        requesterId: null,
+    };
+    await fetchTickets();
 };
 
 const parseFioFromFormData = (formData) => {
@@ -517,6 +727,11 @@ const onPage = async (event) => {
     await fetchTickets();
 };
 
+const onRowsPerPageChange = async () => {
+    currentPage.value = 1;
+    await fetchTickets();
+};
+
 const fetchTickets = async () => {
     try {
         loading.value = true;
@@ -539,7 +754,7 @@ const fetchTickets = async () => {
 
         const { data } = await axiosInstance.post('/api/tickets', payload);
         tickets.value = enrichTicketsWithFio(data.tickets);
-        totalRecords.value = data.totalCount || 0;      
+        totalRecords.value = data.totalCount || 0;
     } catch (error) {
         console.error('Ошибка при получении заявок:', error);
     } finally {
@@ -564,10 +779,167 @@ onMounted(async () => {
 .content-wrapper {
     position: relative;
     flex-grow: 1;
-    margin: 10px 2rem;
+    padding: var(--app-page-padding-y) var(--app-page-padding-x) 1rem;
     height: 100%;
     color: var(--p-text-color);
     transition: all 0.5s;
+}
+
+.tickets-mobile-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.tickets-mobile-toolbar {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.tickets-mobile-subtitle {
+    margin: 0.35rem 0 0;
+    color: var(--p-text-muted-color, var(--p-grey-2));
+    font-size: 0.92rem;
+}
+
+.tickets-mobile-toolbar-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.tickets-mobile-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.8rem 1rem;
+    border-radius: 16px;
+    border: 1px solid rgba(var(--p-blue-500-rgb), 0.12);
+    background: rgba(var(--p-blue-500-rgb), 0.04);
+}
+
+.tickets-mobile-filters {
+    display: grid;
+    gap: 0.75rem;
+    padding: 1rem;
+    border-radius: 18px;
+    border: 1px solid rgba(var(--p-blue-500-rgb), 0.12);
+    background: linear-gradient(
+        180deg,
+        rgba(var(--p-blue-500-rgb), 0.04),
+        rgba(255, 255, 255, 0)
+    );
+}
+
+.tickets-mobile-filter-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.tickets-mobile-summary {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    font-size: 0.92rem;
+    color: var(--p-text-muted-color, var(--p-grey-2));
+}
+
+.tickets-card-list {
+    display: grid;
+    gap: 0.85rem;
+}
+
+.tickets-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    padding: 1rem;
+    border-radius: 18px;
+    border: 1px solid rgba(var(--p-blue-500-rgb), 0.14);
+    background: linear-gradient(
+        180deg,
+        rgba(var(--p-blue-500-rgb), 0.05),
+        rgba(255, 255, 255, 0)
+    );
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+}
+
+.tickets-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.tickets-card-title {
+    display: flex;
+    flex-direction: column;
+    gap: 0.28rem;
+}
+
+.tickets-card-title strong {
+    font-size: 1rem;
+    color: var(--p-text-color);
+}
+
+.tickets-card-title span {
+    color: var(--p-text-muted-color, var(--p-grey-2));
+    word-break: break-word;
+}
+
+.tickets-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.tickets-card-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.38rem 0.7rem;
+    border-radius: 999px;
+    background: rgba(var(--p-blue-500-rgb), 0.08);
+    font-size: 0.82rem;
+}
+
+.tickets-card-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.28rem;
+}
+
+.tickets-card-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--p-text-muted-color, var(--p-grey-2));
+}
+
+.tickets-card-value {
+    color: var(--p-text-color);
+}
+
+.tickets-card-footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    align-items: center;
+    font-size: 0.85rem;
+    color: var(--p-text-muted-color, var(--p-grey-2));
+}
+
+.tickets-empty-mobile {
+    padding: 2rem 1rem;
+}
+
+.tickets-mobile-paginator {
+    padding-bottom: var(--app-mobile-bottom-offset);
 }
 
 /* Заголовок страницы */
@@ -717,12 +1089,46 @@ onMounted(async () => {
     background-color: var(--p-grey-3);
 }
 
+.tickets-table-header {
+    gap: 0.75rem;
+}
+
+.tickets-table-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
 /* Адаптивность */
 @media (max-width: 768px) {
     .content-wrapper {
-        padding: 1rem;
+        padding-bottom: 1rem;
     }
-    
+
+    .tickets-mobile-toolbar,
+    .tickets-mobile-summary,
+    .tickets-card-head,
+    .tickets-card-footer {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .tickets-mobile-toolbar-actions {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .tickets-mobile-toolbar-actions :deep(.p-button) {
+        flex: 1 1 calc(33.33% - 0.34rem);
+    }
+
+    .tickets-mobile-filter-actions {
+        grid-template-columns: 1fr;
+    }
+
+    .tickets-card-footer :deep(.p-button) {
+        width: 100%;
+    }
+
     .page-title h3 {
         font-size: 1.5rem;
     }
