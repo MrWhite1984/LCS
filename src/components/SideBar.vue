@@ -41,32 +41,58 @@
 
             <div class="sidebar-middle">
                 <div class="menu" :class="{ 'mt-3': !collapsed, 'my-4': collapsed }">
-                    <router-link
-                        v-for="item in topItems"
-                        :key="item.path"
-                        :to="item.path"
-                        class="menu-item"
-                        active-class="active-link"
-                        v-tooltip.right="collapsed ? item.name : ''"
-                    >
-                        <div class="menu-item-content">
-                            <OverlayBadge
-                                v-if="item.path === '/notif' && collapsed && notificationStore.unreadCount > 0"
-                                :value="notificationStore.unreadCount"
-                                severity="danger"
-                                class="notification-badge-collapsed"
-                            />
-                            <i :class="item.icon"></i>
-                            <div v-if="!collapsed" class="menucrumb">
-                                <span>{{ item.name }}</span>
+                    <template v-for="item in topItems" :key="item.id">
+                        <button
+                            v-if="item.id === 'notifications'"
+                            type="button"
+                            class="menu-item menu-item-button"
+                            :class="{ 'active-link': isNotificationsItemActive }"
+                            @click="toggleNotificationsPopover"
+                            v-tooltip.right="collapsed ? item.name : ''"
+                        >
+                            <div class="menu-item-content">
+                                <OverlayBadge
+                                    v-if="collapsed && notificationStore.unreadCount > 0"
+                                    :value="notificationStore.unreadCount"
+                                    severity="danger"
+                                    class="notification-badge-collapsed"
+                                />
+                                <i :class="item.icon"></i>
+                                <div v-if="!collapsed" class="menucrumb">
+                                    <span>{{ item.name }}</span>
+                                </div>
+                                <Badge
+                                    v-if="!collapsed && notificationStore.unreadCount > 0"
+                                    :value="notificationStore.unreadCount"
+                                    class="p-badge ms-3"
+                                />
                             </div>
-                            <Badge
-                                v-if="item.path === '/notif' && !collapsed && notificationStore.unreadCount > 0"
-                                :value="notificationStore.unreadCount"
-                                class="p-badge ms-3"
-                            />
-                        </div>
-                    </router-link>
+                        </button>
+
+                        <router-link
+                            v-else
+                            :to="item.path"
+                            class="menu-item"
+                            active-class="active-link"
+                            v-tooltip.right="collapsed ? item.name : ''"
+                        >
+                            <div class="menu-item-content">
+                                <i :class="item.icon"></i>
+                                <div v-if="!collapsed" class="menucrumb">
+                                    <span>{{ item.name }}</span>
+                                </div>
+                            </div>
+                        </router-link>
+                    </template>
+
+                    <Popover
+                        ref="notificationsPopoverRef"
+                        class="notifications-popover"
+                        @show="handleNotificationsPopoverShow"
+                        @hide="handleNotificationsPopoverHide"
+                    >
+                        <NotificationStack @navigate="handleNotificationNavigate" />
+                    </Popover>
                 </div>
     
                 <div class="menu" :class="{ 'mb-4': collapsed }">
@@ -90,6 +116,37 @@
                                 </div>
                             </div>
                         </router-link>
+                    </div>
+                    <div v-if="showTicketsMenu" class="ido-menu-group">
+                        <button
+                            type="button"
+                            class="menu-item menu-item-button"
+                            :class="{ 'active-link': isTicketsRoute, 'menu-item-open': ticketsMenuOpen && !collapsed }"
+                            @click="toggleTicketsMenu"
+                            v-tooltip.right="collapsed ? 'Справки' : ''"
+                        >
+                            <div class="menu-item-content">
+                                <i class="pi pi-ticket"></i>
+                                <div v-if="!collapsed" class="menucrumb menucrumb-with-arrow">
+                                    <span>Справки</span>
+                                    <i class="pi pi-angle-down ido-arrow" :class="{ 'ido-arrow-open': ticketsMenuOpen }"></i>
+                                </div>
+                            </div>
+                        </button>
+                        <Transition name="ido-submenu">
+                            <div v-if="ticketsMenuOpen && !collapsed" class="ido-submenu">
+                                <router-link
+                                    v-for="item in visibleTicketsMenuItems"
+                                    :key="item.path"
+                                    :to="item.path"
+                                    class="ido-submenu-item"
+                                    active-class="ido-submenu-item-active"
+                                >
+                                    <i :class="item.icon"></i>
+                                    <span>{{ item.name }}</span>
+                                </router-link>
+                            </div>
+                        </Transition>
                     </div>
                     <div v-if="showIdoMenu" class="ido-menu-group">
                         <button
@@ -237,10 +294,12 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, nextTick } from 'vue';
+import Popover from 'primevue/popover';
 
 import Lcs from '@/assets/logo/lcs.svg';
 
+import NotificationStack from '@/components/Notifications/NotificationStack.vue';
 import { useNotificationStore } from '@/stores/notifications.js';
 import { usePermissionStore } from '@/stores/permissions.js';
 import { disconnectNotificationsHub } from '@/utils/notificationHub.js';
@@ -308,15 +367,20 @@ const email = ref('');
 const initials = ref('');
 const fullName = ref('');
 const searchQuery = ref('');
+const ticketsMenuOpen = ref(false);
 const idoMenuOpen = ref(false);
 const projectOfficeMenuOpen = ref(false);
+const notificationsPopoverRef = ref(null);
+const notificationsPopoverVisible = ref(false);
 const {
     hasPermission,
     topItems,
     serviceItems,
     adminItems,
+    ticketsItems: visibleTicketsMenuItems,
     idoItems: visibleIdoMenuItems,
     projectOfficeItems: visibleProjectOfficeMenuItems,
+    showTicketsMenu,
     showIdoMenu,
     showProjectOfficeMenu,
 } = useAppNavigation();
@@ -330,8 +394,15 @@ const profileLink = computed(() => {
     const params = new URLSearchParams({ id: String(userId.value) });
     return `/profile?${params.toString()}`;
 });
+const defaultTicketsPath = computed(() => visibleTicketsMenuItems.value[0]?.path || '/tickets');
+const isTicketsRoute = computed(() => (
+    route.path === '/tickets' || route.path.startsWith('/tickets/my-requests')
+));
 const isIdoRoute = computed(() => route.path.startsWith('/ido'));
 const isProjectOfficeRoute = computed(() => route.path.startsWith('/project-office'));
+const isNotificationsItemActive = computed(() => (
+    notificationsPopoverVisible.value || route.path === '/notif'
+));
 
 const filteredMenuItems = computed(() => {
     return adminItems.value.filter(item =>
@@ -354,6 +425,15 @@ const toggleIdoMenu = () => {
     idoMenuOpen.value = !idoMenuOpen.value;
 };
 
+const toggleTicketsMenu = () => {
+    if (props.collapsed) {
+        router.push(defaultTicketsPath.value);
+        return;
+    }
+
+    ticketsMenuOpen.value = !ticketsMenuOpen.value;
+};
+
 const toggleProjectOfficeMenu = () => {
     if (props.collapsed) {
         router.push('/project-office/projects');
@@ -361,6 +441,55 @@ const toggleProjectOfficeMenu = () => {
     }
 
     projectOfficeMenuOpen.value = !projectOfficeMenuOpen.value;
+};
+
+const positionNotificationsPopover = () => {
+    const container = notificationsPopoverRef.value?.container;
+    const target = notificationsPopoverRef.value?.target;
+
+    if (!container || !target) {
+        return;
+    }
+
+    const targetRect = target.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    const viewportTop = window.scrollY + 12;
+    const viewportLeft = window.scrollX + 12;
+    const maxLeft = window.scrollX + window.innerWidth - containerRect.width - 12;
+    const maxTop = window.scrollY + window.innerHeight - containerRect.height - 12;
+
+    const left = Math.max(
+        viewportLeft,
+        Math.min(window.scrollX + targetRect.right + 14, maxLeft)
+    );
+    const top = Math.max(
+        viewportTop,
+        Math.min(window.scrollY + targetRect.top - 6, maxTop)
+    );
+
+    container.style.left = `${left}px`;
+    container.style.top = `${top}px`;
+    container.style.margin = '0';
+    container.removeAttribute('data-p-popover-flipped');
+    container.classList.remove('p-popover-flipped');
+};
+
+const toggleNotificationsPopover = (event) => {
+    notificationsPopoverRef.value?.toggle(event);
+};
+
+const handleNotificationsPopoverShow = async () => {
+    notificationsPopoverVisible.value = true;
+    await nextTick();
+    positionNotificationsPopover();
+};
+
+const handleNotificationsPopoverHide = () => {
+    notificationsPopoverVisible.value = false;
+};
+
+const handleNotificationNavigate = () => {
+    notificationsPopoverRef.value?.hide();
 };
 
 // Функции для работы с сезонами
@@ -417,6 +546,11 @@ watch(currentSeason, () => {
 watch(
     () => route.path,
     (path) => {
+        notificationsPopoverRef.value?.hide();
+
+        if (path === '/tickets' || path.startsWith('/tickets/my-requests')) {
+            ticketsMenuOpen.value = true;
+        }
         if (path.startsWith('/ido')) {
             idoMenuOpen.value = true;
         }
@@ -1208,6 +1342,18 @@ onMounted(async () => {
     z-index: 10;
     transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     transform-origin: center;
+}
+
+:deep(.notifications-popover.p-popover) {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    overflow: visible;
+}
+
+:deep(.notifications-popover .p-popover-content) {
+    padding: 0 !important;
+    background: transparent !important;
 }
 
 /* ============ SEASON SELECTOR ============ */

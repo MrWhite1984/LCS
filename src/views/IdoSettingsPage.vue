@@ -428,7 +428,7 @@ const onTemplateSelected = async (files) => {
         toast.add({
             severity: 'warn',
             summary: 'Неверный формат файла',
-            detail: 'Для шаблона ИДО можно выбрать только файл Microsoft Word (.doc или .docx).',
+            detail: 'Для шаблона ИДО можно выбрать только файл .doc или .docx',
             life: 3500,
         });
 

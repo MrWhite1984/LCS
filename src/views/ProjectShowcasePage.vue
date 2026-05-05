@@ -30,6 +30,39 @@
                 </div>
             </header>
 
+            <section v-if="showPrintFormTemplateUpload" class="project-template-card">
+                <div class="project-template-copy">
+                    <div class="project-template-icon">
+                        <i class="pi pi-file-word"></i>
+                    </div>
+                    <div>
+                        <h3>Шаблон печатной формы</h3>
+                        <p>
+                            Загрузите шаблон который будет использоваться для формирования печатной формы проекта.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="project-template-actions">
+                    <FileDropzone
+                        class="project-template-dropzone"
+                        :disabled="uploadingPrintFormTemplate"
+                        accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                        icon="pi pi-upload"
+                        title="Перетащите шаблон сюда"
+                        subtitle="или нажмите, чтобы выбрать .doc/.docx"
+                        active-subtitle="Отпустите файл для загрузки"
+                        compact
+                        @select="onPrintFormTemplateSelected"
+                    />
+                    <Tag
+                        v-if="printFormTemplateFileName"
+                        :value="printFormTemplateFileName"
+                        severity="secondary"
+                    />
+                </div>
+            </section>
+
             <DataTable
                 class="project-showcase-table"
                 lazy
@@ -145,17 +178,20 @@ import { useRoute, useRouter } from 'vue-router';
 import { useToast } from 'primevue/usetoast';
 import { usePermissionStore } from '@/stores/permissions.js';
 import { getCurrentUser } from '@/utils/currentUser.js';
+import { fileToBase64 } from '@/utils/ido.js';
 import { formatDateRuShortWithTime } from '@/utils/date.js';
 import {
     addMeToProjectShowcaseSystem,
     getMeInProjectShowcaseSystem,
     getProjectsList,
+    uploadProjectPrintFormTemplate,
 } from '@/api/projectShowcase.js';
 import {
     buildProjectShowcaseFullName,
     buildProjectShowcaseListModes,
     buildProjectShowcaseErrorMessage,
     canCreateProject,
+    canCreateProjectSolution,
     clearProjectShowcaseUserId,
     getStoredProjectShowcaseUserId,
     isTeacherRole,
@@ -165,6 +201,7 @@ import {
     storeProjectShowcaseUserId,
 } from '@/utils/projectShowcase.js';
 import ProjectInitiationDialog from '@/components/ProjectShowcase/ProjectInitiationDialog.vue';
+import FileDropzone from '@/components/Utils/FileDropzone.vue';
 
 const permissionStore = usePermissionStore();
 const router = useRouter();
@@ -183,6 +220,8 @@ const currentPage = ref(1);
 const showcaseUserId = ref(getStoredProjectShowcaseUserId());
 const selectedMode = ref('public');
 const createDialogVisible = ref(false);
+const uploadingPrintFormTemplate = ref(false);
+const printFormTemplateFileName = ref('');
 let projectQueryHydrating = false;
 let projectModeWatchReady = false;
 
@@ -200,6 +239,7 @@ const currentModeLabel = computed(() =>
 const showCreateButton = computed(() =>
     isTeacherRole(currentUser.value) && canCreateProject(permissionStore)
 );
+const showPrintFormTemplateUpload = computed(() => canCreateProjectSolution(permissionStore));
 
 const ensureSelectedMode = () => {
     const allowedModes = availableModes.value.map((mode) => mode.value);
@@ -329,6 +369,56 @@ const loadPageContext = async () => {
 
 const refreshPage = async () => {
     await loadPageContext();
+};
+
+const onPrintFormTemplateSelected = async (files) => {
+    const file = Array.from(files || [])[0];
+
+    if (!file || uploadingPrintFormTemplate.value) return;
+
+    const allowedMimeTypes = new Set([
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ]);
+    const normalizedFileName = String(file.name || '').toLowerCase();
+    const isWordFile = normalizedFileName.endsWith('.doc')
+        || normalizedFileName.endsWith('.docx')
+        || allowedMimeTypes.has(file.type);
+
+    if (!isWordFile) {
+        toast.add({
+            severity: 'warn',
+            summary: 'Неверный формат файла',
+            detail: 'Для шаблона печатной формы можно выбрать только файл Microsoft Word (.doc или .docx).',
+            life: 3500,
+        });
+        printFormTemplateFileName.value = '';
+        return;
+    }
+
+    uploadingPrintFormTemplate.value = true;
+    printFormTemplateFileName.value = file.name;
+
+    try {
+        const base64Template = await fileToBase64(file);
+        await uploadProjectPrintFormTemplate(base64Template);
+
+        toast.add({
+            severity: 'success',
+            summary: 'Шаблон загружен',
+            detail: `Файл "${file.name}" установлен для печатной формы проекта.`,
+            life: 3000,
+        });
+    } catch (error) {
+        toast.add({
+            severity: 'error',
+            summary: 'Шаблон не загружен',
+            detail: buildProjectShowcaseErrorMessage(error, 'Не удалось отправить выбранный файл.'),
+            life: 3500,
+        });
+    } finally {
+        uploadingPrintFormTemplate.value = false;
+    }
 };
 
 const openCreateDialog = async () => {
@@ -467,6 +557,60 @@ onMounted(async () => {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
+.project-template-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.1rem;
+    border: 1px solid rgba(var(--p-blue-500-rgb), 0.16);
+    border-radius: 18px;
+    background: linear-gradient(135deg, rgba(var(--p-blue-500-rgb), 0.08), rgba(var(--p-blue-500-rgb), 0.03));
+}
+
+.project-template-copy {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.9rem;
+}
+
+.project-template-icon {
+    width: 3rem;
+    height: 3rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px;
+    background: rgba(var(--p-blue-500-rgb), 0.14);
+    color: var(--p-primary-color);
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.project-template-copy h3,
+.project-template-copy p {
+    margin: 0;
+}
+
+.project-template-copy p {
+    margin-top: 0.45rem;
+    max-width: 66ch;
+    color: var(--p-grey-1);
+    line-height: 1.5;
+}
+
+.project-template-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.project-template-dropzone {
+    width: min(100%, 22rem);
+}
+
 .project-table-header {
     display: flex;
     justify-content: space-between;
@@ -584,11 +728,21 @@ onMounted(async () => {
     }
 
     .project-showcase-header,
+    .project-template-card,
+    .project-template-copy,
     .project-table-header,
     .project-table-header-main,
     .project-table-header-controls {
         flex-direction: column;
         align-items: stretch;
+    }
+
+    .project-template-actions {
+        justify-content: flex-start;
+    }
+
+    .project-template-dropzone {
+        width: 100%;
     }
 }
 </style>

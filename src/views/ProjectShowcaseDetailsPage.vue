@@ -43,6 +43,14 @@
                             :loading="publishing"
                             @click="publishProjectVisibility"
                         />
+                        <Button
+                            v-if="project"
+                            label="Скачать"
+                            icon="pi pi-download"
+                            outlined
+                            :loading="downloadingPrintForm"
+                            @click="downloadProjectPrintForm"
+                        />
                     </div>
                 </header>
 
@@ -710,6 +718,7 @@ import {
     getProjectDocuments,
     getProjectJournal,
     getProjectParticipants,
+    getProjectPrintForm,
     getProjectRoadMap,
     getSuProject,
 } from '@/api/projectShowcase.js';
@@ -756,6 +765,7 @@ const activeTab = ref('general');
 const checklist = ref(null);
 const checklistLoading = ref(false);
 const publishing = ref(false);
+const downloadingPrintForm = ref(false);
 
 const participants = ref([]);
 const participantsLoading = ref(false);
@@ -1507,6 +1517,33 @@ const publishProjectVisibility = async () => {
         });
     } finally {
         publishing.value = false;
+    }
+};
+
+const downloadProjectPrintForm = async () => {
+    if (!projectId.value || downloadingPrintForm.value) return;
+
+    downloadingPrintForm.value = true;
+
+    try {
+        const response = await getProjectPrintForm(projectId.value);
+        const title = String(response?.data?.title || '').trim();
+        const content = response?.data?.content || null;
+
+        if (!title || !content) {
+            throw new Error('Печатная форма проекта временно недоступна.');
+        }
+
+        downloadBase64Document(content, title);
+    } catch (error) {
+        toast.add({
+            severity: 'error',
+            summary: 'Не удалось скачать печатную форму',
+            detail: buildProjectShowcaseErrorMessage(error, 'Попробуйте повторить действие позже.'),
+            life: 3500,
+        });
+    } finally {
+        downloadingPrintForm.value = false;
     }
 };
 

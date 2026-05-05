@@ -331,7 +331,15 @@ const routes = [
                         action: 'Read'
                     },
                     requiresAuth: true,
-                    title: 'Справки'
+                    title: 'Список справок'
+                }
+            },
+            {
+                path: "/tickets/my-requests",
+                component: () => import('@/views/TicketsStudentPage.vue'),
+                meta: {
+                    requiresAuth: true,
+                    title: 'Заявки на справки'
                 }
             },
             // SSO

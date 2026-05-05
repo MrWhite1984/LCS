@@ -12,7 +12,6 @@ const TOP_NAV_ITEMS = [
 
 const SERVICE_NAV_ITEMS = [
     { id: 'requests', name: 'Заявки', path: '/requests', icon: 'pi pi-pen-to-square' },
-    { id: 'tickets', name: 'Справки', path: '/tickets', icon: 'pi pi-ticket' },
     { id: 'schedule', name: 'Расписание', path: '/schedule', icon: 'pi pi-calendar' },
     { id: 'faq', name: 'Вопросы и ответы', path: '/faq', icon: 'pi pi-question-circle' },
 ];
@@ -43,6 +42,9 @@ export const useAppNavigation = () => {
     const showRequests = ref(false);
 
     const hasPermission = (type, action) => permissionStore.hasPermission(type, action);
+    const canAccessStudentTickets = () => (
+        hasPermission('TicketsStudent', 'Read') || hasPermission('TicketsStudent', 'Create')
+    );
 
     const isItemVisible = (path) => {
         const permissionMap = {
@@ -52,6 +54,7 @@ export const useAppNavigation = () => {
             '/autorole': hasPermission('RoleAutoAssigner', 'Read'),
             '/faq': hasPermission('FAQ', 'Read'),
             '/tickets': hasPermission('Tickets', 'Read'),
+            '/tickets/my-requests': canAccessStudentTickets(),
             '/tickets/responsibles': hasPermission('ResponsibleTicketStudentGroup', 'Read'),
             '/services': hasPermission('InfraManager', 'Read'),
         };
@@ -66,6 +69,20 @@ export const useAppNavigation = () => {
     const topItems = computed(() => TOP_NAV_ITEMS.filter((item) => isItemVisible(item.path)));
     const serviceItems = computed(() => SERVICE_NAV_ITEMS.filter((item) => isItemVisible(item.path)));
     const adminItems = computed(() => ADMIN_NAV_ITEMS.filter((item) => isItemVisible(item.path)));
+    const ticketsItems = computed(() => [
+        {
+            name: 'Список справок',
+            path: '/tickets',
+            icon: 'pi pi-list',
+            hidden: !hasPermission('Tickets', 'Read'),
+        },
+        {
+            name: 'Заявки на справки',
+            path: '/tickets/my-requests',
+            icon: 'pi pi-file-edit',
+            hidden: !canAccessStudentTickets(),
+        },
+    ].filter((item) => !item.hidden));
 
     const canReadIdoSettings = computed(() => hasPermission(idoSuResource, 'Read'));
     const idoItems = computed(() => [
@@ -108,9 +125,11 @@ export const useAppNavigation = () => {
         topItems,
         serviceItems,
         adminItems,
+        ticketsItems,
         idoItems,
         projectOfficeItems,
         quickActions,
+        showTicketsMenu: computed(() => ticketsItems.value.length > 0),
         showIdoMenu: computed(() => true),
         showProjectOfficeMenu: computed(() => ENABLE_PROJECT_OFFICE && projectOfficeItems.value.length > 0),
     };

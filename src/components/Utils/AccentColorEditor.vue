@@ -29,15 +29,6 @@
 
     <Popover ref="popoverRef" class="accent-popover">
         <div class="accent-editor">
-            <button
-                type="button"
-                class="editor-help-trigger"
-                aria-label="Открыть инструкцию"
-                @click="toggleHelpPopover"
-            >
-                <i class="pi pi-info-circle"></i>
-            </button>
-
             <Popover ref="helpPopoverRef" class="editor-help-popover">
                 <div class="editor-help-content">
                     <strong>Подсказка</strong>
@@ -157,7 +148,15 @@
             </div>
 
             <div class="mode-row mode-row-bottom">
-                <div class="d-flex" style="width: 36px;"/>
+                <Button
+                    icon="pi pi-info-circle"
+                    text
+                    rounded
+                    class="swatch-nav"
+                    aria-label="Открыть инструкцию"
+                    v-tooltip.bottom="'Подсказка'"
+                    @click="toggleHelpPopover"
+                />
                 <div class="mode-btn-row">
                     <Button
                         icon="pi pi-sparkles"
@@ -939,28 +938,6 @@ onMounted(() => {
     flex-direction: column;
     gap: 0.75rem;
     color: var(--p-text-color);
-}
-
-.editor-help-trigger {
-    position: absolute;
-    top: 0.2rem;
-    right: 0.2rem;
-    z-index: 2;
-    width: 1.7rem;
-    height: 1.7rem;
-    border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--p-primary-500) 22%, transparent);
-    background: color-mix(in srgb, var(--p-bg-color-1) 90%, var(--p-primary-500) 10%);
-    color: var(--p-text-color);
-    display: grid;
-    place-items: center;
-    cursor: pointer;
-    transition: transform 0.2s ease, background-color 0.2s ease;
-}
-
-.editor-help-trigger:hover {
-    transform: translateY(-1px);
-    background: color-mix(in srgb, var(--p-bg-color-1) 82%, var(--p-primary-500) 18%);
 }
 
 .editor-help-content {

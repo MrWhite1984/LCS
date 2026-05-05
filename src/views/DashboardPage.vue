@@ -27,7 +27,7 @@
                         <div class="action-subtitle">Новая заявка в сервис</div>
                     </div>
                 </router-link>
-                <router-link class="action-card" to="/tickets">
+                <router-link v-if="showTicketsShortcut" class="action-card" :to="ticketsDashboardLink">
                     <div class="action-icon">
                         <i class="pi pi-ticket"></i>
                     </div>
@@ -133,6 +133,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import axios from 'axios';
 import NewsFeedSection from '@/components/News/NewsFeedSection.vue';
+import { usePermissionStore } from '@/stores/permissions.js';
 import { getRequestAccess } from '@/utils/requestAccess.js';
 import { getCurrentUser } from '@/utils/currentUser.js';
 import {
@@ -146,6 +147,7 @@ import {
 } from '@/utils/scheduleStorage.js';
 
 const DASHBOARD_SCHEDULE_TYPE_KEY = 'dashboardScheduleType';
+const permissionStore = usePermissionStore();
 const firstName = localStorage.getItem('firstName');
 const roleTitle = ref('');
 const isBlocked = ref(false);
@@ -179,6 +181,15 @@ const scheduleViewState = computed(() => {
 });
 
 const openScheduleLink = computed(() => buildSchedulePath(selectedScheduleType.value, scheduleSelection.value.id));
+const canReadTickets = computed(() => permissionStore.hasPermission('Tickets', 'Read'));
+const canAccessStudentTickets = computed(() => (
+    permissionStore.hasPermission('TicketsStudent', 'Read')
+    || permissionStore.hasPermission('TicketsStudent', 'Create')
+));
+const showTicketsShortcut = computed(() => canReadTickets.value || canAccessStudentTickets.value);
+const ticketsDashboardLink = computed(() => (
+    canReadTickets.value ? '/tickets' : '/tickets/my-requests'
+));
 
 const fetchUserStatus = async () => {
     try {

@@ -369,6 +369,20 @@ export function getProjectDocument(documentId) {
     return axiosInstance.get(`${PROJECT_SHOWCASE_BASE}/projects/documents/${documentId}`);
 }
 
+export function uploadProjectPrintFormTemplate(template) {
+    if (USE_PROJECT_SHOWCASE_MOCK_DATA) {
+        return wrapMockResponse(null);
+    }
+    return axiosInstance.post(`${PROJECT_SHOWCASE_BASE}/set-print-form-template`, template);
+}
+
+export function getProjectPrintForm(projectId) {
+    if (USE_PROJECT_SHOWCASE_MOCK_DATA) {
+        return wrapMockResponse(null);
+    }
+    return axiosInstance.get(`${PROJECT_SHOWCASE_BASE}/projects/${projectId}/print-form`);
+}
+
 export function deleteProjectDocument(documentId) {
     if (USE_PROJECT_SHOWCASE_MOCK_DATA) {
         mockDeleteProjectDocument(documentId);
