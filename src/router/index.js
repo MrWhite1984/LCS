@@ -160,6 +160,14 @@ const routes = [
                 },
             },
             {
+                path: "/services/ml-analytics",
+                component: () => import('@/views/MlAnalyticsPage.vue'),
+                name: 'MlAnalytics',
+                meta: {
+                    title: 'ML Analytics'
+                }
+            },
+            {
                 path: "/ido/consultations",
                 component: () => import('@/views/IdoConsultationCreatePage.vue'),
                 name: 'IdoConsultations',
