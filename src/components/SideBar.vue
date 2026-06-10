@@ -157,7 +157,7 @@
                             v-tooltip.right="collapsed ? 'ИДО' : ''"
                         >
                             <div class="menu-item-content">
-                                <i class="pi pi-briefcase"></i>
+                                <i class="pi pi-building-columns"></i>
                                 <div v-if="!collapsed" class="menucrumb menucrumb-with-arrow">
                                     <span>ИДО</span>
                                     <i class="pi pi-angle-down ido-arrow" :class="{ 'ido-arrow-open': idoMenuOpen }"></i>
@@ -168,6 +168,37 @@
                             <div v-if="idoMenuOpen && !collapsed" class="ido-submenu">
                                 <router-link
                                     v-for="item in visibleIdoMenuItems"
+                                    :key="item.path"
+                                    :to="item.path"
+                                    class="ido-submenu-item"
+                                    active-class="ido-submenu-item-active"
+                                >
+                                    <i :class="item.icon"></i>
+                                    <span>{{ item.name }}</span>
+                                </router-link>
+                            </div>
+                        </Transition>
+                    </div>
+                    <div v-if="showUmuSiriusMenu" class="ido-menu-group">
+                        <button
+                            type="button"
+                            class="menu-item menu-item-button"
+                            :class="{ 'active-link': isUmuSiriusRoute, 'menu-item-open': umuSiriusMenuOpen && !collapsed }"
+                            @click="toggleUmuSiriusMenu"
+                            v-tooltip.right="collapsed ? 'УМУ' : ''"
+                        >
+                            <div class="menu-item-content">
+                                <i class="pi pi-briefcase"></i>
+                                <div v-if="!collapsed" class="menucrumb menucrumb-with-arrow">
+                                    <span>УМУ</span>
+                                    <i class="pi pi-angle-down ido-arrow" :class="{ 'ido-arrow-open': umuSiriusMenuOpen }"></i>
+                                </div>
+                            </div>
+                        </button>
+                        <Transition name="ido-submenu">
+                            <div v-if="umuSiriusMenuOpen && !collapsed" class="ido-submenu">
+                                <router-link
+                                    v-for="item in visibleUmuSiriusMenuItems"
                                     :key="item.path"
                                     :to="item.path"
                                     class="ido-submenu-item"
@@ -369,6 +400,7 @@ const fullName = ref('');
 const searchQuery = ref('');
 const ticketsMenuOpen = ref(false);
 const idoMenuOpen = ref(false);
+const umuSiriusMenuOpen = ref(false);
 const projectOfficeMenuOpen = ref(false);
 const notificationsPopoverRef = ref(null);
 const notificationsPopoverVisible = ref(false);
@@ -379,9 +411,11 @@ const {
     adminItems,
     ticketsItems: visibleTicketsMenuItems,
     idoItems: visibleIdoMenuItems,
+    umuSiriusItems: visibleUmuSiriusMenuItems,
     projectOfficeItems: visibleProjectOfficeMenuItems,
     showTicketsMenu,
     showIdoMenu,
+    showUmuSiriusMenu,
     showProjectOfficeMenu,
 } = useAppNavigation();
 
@@ -399,6 +433,7 @@ const isTicketsRoute = computed(() => (
     route.path === '/tickets' || route.path.startsWith('/tickets/my-requests')
 ));
 const isIdoRoute = computed(() => route.path.startsWith('/ido'));
+const isUmuSiriusRoute = computed(() => route.path.startsWith('/umu-sirius'));
 const isProjectOfficeRoute = computed(() => route.path.startsWith('/project-office'));
 const isNotificationsItemActive = computed(() => (
     notificationsPopoverVisible.value || route.path === '/notif'
@@ -432,6 +467,15 @@ const toggleTicketsMenu = () => {
     }
 
     ticketsMenuOpen.value = !ticketsMenuOpen.value;
+};
+
+const toggleUmuSiriusMenu = () => {
+    if (props.collapsed) {
+        router.push('/umu-sirius');
+        return;
+    }
+
+    umuSiriusMenuOpen.value = !umuSiriusMenuOpen.value;
 };
 
 const toggleProjectOfficeMenu = () => {
@@ -553,6 +597,9 @@ watch(
         }
         if (path.startsWith('/ido')) {
             idoMenuOpen.value = true;
+        }
+        if (path.startsWith('/umu-sirius')) {
+            umuSiriusMenuOpen.value = true;
         }
         if (path.startsWith('/project-office')) {
             projectOfficeMenuOpen.value = true;

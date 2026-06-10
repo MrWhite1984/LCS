@@ -25,9 +25,9 @@
                 <section v-if="!loading" key="health-panel" class="health-panel">
                     <div class="health-panel-head">
                         <div>
-                            <h3 class="m-0">Сервисы API</h3>
+                            <h3 class="m-0">Состояние сервисов</h3>
                             <p class="health-panel-caption">
-                                Проверки выполняются по эндпоинтам `GET /api/health/*`.
+                                Проверки выполняются по адресам состояния сервисов.
                             </p>
                         </div>
                         <div class="health-summary">
@@ -95,16 +95,19 @@
             <section class="services-section">
                 <div class="services-section-head">
                     <h3 class="m-0">Микросервисы</h3>
-                    <p class="services-section-caption">Быстрый переход к рабочим разделам сервисов.</p>
                 </div>
 
                 <Transition name="content-fade" mode="out-in">
                     <div v-if="!loading" key="services-content" class="services-cards">
                         <InfraManagerMicroService />
                         <RatingService />
+                        <MlAnalyticsMicroService />
+                        <UmuSiriusMicroService />
                         <NewsMicroService v-if="canManageNews" />
                     </div>
                     <div v-else key="services-skeleton" class="services-cards">
+                        <Skeleton width="100%" height="110px" />
+                        <Skeleton width="100%" height="110px" />
                         <Skeleton width="100%" height="110px" />
                         <Skeleton width="100%" height="110px" />
                         <Skeleton v-if="canManageNews" width="100%" height="110px" />
@@ -120,6 +123,8 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { usePermissionStore } from '@/stores/permissions.js';
 import InfraManagerMicroService from '@/components/Microservice/InfraManager/InfraManagerMicroService.vue';
 import RatingService from '@/components/Microservice/Rating/RatingMicroService.vue';
+import MlAnalyticsMicroService from '@/components/Microservice/MlAnalytics/MlAnalyticsMicroService.vue';
+import UmuSiriusMicroService from '@/components/Microservice/UmuSiriusMicroService.vue';
 import NewsMicroService from '@/components/News/NewsMicroService.vue';
 import { canAccessNewsManagement } from '@/api/news.js';
 import axiosInstance from '@/utils/axios.js';
@@ -132,7 +137,7 @@ const canManageNews = computed(() => canAccessNewsManagement(permissionStore));
 const services = ref([
     {
         key: 'lks',
-        name: 'ЛКС API',
+        name: 'ЛКС',
         description: 'Основной сервер личного кабинета.',
         endpoint: '/api/health',
         status: 'idle',
@@ -162,7 +167,7 @@ const services = ref([
     },
     {
         key: 'infra',
-        name: 'InfraManager',
+        name: 'ИТ-заявки',
         description: 'Микросервис управления ИТ-процессами.',
         endpoint: '/api/health/infra',
         status: 'idle',
@@ -172,8 +177,8 @@ const services = ref([
     },
     {
         key: 'infra-db',
-        name: 'База InfraManager',
-        description: 'Состояние базы данных InfraManager.',
+        name: 'База ИТ-заявок',
+        description: 'Состояние базы данных сервиса ИТ-заявок.',
         endpoint: '/api/health/infra-db',
         status: 'idle',
         statusCode: null,
@@ -182,7 +187,7 @@ const services = ref([
     },
     {
         key: 'rating',
-        name: 'Rating',
+        name: 'Рейтинг',
         description: 'Сервис расчёта и управления рейтингом.',
         endpoint: '/api/health/rating',
         status: 'idle',
@@ -202,7 +207,7 @@ const services = ref([
     },
     {
         key: 'faq',
-        name: 'FAQ',
+        name: 'База знаний',
         description: 'Сервис статей и базы знаний.',
         endpoint: '/api/health/faq',
         status: 'idle',
@@ -212,7 +217,7 @@ const services = ref([
     },
     {
         key: 'news',
-        name: 'News',
+        name: 'Новости',
         description: 'Новостная лента, теги, эмодзи и комментарии.',
         endpoint: '/api/health/news',
         status: 'idle',
@@ -221,8 +226,18 @@ const services = ref([
         error: '',
     },
     {
+        key: 'project-showcase',
+        name: 'Витрина проектов',
+        description: 'Сервис проектного офиса и витрины проектов.',
+        endpoint: '/api/health/project-showcase',
+        status: 'idle',
+        statusCode: null,
+        checking: false,
+        error: '',
+    },
+    {
         key: 'max',
-        name: 'Max',
+        name: 'Макс',
         description: 'Интеграционный сервис Max.',
         endpoint: '/api/health/max',
         status: 'idle',
@@ -232,7 +247,7 @@ const services = ref([
     },
     {
         key: 'tickets',
-        name: 'Tickets',
+        name: 'Заявки',
         description: 'Сервис заявок и обращений.',
         endpoint: '/api/health/tickets',
         status: 'idle',
@@ -242,9 +257,19 @@ const services = ref([
     },
     {
         key: 'umu',
-        name: 'UMU',
+        name: 'УМУ',
         description: 'Интеграция с сервисом УМУ.',
         endpoint: '/api/health/umu',
+        status: 'idle',
+        statusCode: null,
+        checking: false,
+        error: '',
+    },
+    {
+        key: 'infra-back-ground-service',
+        name: 'Фоновые уведомления ИТ-заявок',
+        description: 'Сервис оповещения исполнителей по ИТ-заявкам.',
+        endpoint: '/api/health/infra-back-ground-service',
         status: 'idle',
         statusCode: null,
         checking: false,

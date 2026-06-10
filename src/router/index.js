@@ -198,6 +198,15 @@ const routes = [
                     title: 'Настройки ИДО'
                 }
             },
+            {
+                path: "/umu-sirius",
+                component: () => import('@/views/UmuSiriusPage.vue'),
+                name: 'UmuSirius',
+                meta: {
+                    requiresAuth: true,
+                    title: 'УМУ ГПХ'
+                }
+            },
             ...(ENABLE_PROJECT_OFFICE ? [
                 {
                     path: "/project-office/projects",

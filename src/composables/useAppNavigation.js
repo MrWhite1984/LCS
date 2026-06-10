@@ -2,6 +2,11 @@ import { computed, onMounted, ref } from 'vue';
 import { usePermissionStore } from '@/stores/permissions.js';
 import { getRequestAccess } from '@/utils/requestAccess.js';
 import { idoSuResource } from '@/api/ido.js';
+import {
+    umuSiriusEmployeeResource,
+    umuSiriusResponsibleResource,
+    umuSiriusSuResource,
+} from '@/api/umuSirius.js';
 import { projectShowcaseInitiatorResource, projectShowcaseSuResource } from '@/api/projectShowcase.js';
 import { ENABLE_PROJECT_OFFICE } from '@/config/features.js';
 
@@ -96,6 +101,20 @@ export const useAppNavigation = () => {
         },
     ].filter((item) => !item.hidden));
 
+    const canReadUmuSirius = computed(() => (
+        hasPermission(umuSiriusResponsibleResource, 'Read')
+        || hasPermission(umuSiriusEmployeeResource, 'Read')
+        || hasPermission(umuSiriusSuResource, 'Read')
+    ));
+    const umuSiriusItems = computed(() => [
+        {
+            name: 'ГПХ',
+            path: '/umu-sirius',
+            icon: 'pi pi-file-check',
+            hidden: !canReadUmuSirius.value,
+        },
+    ].filter((item) => !item.hidden));
+
     const canReadProjectShowcaseAll = computed(() => hasPermission(projectShowcaseSuResource, 'Read'));
     const canCreateProjectShowcase = computed(() => hasPermission(projectShowcaseInitiatorResource, 'Create'));
     const projectOfficeItems = computed(() => {
@@ -127,10 +146,12 @@ export const useAppNavigation = () => {
         adminItems,
         ticketsItems,
         idoItems,
+        umuSiriusItems,
         projectOfficeItems,
         quickActions,
         showTicketsMenu: computed(() => ticketsItems.value.length > 0),
         showIdoMenu: computed(() => true),
+        showUmuSiriusMenu: computed(() => umuSiriusItems.value.length > 0),
         showProjectOfficeMenu: computed(() => ENABLE_PROJECT_OFFICE && projectOfficeItems.value.length > 0),
     };
 };
