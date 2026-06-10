@@ -107,6 +107,35 @@ const mergeLksSearchResults = (responses = []) => Array.from(new Map(
         .map((user) => [user?.id ?? JSON.stringify(user), user]),
 ).values());
 
+const normalizeProjectInitiationPayload = (payload = {}) => {
+    const rawParticipantIds = (
+        payload.participantIds
+        || payload.participantsIds
+        || payload.participiantIds
+        || payload.participiantsIds
+        || []
+    );
+    const participantIds = (Array.isArray(rawParticipantIds) ? rawParticipantIds : [rawParticipantIds])
+        .map((id) => Number(id))
+        .filter(Number.isFinite);
+    const consultantId = Number(
+        payload.consultantId
+        || payload.consulterId
+        || payload.projectConsultantId
+        || 0
+    ) || null;
+
+    return {
+        ...payload,
+        consultantId,
+        consulterId: consultantId,
+        participantIds,
+        participantsIds: participantIds,
+        participiantIds: participantIds,
+        participiantsIds: participantIds,
+    };
+};
+
 export function getProjectsList(mode = 'public', params = {}) {
     if (USE_PROJECT_SHOWCASE_MOCK_DATA) {
         return wrapMockResponse(mockGetProjectsList(mode, params));
@@ -131,10 +160,12 @@ export function getSuProject(projectId) {
 }
 
 export function initiateProject(payload) {
+    const normalizedPayload = normalizeProjectInitiationPayload(payload);
+
     if (USE_PROJECT_SHOWCASE_MOCK_DATA) {
-        return wrapMockResponse(mockInitiateProject(payload));
+        return wrapMockResponse(mockInitiateProject(normalizedPayload));
     }
-    return axiosInstance.post(`${PROJECT_SHOWCASE_BASE}/projects/initiate-project`, payload);
+    return axiosInstance.post(`${PROJECT_SHOWCASE_BASE}/projects/initiate-project`, normalizedPayload);
 }
 
 export function getInitiatorTypes() {
@@ -257,6 +288,15 @@ export function addProjectParticipant(projectId, payload) {
     }
     return axiosInstance.post(`${PROJECT_SHOWCASE_BASE}/projects/${projectId}/add-participiant`, null, {
         params: payload,
+    });
+}
+
+export function updateProjectGrade(projectId, grade) {
+    if (USE_PROJECT_SHOWCASE_MOCK_DATA) {
+        return wrapMockResponse(null);
+    }
+    return axiosInstance.put(`${PROJECT_SHOWCASE_BASE}/projects/${projectId}/update-grade`, null, {
+        params: { grade },
     });
 }
 

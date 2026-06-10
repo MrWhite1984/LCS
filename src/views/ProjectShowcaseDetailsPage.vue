@@ -65,12 +65,12 @@
                             <strong>{{ buildProjectShowcaseFullName(project.initiator?.user) }}</strong>
                         </article>
                         <article class="project-summary-card">
-                            <span>Менеджер</span>
-                            <strong>{{ buildProjectShowcaseFullName(project.projectManager?.user) }}</strong>
+                            <span>Консультант</span>
+                            <strong>{{ buildProjectShowcaseFullName(projectConsultant) }}</strong>
                         </article>
                         <article class="project-summary-card">
                             <span>Срок</span>
-                            <strong>{{ formatDateRuLong(project.estimatedImplementationPeriod, 'Не указан') }}</strong>
+                            <strong>{{ formatProjectPeriod(project) }}</strong>
                         </article>
                         <article class="project-summary-card">
                             <span>Обновлено</span>
@@ -191,12 +191,12 @@
                                             <strong>{{ project.customer || 'Не указан' }}</strong>
                                         </div>
                                         <div class="project-info-item">
-                                            <span>Дата начала</span>
-                                            <strong>{{ formatDateRuLong(project.startDate, 'Не указана') }}</strong>
+                                            <span>Плановая дата начала</span>
+                                            <strong>{{ formatDateRuLong(project.plannedStartDate || project.startDate, 'Не указана') }}</strong>
                                         </div>
                                         <div class="project-info-item">
-                                            <span>Дата завершения</span>
-                                            <strong>{{ formatDateRuLong(project.endDate, 'Не указана') }}</strong>
+                                            <span>Плановая дата окончания</span>
+                                            <strong>{{ formatDateRuLong(project.plannedEndDate || project.endDate, 'Не указана') }}</strong>
                                         </div>
                                         <div class="project-info-item">
                                             <span>Трудоёмкость</span>
@@ -216,7 +216,27 @@
                                         </div>
                                         <div class="project-info-item">
                                             <span>Грейд проекта</span>
-                                            <strong>{{ formatProjectGrade(project.grade) }}</strong>
+                                            <template v-if="canUpdateGrade">
+                                                <div class="project-grade-editor">
+                                                    <Select
+                                                        v-model="gradeDraft"
+                                                        :options="gradeOptions"
+                                                        optionLabel="label"
+                                                        optionValue="value"
+                                                        placeholder="Выберите грейд"
+                                                        class="w-100"
+                                                        showClear
+                                                    />
+                                                    <Button
+                                                        icon="pi pi-check"
+                                                        text
+                                                        :loading="gradeSaving"
+                                                        :disabled="gradeDraft === (project.grade || '')"
+                                                        @click="saveProjectGrade"
+                                                    />
+                                                </div>
+                                            </template>
+                                            <strong v-else>{{ formatProjectGrade(project.grade) }}</strong>
                                         </div>
                                         <div class="project-info-item project-info-item-wide">
                                             <span>Цель проекта</span>
@@ -303,54 +323,11 @@
                                             <span>Кафедра</span>
                                             <strong>{{ project.department?.name || 'Не указана' }}</strong>
                                         </div>
-                                    </div>
-                                </section>
-
-                                <section class="project-section-card">
-                                    <div class="project-section-head">
-                                        <div>
-                                            <h3>Менеджер</h3>
-                                            <p>Координация проекта и ответственное подразделение.</p>
-                                        </div>
-                                        <Button
-                                            v-if="canEditAfterSolution"
-                                            :label="project.projectManager ? 'Изменить' : 'Заполнить'"
-                                            icon="pi pi-user-edit"
-                                            text
-                                            @click="managerDialogVisible = true"
-                                        />
-                                    </div>
-
-                                    <div class="project-info-grid">
                                         <div class="project-info-item">
-                                            <span>ФИО</span>
-                                            <strong>{{ buildProjectShowcaseFullName(project.projectManager?.user) }}</strong>
-                                        </div>
-                                        <div class="project-info-item">
-                                            <span>Подразделение</span>
-                                            <strong>{{ project.projectManager?.division || 'Не указано' }}</strong>
+                                            <span>Консультант</span>
+                                            <strong>{{ buildProjectShowcaseFullName(projectConsultant) }}</strong>
                                         </div>
                                     </div>
-                                </section>
-
-                                <section class="project-section-card">
-                                    <div class="project-section-head">
-                                        <div>
-                                            <h3>Необходимые компетенции</h3>
-                                            <p>Компетенции, заявленные на этапе инициации проекта.</p>
-                                        </div>
-                                    </div>
-
-                                    <div v-if="project.requiredCompetenciesOfProjectParticipants?.length" class="project-chip-grid">
-                                        <article
-                                            v-for="competency in project.requiredCompetenciesOfProjectParticipants"
-                                            :key="competency.id"
-                                            class="project-chip-card"
-                                        >
-                                            <strong>{{ competency.competencies }}</strong>
-                                        </article>
-                                    </div>
-                                    <p v-else class="project-empty-text">Компетенции пока не заполнены.</p>
                                 </section>
 
                                 <section class="project-section-card">
@@ -625,11 +602,6 @@
             :initial-data="project || {}"
             @saved="handleProjectMutation"
         />
-        <ProjectManagerDialog
-            v-model:visible="managerDialogVisible"
-            :project-id="projectId"
-            @saved="handleProjectMutation"
-        />
         <ProjectStringListDialog
             v-model:visible="tasksDialogVisible"
             :project-id="projectId"
@@ -721,6 +693,7 @@ import {
     getProjectPrintForm,
     getProjectRoadMap,
     getSuProject,
+    updateProjectGrade,
 } from '@/api/projectShowcase.js';
 import {
     buildProjectShowcaseErrorMessage,
@@ -744,7 +717,6 @@ import ProjectPlaceholderPane from '@/components/ProjectShowcase/ProjectPlacehol
 import ProjectRoadMapTree from '@/components/ProjectShowcase/ProjectRoadMapTree.vue';
 import ProjectSolutionDialog from '@/components/ProjectShowcase/ProjectSolutionDialog.vue';
 import ProjectGeneralInformationDialog from '@/components/ProjectShowcase/ProjectGeneralInformationDialog.vue';
-import ProjectManagerDialog from '@/components/ProjectShowcase/ProjectManagerDialog.vue';
 import ProjectStringListDialog from '@/components/ProjectShowcase/ProjectStringListDialog.vue';
 import ProjectResourceDialog from '@/components/ProjectShowcase/ProjectResourceDialog.vue';
 import ProjectParticipantDialog from '@/components/ProjectShowcase/ProjectParticipantDialog.vue';
@@ -766,6 +738,8 @@ const checklist = ref(null);
 const checklistLoading = ref(false);
 const publishing = ref(false);
 const downloadingPrintForm = ref(false);
+const gradeSaving = ref(false);
+const gradeDraft = ref('');
 
 const participants = ref([]);
 const participantsLoading = ref(false);
@@ -788,7 +762,6 @@ const deletingDocumentIds = ref([]);
 
 const solutionDialogVisible = ref(false);
 const generalInfoDialogVisible = ref(false);
-const managerDialogVisible = ref(false);
 const tasksDialogVisible = ref(false);
 const criteriaDialogVisible = ref(false);
 const resourceDialogVisible = ref(false);
@@ -820,6 +793,18 @@ const detailsMode = computed(() => getProjectDetailsMode(permissionStore));
 const isTeacher = computed(() => isTeacherRole(currentUser.value));
 const isCurrentProjectInitiator = computed(() => isProjectInitiator(project.value, showcaseUserId.value));
 const projectRejected = computed(() => Boolean(project.value?.solution) && project.value?.solution?.isApproved === false);
+const projectConsultant = computed(() => (
+    project.value?.consultant?.user
+    || project.value?.consultant
+    || project.value?.consulter?.user
+    || project.value?.consulter
+    || project.value?.projectConsultant?.user
+    || project.value?.projectConsultant
+    || project.value?.consultantUser
+    || project.value?.teacherConsultant?.user
+    || project.value?.teacherConsultant
+    || null
+));
 const canEditAfterSolution = computed(() =>
     Boolean(project.value?.solution)
     && !projectRejected.value
@@ -829,6 +814,12 @@ const canEditAfterSolution = computed(() =>
 );
 const canCreateSolutionAction = computed(() =>
     !project.value?.solution && canCreateProjectSolution(permissionStore)
+);
+const canUpdateGrade = computed(() =>
+    !projectRejected.value
+    && isTeacher.value
+    && isCurrentProjectInitiator.value
+    && canEditOwnProject(permissionStore)
 );
 const checklistVisible = computed(() => isTeacher.value && isCurrentProjectInitiator.value && !projectRejected.value);
 const isChecklistComplete = computed(() => {
@@ -863,12 +854,10 @@ const checklistItems = computed(() => {
     return [
         { key: 'isProjectTypeFilled', label: 'Тип проекта заполнен', done: checklist.value.isProjectTypeFilled },
         { key: 'isCustomerFilled', label: 'Заказчик заполнен', done: checklist.value.isCustomerFilled },
-        { key: 'isProjectManagerFilled', label: 'Менеджер назначен', done: checklist.value.isProjectManagerFilled },
         { key: 'isImplementationDeadlineFilled', label: 'Срок реализации указан', done: checklist.value.isImplementationDeadlineFilled },
         { key: 'isLaborIntensityFilled', label: 'Трудоёмкость указана', done: checklist.value.isLaborIntensityFilled },
         { key: 'isProjectParticipiantsFilled', label: 'Команда проекта заполнена', done: checklist.value.isProjectParticipiantsFilled },
         { key: 'isProjectTaskFilled', label: 'Задачи проекта заполнены', done: checklist.value.isProjectTaskFilled },
-        { key: 'isCriteriasFilled', label: 'Критерии выполнения заполнены', done: checklist.value.isCriteriasFilled },
         { key: 'isResourcesFilled', label: 'Ресурсы заполнены', done: checklist.value.isResourcesFilled },
         { key: 'isRoadMapFilled', label: 'Дорожная карта заполнена', done: checklist.value.isRoadMapFilled },
     ];
@@ -887,6 +876,24 @@ const formatProjectGrade = (value) => {
     if (normalized === '1') return '1 (минимальная сложность)';
     if (normalized === '6') return '6 (максимальная сложность, стратегический)';
     return normalized;
+};
+
+const gradeOptions = [
+    { value: '1', label: '1 (минимальная сложность)' },
+    { value: '2', label: '2' },
+    { value: '3', label: '3' },
+    { value: '4', label: '4' },
+    { value: '5', label: '5' },
+    { value: '6', label: '6 (максимальная сложность, стратегический)' },
+];
+
+const formatProjectPeriod = (item) => {
+    const start = item?.plannedStartDate || item?.startDate;
+    const end = item?.plannedEndDate || item?.endDate || item?.estimatedImplementationPeriod;
+
+    if (!start && !end) return 'Не указан';
+    if (start && end) return `${formatDateRuLong(start, '-')} - ${formatDateRuLong(end, '-')}`;
+    return formatDateRuLong(start || end, 'Не указан');
 };
 
 const normalizeProjectDocument = (document) => ({
@@ -1520,6 +1527,39 @@ const publishProjectVisibility = async () => {
     }
 };
 
+const saveProjectGrade = async () => {
+    if (!projectId.value || !canUpdateGrade.value) return;
+
+    gradeSaving.value = true;
+
+    try {
+        await updateProjectGrade(projectId.value, gradeDraft.value || null);
+        toast.add({
+            severity: 'success',
+            summary: 'Грейд обновлён',
+            detail: 'Сложность проекта сохранена.',
+            life: 2500,
+        });
+        await loadProjectDetails();
+    } catch (error) {
+        toast.add({
+            severity: 'error',
+            summary: 'Не удалось обновить грейд',
+            detail: buildProjectShowcaseErrorMessage(error, 'Попробуйте повторить действие позже.'),
+            life: 3500,
+        });
+    } finally {
+        gradeSaving.value = false;
+    }
+};
+
+watch(
+    () => project.value?.grade,
+    (grade) => {
+        gradeDraft.value = grade || '';
+    },
+);
+
 const downloadProjectPrintForm = async () => {
     if (!projectId.value || downloadingPrintForm.value) return;
 
@@ -1566,7 +1606,7 @@ const handleRoadMapMutation = async () => {
 };
 
 const openRoadMapItemDialog = async () => {
-    if (!participants.length) {
+    if (!participants.value.length) {
         await fetchParticipants();
     }
 
@@ -1578,7 +1618,7 @@ const openRoadMapItemDialog = async () => {
 const openRoadMapEditDialog = async (item) => {
     if (!item?.id) return;
 
-    if (!participants.length) {
+    if (!participants.value.length) {
         await fetchParticipants();
     }
 
@@ -1964,6 +2004,13 @@ onBeforeUnmount(() => {
     color: var(--p-text-color);
     white-space: pre-wrap;
     overflow-wrap: anywhere;
+}
+
+.project-grade-editor {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.4rem;
+    align-items: center;
 }
 
 .project-info-item-wide {

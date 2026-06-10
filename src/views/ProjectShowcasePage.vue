@@ -150,11 +150,6 @@
                         {{ buildProjectShowcaseFullName(data.projectInitiator?.user || data.initiator?.user) }}
                     </template>
                 </Column>
-                <Column field="projectManager" header="Менеджер" style="min-width: 210px;">
-                    <template #body="{ data }">
-                        {{ buildProjectShowcaseFullName(data.projectManager?.user) }}
-                    </template>
-                </Column>
                 <Column field="updatedAt" header="Обновлено" style="width: 170px;">
                     <template #body="{ data }">
                         {{ formatDateRuShortWithTime(data.updatedAt, '-') }}

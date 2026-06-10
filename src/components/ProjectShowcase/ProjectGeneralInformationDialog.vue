@@ -8,25 +8,6 @@
     >
         <div class="project-dialog-grid">
             <div class="project-field">
-                <label for="project-type">Тип проекта</label>
-                <Select
-                    id="project-type"
-                    v-model="form.projectTypeId"
-                    :options="projectTypes"
-                    optionLabel="title"
-                    optionValue="id"
-                    class="w-100"
-                    :loading="loadingTypes"
-                    placeholder="Выберите тип"
-                />
-            </div>
-
-            <div class="project-field">
-                <label for="project-customer">Заказчик</label>
-                <InputText id="project-customer" v-model.trim="form.customer" class="w-100" />
-            </div>
-
-            <div class="project-field">
                 <label for="project-start-date">Дата начала</label>
                 <DatePicker id="project-start-date" v-model="form.startDate" class="w-100" showIcon />
             </div>
@@ -52,11 +33,10 @@
 <script setup>
 import { reactive, ref, watch } from 'vue';
 import { useToast } from 'primevue/usetoast';
-import { addProjectGeneralInformation, getProjectTypes } from '@/api/projectShowcase.js';
+import { addProjectGeneralInformation } from '@/api/projectShowcase.js';
 import {
     buildProjectShowcaseErrorMessage,
     toIsoDate,
-    translateProjectShowcaseTypeTitle,
 } from '@/utils/projectShowcase.js';
 
 const props = defineProps({
@@ -77,49 +57,18 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'saved']);
 
 const toast = useToast();
-const projectTypes = ref([]);
-const loadingTypes = ref(false);
 const saving = ref(false);
 
 const form = reactive({
-    projectTypeId: null,
-    customer: '',
     startDate: null,
     endDate: null,
     laborIntensity: '',
 });
 
 const assignInitialData = () => {
-    form.projectTypeId = props.initialData?.projectType?.id || null;
-    form.customer = props.initialData?.customer || '';
     form.startDate = props.initialData?.startDate ? new Date(props.initialData.startDate) : null;
     form.endDate = props.initialData?.endDate ? new Date(props.initialData.endDate) : null;
     form.laborIntensity = props.initialData?.laborIntensity || '';
-};
-
-const loadProjectTypes = async () => {
-    if (projectTypes.value.length) return;
-
-    loadingTypes.value = true;
-
-    try {
-        const response = await getProjectTypes();
-        projectTypes.value = Array.isArray(response.data)
-            ? response.data.map((item) => ({
-                ...item,
-                title: translateProjectShowcaseTypeTitle(item.title),
-            }))
-            : [];
-    } catch (error) {
-        toast.add({
-            severity: 'error',
-            summary: 'Не удалось загрузить типы проектов',
-            detail: buildProjectShowcaseErrorMessage(error, 'Попробуйте открыть форму ещё раз.'),
-            life: 3500,
-        });
-    } finally {
-        loadingTypes.value = false;
-    }
 };
 
 const submit = async () => {
@@ -129,8 +78,6 @@ const submit = async () => {
 
     try {
         await addProjectGeneralInformation(props.projectId, {
-            projectTypeId: form.projectTypeId,
-            customer: form.customer,
             startDate: toIsoDate(form.startDate),
             endDate: toIsoDate(form.endDate),
             laborIntensity: form.laborIntensity,
@@ -162,7 +109,6 @@ watch(
     (visible) => {
         if (!visible) return;
         assignInitialData();
-        loadProjectTypes();
     },
     { immediate: true }
 );
