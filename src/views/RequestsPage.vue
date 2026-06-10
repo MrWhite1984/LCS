@@ -294,7 +294,7 @@
             </Transition>
         </div>
         <CreateRequest ref="createRequestRef" :showButton="false" @refreshRequests="(id) => fetchCalls(id)"/>
-        <InfraManagerCallsMe ref="callDetailsRef" class="position-absolute opacity-0" style="z-index: -999;"/>
+        <InfraManagerCallsMe ref="callDetailsRef" class="position-absolute opacity-0" style="z-index: -999;" @close="clearCallDetailsQuery"/>
     </div>
 </template>
 
@@ -571,7 +571,37 @@ const callDetailsRef = ref(null); // Ссылка на дочерний комп
 const createRequestRef = ref(null);
 const shouldOpenCreateModal = ref(false);
 
-const openCallDetails = (id) => { nextTick(() => { callDetailsRef.value?.openCallDetails(id); }); };
+const openCallDetailsById = (id) => {
+    if (!id) return;
+
+    nextTick(() => {
+        callDetailsRef.value?.openCallDetails(id);
+    });
+};
+
+const openCallDetails = (id) => {
+    if (!id) return;
+
+    if (String(route.query.callId || '') === String(id)) {
+        openCallDetailsById(id);
+        return;
+    }
+
+    router.push({
+        query: {
+            ...route.query,
+            callId: id,
+        },
+    });
+};
+
+const clearCallDetailsQuery = () => {
+    if (!route.query.callId) return;
+
+    const query = { ...route.query };
+    delete query.callId;
+    router.replace({ query });
+};
 const openCreateModal = () => { createRequestRef.value?.openModal?.(); };
 
 const showScrollHint = ref(true);
@@ -579,6 +609,16 @@ const showScrollHint = ref(true);
 const hideScrollHint = () => {
     showScrollHint.value = false;
 };
+
+watch(
+    () => route.query.callId,
+    (callId) => {
+        if (callId) {
+            openCallDetailsById(callId);
+        }
+    },
+    { immediate: true }
+);
 
 watch(
     () => route.query.create,

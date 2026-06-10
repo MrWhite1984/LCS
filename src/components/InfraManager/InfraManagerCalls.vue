@@ -15,7 +15,7 @@
             </div> -->
 
             <!-- Модальное окно для подробной информации -->
-            <Dialog v-model:visible="isDialogVisible" modal :style="{ width: '100%', maxWidth: '100rem' }" @hide="closeDialog">
+            <Dialog v-model:visible="isDialogVisible" modal :style="{ width: '100%', maxWidth: '100rem' }" @hide="handleDialogHide">
               <Transition name="content-fade" mode="out-in">
                 <div key="infra-calls-error" v-if="errorOccurred" class="error-message">
                   <p>Произошла ошибка при загрузке данных</p>
@@ -180,6 +180,7 @@ const props = defineProps({
     type: String,
   }
 });
+const emit = defineEmits(['close']);
 
 const lastCalls = ref([]);  // Список последних заявок
 const {
@@ -205,6 +206,11 @@ const getStatusSeverity = getInfraStatusSeverity;
 const getStatusIcon = getInfraStatusIcon;
 const formatTimestampToOmsk = formatDateOmskFromUnixSeconds;
 const formatUTCToOmsk = formatDateOmskFromUtcString;
+
+const handleDialogHide = () => {
+  closeDialog();
+  emit('close');
+};
 
 // Функция для получения последних заявок по ID пользователя
 const fetchUserCalls = async () => {

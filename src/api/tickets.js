@@ -1,6 +1,7 @@
 import axiosInstance from '@/utils/axios.js';
 import { USE_MOCK_DATA } from '@/mocks/config.js';
 import {
+    mockGetMyTicket,
     mockGetMyTicketsList,
     mockGetTicketRequestType,
     mockTicketRequestTypes,
@@ -30,6 +31,22 @@ export function listMyTickets(payload) {
     }
 
     return axiosInstance.post('/api/tickets/for-me/list', payload);
+}
+
+export function getMyTicket(ticketId) {
+    if (USE_MOCK_DATA) {
+        return wrapMockResponse(mockGetMyTicket(ticketId));
+    }
+
+    return axiosInstance.get(`/api/tickets/for-me/${ticketId}`);
+}
+
+export function downloadMyTicketAttachment(ticketId, attachmentId) {
+    if (USE_MOCK_DATA) {
+        return wrapMockResponse('');
+    }
+
+    return axiosInstance.get(`/api/tickets/for-me/${ticketId}/attachments/${attachmentId}`);
 }
 
 export function createMyTicket(payload) {

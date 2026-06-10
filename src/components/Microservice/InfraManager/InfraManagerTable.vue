@@ -274,7 +274,7 @@
                 </Transition>
             </div>
         </div>
-        <InfraManagerCalls ref="callDetailsRef" class="position-absolute opacity-0"/>
+        <InfraManagerCalls ref="callDetailsRef" class="position-absolute opacity-0" @close="clearCallDetailsQuery"/>
     </main>
 </template>
 
@@ -476,7 +476,47 @@ const goBack = () => {
 
 const callDetailsRef = ref(null); // Ссылка на дочерний компонент InfraManagerCalls
 
-const openCallDetails = (id) => { nextTick(() => { callDetailsRef.value?.openCallDetails(id); }); };
+const openCallDetailsById = (id) => {
+    if (!id) return;
+
+    nextTick(() => {
+        callDetailsRef.value?.openCallDetails(id);
+    });
+};
+
+const openCallDetails = (id) => {
+    if (!id) return;
+
+    if (String(route.query.callId || '') === String(id)) {
+        openCallDetailsById(id);
+        return;
+    }
+
+    router.push({
+        query: {
+            ...route.query,
+            callId: id,
+        },
+    });
+};
+
+const clearCallDetailsQuery = () => {
+    if (!route.query.callId) return;
+
+    const query = { ...route.query };
+    delete query.callId;
+    router.replace({ query });
+};
+
+watch(
+    () => route.query.callId,
+    (callId) => {
+        if (callId) {
+            openCallDetailsById(callId);
+        }
+    },
+    { immediate: true }
+);
 
 onMounted(async () => {
     const defaultQuery = {

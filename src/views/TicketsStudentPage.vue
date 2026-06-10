@@ -79,11 +79,32 @@
                                 >
                                     <label :for="`ticket-field-${field.name}`">
                                         {{ field.label || field.name }}
-                                        <span v-if="field.required" class="tickets-required-mark">*</span>
+                                        <span v-if="field.required || isGroupField(field)" class="tickets-required-mark">*</span>
                                     </label>
 
+                                    <AutoComplete
+                                        v-if="isGroupField(field)"
+                                        :id="`ticket-field-${field.name}`"
+                                        :modelValue="groupSelections[field.name] ?? null"
+                                        :suggestions="filteredGroupOptions"
+                                        optionLabel="label"
+                                        field="label"
+                                        class="w-100"
+                                        :placeholder="field.placeholder || 'Начните вводить название группы...'"
+                                        :loading="groupsLoading"
+                                        :disabled="groupsLoading"
+                                        :invalid="Boolean(formErrors[field.name])"
+                                        dropdown
+                                        dropdownMode="blank"
+                                        forceSelection
+                                        showClear
+                                        @complete="searchStudentGroups"
+                                        @update:modelValue="onGroupSelectionChange(field.name, $event)"
+                                        @clear="clearGroupSelection(field.name)"
+                                    />
+
                                     <InputText
-                                        v-if="field.type === 'Text'"
+                                        v-else-if="field.type === 'Text'"
                                         :id="`ticket-field-${field.name}`"
                                         v-model.trim="formValues[field.name]"
                                         class="w-100"
@@ -204,6 +225,12 @@
                                     <small v-if="formErrors[field.name]" class="p-error tickets-student-error">
                                         {{ formErrors[field.name] }}
                                     </small>
+                                    <small
+                                        v-else-if="isGroupField(field) && groupsLoadError"
+                                        class="p-error tickets-student-error"
+                                    >
+                                        {{ groupsLoadError }}
+                                    </small>
                                 </div>
                             </div>
 
@@ -316,6 +343,16 @@
                                 <div class="tickets-student-mobile-summary">
                                     {{ ticket.summary }}
                                 </div>
+
+                                <div class="tickets-student-mobile-actions">
+                                    <Button
+                                        label="Открыть заявку"
+                                        icon="pi pi-paperclip"
+                                        severity="secondary"
+                                        outlined
+                                        @click="openTicketDetails(ticket)"
+                                    />
+                                </div>
                             </article>
                         </div>
 
@@ -392,10 +429,28 @@
                                 {{ formatDate(data.updatedAt) }}
                             </template>
                         </Column>
+                        <Column header="Файлы" style="width: 170px;">
+                            <template #body="{ data }">
+                                <Button
+                                    label="Открыть"
+                                    icon="pi pi-paperclip"
+                                    severity="secondary"
+                                    outlined
+                                    class="tickets-student-table-action"
+                                    @click="openTicketDetails(data)"
+                                />
+                            </template>
+                        </Column>
                     </DataTable>
                 </section>
             </template>
         </section>
+
+        <StudentTicketDetailsDialog
+            v-model:visible="ticketDetailsVisible"
+            :ticket-id="selectedTicketId"
+            @update:visible="onTicketDetailsVisibilityChange"
+        />
     </main>
 </template>
 
@@ -414,6 +469,7 @@ import {
 } from '@/api/tickets.js';
 import PermissionDenied from '@/components/Utils/PermissionDenied.vue';
 import FileDropzone from '@/components/Utils/FileDropzone.vue';
+import StudentTicketDetailsDialog from '@/components/Tickets/StudentTicketDetailsDialog.vue';
 
 const toast = useToast();
 const permissionStore = usePermissionStore();
@@ -431,11 +487,18 @@ const selectedRequestTypeId = ref(null);
 const formValues = ref({});
 const formErrors = ref({});
 const uploadingFieldNames = ref({});
+const groupSelections = ref({});
+const allGroupOptions = ref([]);
+const filteredGroupOptions = ref([]);
+const groupsLoading = ref(false);
+const groupsLoadError = ref('');
 
 const studentTickets = ref([]);
 const totalRecords = ref(0);
 const currentPage = ref(1);
 const rowsPerPage = ref(10);
+const ticketDetailsVisible = ref(false);
+const selectedTicketId = ref('');
 const rowsPerPageOptions = [
     { label: '5', value: 5 },
     { label: '10', value: 10 },
@@ -453,6 +516,13 @@ const listSectionRef = ref(null);
 const canReadStudentTickets = computed(() => permissionStore.hasPermission('TicketsStudent', 'Read'));
 const canCreateStudentTickets = computed(() => permissionStore.hasPermission('TicketsStudent', 'Create'));
 const canAccessTicketsStudent = computed(() => canReadStudentTickets.value || canCreateStudentTickets.value);
+
+const now = new Date();
+const currentCalendarYear = now.getFullYear();
+const currentStudyYear = now.getMonth() >= 8
+    ? currentCalendarYear
+    : currentCalendarYear - 1;
+const studentGroupsYear = `${currentStudyYear}-${currentStudyYear + 1}`;
 
 const activeRequestTypes = computed(() => (
     requestTypes.value
@@ -562,6 +632,8 @@ const parseDateValue = (value) => {
     return Number.isNaN(date.getTime()) ? null : date;
 };
 
+const isGroupField = (field) => field?.name === 'eduGroup';
+
 const normalizeSchemaDefaultValue = (field) => {
     const defaultValue = field?.defaultValue;
 
@@ -595,7 +667,124 @@ const buildInitialFormErrors = (schema = []) => schema.reduce((accumulator, fiel
     return accumulator;
 }, {});
 
+const buildInitialGroupSelections = (schema = []) => schema.reduce((accumulator, field) => {
+    if (isGroupField(field)) {
+        accumulator[field.name] = null;
+    }
+
+    return accumulator;
+}, {});
+
 const isWideField = (field) => ['Textarea', 'Radio', 'File'].includes(field?.type);
+
+const extractGroupCode = (groupName) => {
+    if (!groupName) return '';
+
+    const match = String(groupName).match(/([А-Яа-яA-Za-z]+)[-\s]*(\d+)[-\s]*(\d+)?/);
+    return match ? match[0] : '';
+};
+
+const mapGroupOption = (group) => {
+    if (typeof group === 'string') {
+        return {
+            label: group,
+            value: group,
+            code: extractGroupCode(group),
+        };
+    }
+
+    const label = group?.name || group?.title || group?.groupName || String(group?.id || '');
+    return {
+        label,
+        value: group?.id || group?.code || label,
+        code: group?.code || extractGroupCode(label),
+    };
+};
+
+const ensureStudentGroupsLoaded = async () => {
+    if (allGroupOptions.value.length || groupsLoading.value) return;
+
+    groupsLoading.value = true;
+    groupsLoadError.value = '';
+
+    try {
+        const response = await fetch('https://umu.sibadi.org/api/raspGrouplist?' + new URLSearchParams({
+            year: studentGroupsYear,
+        }));
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        allGroupOptions.value = Array.isArray(data?.data) ? data.data.map(mapGroupOption) : [];
+        filteredGroupOptions.value = [...allGroupOptions.value];
+    } catch (error) {
+        console.debug('Ошибка при загрузке списка групп для справок:', error);
+        allGroupOptions.value = [];
+        filteredGroupOptions.value = [];
+        groupsLoadError.value = 'Не удалось загрузить список групп. Попробуйте обновить страницу.';
+    } finally {
+        groupsLoading.value = false;
+    }
+};
+
+const searchStudentGroups = async (event) => {
+    await ensureStudentGroupsLoaded();
+
+    const query = String(event?.query || '').trim().toLowerCase();
+
+    if (!query) {
+        filteredGroupOptions.value = [...allGroupOptions.value];
+        return;
+    }
+
+    filteredGroupOptions.value = allGroupOptions.value.filter((group) => (
+        group.label.toLowerCase().includes(query)
+        || group.code.toLowerCase().includes(query)
+    ));
+};
+
+const clearGroupSelection = (fieldName) => {
+    groupSelections.value = {
+        ...groupSelections.value,
+        [fieldName]: null,
+    };
+    formValues.value = {
+        ...formValues.value,
+        [fieldName]: '',
+    };
+};
+
+const onGroupSelectionChange = (fieldName, value) => {
+    groupSelections.value = {
+        ...groupSelections.value,
+        [fieldName]: value,
+    };
+
+    const selectedLabel = value && typeof value === 'object' ? value.label || '' : '';
+
+    formValues.value = {
+        ...formValues.value,
+        [fieldName]: selectedLabel,
+    };
+
+    formErrors.value = {
+        ...formErrors.value,
+        [fieldName]: selectedLabel ? '' : formErrors.value[fieldName],
+    };
+};
+
+const hasValidGroupSelection = (fieldName) => {
+    const selection = groupSelections.value[fieldName];
+
+    return Boolean(
+        selection
+        && typeof selection === 'object'
+        && selection.label
+        && formValues.value[fieldName] === selection.label
+    );
+};
 
 const normalizeNumberFilter = (value) => {
     const normalized = String(value || '').trim();
@@ -628,6 +817,10 @@ const serializeFieldValue = (field, value) => {
 };
 
 const validateField = (field, value) => {
+    if (isGroupField(field)) {
+        return hasValidGroupSelection(field.name) ? '' : 'Выберите группу из списка.';
+    }
+
     if (!field?.required) return '';
 
     switch (field?.type) {
@@ -709,6 +902,7 @@ const loadRequestTypeDetails = async (requestTypeId) => {
     if (!requestTypeId) {
         formValues.value = {};
         formErrors.value = {};
+        groupSelections.value = {};
         return;
     }
 
@@ -716,6 +910,10 @@ const loadRequestTypeDetails = async (requestTypeId) => {
         const schema = requestTypeDetailsMap.value[requestTypeId]?.formSchema || [];
         formValues.value = buildInitialFormValues(schema);
         formErrors.value = buildInitialFormErrors(schema);
+        groupSelections.value = buildInitialGroupSelections(schema);
+        if (schema.some(isGroupField)) {
+            await ensureStudentGroupsLoaded();
+        }
         return;
     }
 
@@ -731,6 +929,11 @@ const loadRequestTypeDetails = async (requestTypeId) => {
         const schema = response.data?.formSchema || [];
         formValues.value = buildInitialFormValues(schema);
         formErrors.value = buildInitialFormErrors(schema);
+        groupSelections.value = buildInitialGroupSelections(schema);
+
+        if (schema.some(isGroupField)) {
+            await ensureStudentGroupsLoaded();
+        }
     } catch (error) {
         toast.add({
             severity: 'error',
@@ -740,6 +943,7 @@ const loadRequestTypeDetails = async (requestTypeId) => {
         });
         formValues.value = {};
         formErrors.value = {};
+        groupSelections.value = {};
     } finally {
         requestTypeDetailsLoading.value = false;
     }
@@ -816,6 +1020,10 @@ const onFieldFileSelected = async (field, files) => {
 const submitTicket = async () => {
     if (!selectedRequestTypeId.value || !selectedRequestTypeSchema.value.length) return;
 
+    if (selectedRequestTypeSchema.value.some(isGroupField)) {
+        await ensureStudentGroupsLoaded();
+    }
+
     const nextErrors = buildInitialFormErrors(selectedRequestTypeSchema.value);
     const preparedFormData = {};
     let hasErrors = false;
@@ -865,6 +1073,7 @@ const submitTicket = async () => {
 
         formValues.value = buildInitialFormValues(selectedRequestTypeSchema.value);
         formErrors.value = buildInitialFormErrors(selectedRequestTypeSchema.value);
+        groupSelections.value = buildInitialGroupSelections(selectedRequestTypeSchema.value);
 
         if (canReadStudentTickets.value) {
             currentPage.value = 1;
@@ -921,6 +1130,21 @@ const scrollToList = () => {
     });
 };
 
+const openTicketDetails = (ticket) => {
+    if (!ticket?.id) return;
+
+    selectedTicketId.value = ticket.id;
+    ticketDetailsVisible.value = true;
+};
+
+const onTicketDetailsVisibilityChange = (value) => {
+    ticketDetailsVisible.value = value;
+
+    if (!value) {
+        selectedTicketId.value = '';
+    }
+};
+
 const refreshPage = async () => {
     await Promise.all([
         loadRequestTypes(),
@@ -937,6 +1161,7 @@ watch(selectedRequestTypeId, async (newValue, oldValue) => {
         if (!newValue) {
             formValues.value = {};
             formErrors.value = {};
+            groupSelections.value = {};
         }
         return;
     }
@@ -1216,6 +1441,11 @@ onMounted(async () => {
     line-height: 1.5;
 }
 
+.tickets-student-mobile-actions {
+    display: flex;
+    justify-content: flex-start;
+}
+
 .tickets-student-table-main {
     display: flex;
     flex-direction: column;
@@ -1229,6 +1459,10 @@ onMounted(async () => {
 
 .tickets-student-table :deep(.p-datatable-table-container) {
     min-height: 12rem;
+}
+
+.tickets-student-table-action {
+    width: 100%;
 }
 
 .tickets-student-empty-state {

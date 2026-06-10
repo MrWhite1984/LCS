@@ -4,7 +4,7 @@
         <div class="service-card mt-3">
 
             <!-- Модальное окно для подробной информации -->
-            <Dialog v-model:visible="isDialogVisible" maximizable modal :style="{ width: '100%', maxWidth: '100rem' }" @hide="closeDialog">
+            <Dialog v-model:visible="isDialogVisible" maximizable modal :style="{ width: '100%', maxWidth: '100rem' }" @hide="handleDialogHide">
                 <Transition name="content-fade" mode="out-in">
                   <div key="infra-calls-me-error" v-if="errorOccurred" class="error-message">
                     <p>Произошла ошибка при загрузке данных</p>
@@ -166,6 +166,8 @@ import { useInfraCallDetails } from '@/components/InfraManager/composables/useIn
 import { getInfraStatusIcon, getInfraStatusSeverity } from '@/utils/infraStatus.js';
 import { formatDateOmskFromUnixSeconds, formatDateOmskFromUtcString, formatFileSize } from '@/utils/date.js';
 
+const emit = defineEmits(['close']);
+
 const lastCalls = ref([]);  // Список последних заявок
 const isCallsVisible = ref(false);
 const {
@@ -191,6 +193,11 @@ const getStatusSeverity = getInfraStatusSeverity;
 const getStatusIcon = getInfraStatusIcon;
 const formatTimestampToOmsk = formatDateOmskFromUnixSeconds;
 const formatUTCToOmsk = formatDateOmskFromUtcString;
+
+const handleDialogHide = () => {
+  closeDialog();
+  emit('close');
+};
 
 // Загрузить последние заявки или скрыть их по повторному нажатию
 const fetchCallsInfo = async () => {
