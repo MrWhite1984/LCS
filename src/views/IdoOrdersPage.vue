@@ -81,12 +81,75 @@
                         />
                     </div>
                     <div class="ido-filter-actions">
-                        <Button label="Применить" icon="pi pi-filter" @click="applyFilters" />
-                        <Button label="Сбросить" icon="pi pi-eraser" severity="secondary" outlined @click="resetFilters" />
+                        <Button icon="pi pi-filter" @click="applyFilters" />
+                        <Button
+                            label="Получить отчет"
+                            icon="pi pi-file-excel"
+                            severity="success"
+                            outlined
+                            :loading="reportLoading"
+                            @click="openReportDialog"
+                        />
+                        <Button icon="pi pi-eraser" severity="secondary" outlined @click="resetFilters" />
                     </div>
                 </div>
             </template>
         </Card>
+
+        <Dialog
+            v-model:visible="reportDialogVisible"
+            modal
+            header="Получить отчет за период"
+            :style="{ width: 'min(32rem, calc(100vw - 2rem))' }"
+        >
+            <div class="ido-report-dialog">
+                <p class="ido-report-description">
+                    Укажите дату начала и дату окончания, если хотите ограничить период. Оба поля можно оставить пустыми.
+                </p>
+
+                <div class="ido-report-fields">
+                    <div class="ido-field">
+                        <label for="ido-report-start">Дата начала</label>
+                        <DatePicker
+                            id="ido-report-start"
+                            v-model="reportPeriod.startDate"
+                            showIcon
+                            showButtonBar
+                            :manualInput="false"
+                            inputClass="w-full"
+                        />
+                    </div>
+                    <div class="ido-field">
+                        <label for="ido-report-end">Дата окончания</label>
+                        <DatePicker
+                            id="ido-report-end"
+                            v-model="reportPeriod.endDate"
+                            showIcon
+                            showButtonBar
+                            :manualInput="false"
+                            inputClass="w-full"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <template #footer>
+                <Button
+                    label="Отмена"
+                    icon="pi pi-times"
+                    severity="secondary"
+                    text
+                    :disabled="reportLoading"
+                    @click="reportDialogVisible = false"
+                />
+                <Button
+                    label="Скачать отчет"
+                    icon="pi pi-download"
+                    :loading="reportLoading"
+                    @click="downloadOrdersReport"
+                />
+            </template>
+        </Dialog>
 
         <Card class="ido-table-card">
             <template #content>
@@ -144,18 +207,21 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue';
 import { debounce } from 'lodash';
+import { useToast } from 'primevue/usetoast';
 import { usePermissionStore } from '@/stores/permissions.js';
 import axiosInstance from '@/utils/axios.js';
 import { getCurrentUser } from '@/utils/currentUser.js';
-import { getIdoOrders, searchTeachers } from '@/api/ido.js';
-import { buildEmployerLabel, buildTeacherLabel, getIdoAvailableRoles, isUuid } from '@/utils/ido.js';
+import { exportIdoOrdersReport, getIdoOrders, searchTeachers } from '@/api/ido.js';
+import { buildEmployerLabel, buildTeacherLabel, downloadBase64Document, getIdoAvailableRoles, isUuid } from '@/utils/ido.js';
 import IdoOrderDetailsDialog from '@/components/Ido/IdoOrderDetailsDialog.vue';
 
 const permissionStore = usePermissionStore();
+const toast = useToast();
 
 const loading = ref(true);
 const teacherLoading = ref(false);
 const employerLksLoading = ref(false);
+const reportLoading = ref(false);
 const orders = ref([]);
 const totalRecords = ref(0);
 const rowsPerPage = ref(10);
@@ -168,11 +234,17 @@ const selectedTeacher = ref(null);
 const selectedEmployerLksUser = ref(null);
 const teacherSuggestions = ref([]);
 const employerLksSuggestions = ref([]);
+const reportDialogVisible = ref(false);
 
 const filters = reactive({
     teacherId: '',
     employerId: '',
     employerLksId: '',
+});
+
+const reportPeriod = reactive({
+    startDate: null,
+    endDate: null,
 });
 
 const formatCurrency = (value) => new Intl.NumberFormat('ru-RU', {
@@ -224,6 +296,42 @@ const resolveTotalRecords = (data) => {
     }
 
     return Array.isArray(data?.orderResponses) ? data.orderResponses.length : 0;
+};
+
+const padDatePart = (value) => String(value).padStart(2, '0');
+
+const formatDateTimeWithOffset = (value) => {
+    const offsetMinutes = -value.getTimezoneOffset();
+    const offsetSign = offsetMinutes >= 0 ? '+' : '-';
+    const absoluteOffsetMinutes = Math.abs(offsetMinutes);
+    const offsetHours = padDatePart(Math.floor(absoluteOffsetMinutes / 60));
+    const offsetRemainderMinutes = padDatePart(absoluteOffsetMinutes % 60);
+
+    return `${value.getFullYear()}-${padDatePart(value.getMonth() + 1)}-${padDatePart(value.getDate())}`
+        + `T${padDatePart(value.getHours())}:${padDatePart(value.getMinutes())}:${padDatePart(value.getSeconds())}`
+        + `${offsetSign}${offsetHours}:${offsetRemainderMinutes}`;
+};
+
+const normalizeReportDate = (value, endOfDay = false) => {
+    if (!(value instanceof Date) || Number.isNaN(value.getTime())) return undefined;
+
+    const normalized = new Date(value);
+
+    if (endOfDay) {
+        normalized.setHours(23, 59, 59, 999);
+    } else {
+        normalized.setHours(0, 0, 0, 0);
+    }
+
+    return formatDateTimeWithOffset(normalized);
+};
+
+const ensureExcelFileName = (value) => {
+    const normalized = String(value || '').trim();
+
+    if (!normalized) return 'ido-orders-report.xlsx';
+
+    return /\.(xlsx|xls)$/i.test(normalized) ? normalized : `${normalized}.xlsx`;
 };
 
 const loadTeachersDebounced = debounce(async (query) => {
@@ -333,6 +441,68 @@ const resetFilters = () => {
     filters.employerLksId = '';
     currentPage.value = 1;
     fetchOrders();
+};
+
+const openReportDialog = () => {
+    reportDialogVisible.value = true;
+};
+
+const downloadOrdersReport = async () => {
+    if (reportLoading.value) return;
+
+    const hasInvalidRange = reportPeriod.startDate
+        && reportPeriod.endDate
+        && reportPeriod.startDate > reportPeriod.endDate;
+
+    if (hasInvalidRange) {
+        toast.add({
+            severity: 'warn',
+            summary: 'Отчет ИДО',
+            detail: 'Дата начала не может быть позже даты окончания.',
+            life: 3500,
+        });
+        return;
+    }
+
+    reportLoading.value = true;
+
+    try {
+        const response = await exportIdoOrdersReport({
+            startDate: normalizeReportDate(reportPeriod.startDate),
+            endDate: normalizeReportDate(reportPeriod.endDate, true),
+        });
+
+        const fileName = ensureExcelFileName(response.data?.fileName);
+        const content = response.data?.content;
+
+        if (!content) {
+            throw new Error('Пустой ответ отчета');
+        }
+
+        downloadBase64Document(
+            content,
+            fileName,
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        );
+        reportDialogVisible.value = false;
+
+        toast.add({
+            severity: 'success',
+            summary: 'Отчет ИДО',
+            detail: 'Excel-отчет успешно сформирован.',
+            life: 3000,
+        });
+    } catch (error) {
+        console.debug('Ошибка выгрузки Excel-отчета ИДО:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Отчет ИДО',
+            detail: 'Не удалось получить Excel-отчет.',
+            life: 4000,
+        });
+    } finally {
+        reportLoading.value = false;
+    }
 };
 
 const onPage = (event) => {
@@ -492,8 +662,27 @@ onMounted(async () => {
 
 .ido-filter-actions {
     display: flex;
+    flex-wrap: wrap;
     gap: 0.75rem;
     justify-content: flex-end;
+}
+
+.ido-report-dialog {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.ido-report-description {
+    margin: 0;
+    color: var(--p-text-color-secondary);
+    line-height: 1.5;
+}
+
+.ido-report-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
 }
 
 .ido-empty-state {
@@ -540,6 +729,10 @@ onMounted(async () => {
 
 @media (max-width: 992px) {
     .ido-filters {
+        grid-template-columns: 1fr;
+    }
+
+    .ido-report-fields {
         grid-template-columns: 1fr;
     }
 }

@@ -37,36 +37,53 @@
             </div>
 
             <div class="ido-detail-actions">
-                <Button
-                    label="Скачать документ"
-                    icon="pi pi-download"
-                    outlined
-                    :loading="documentLoading"
-                    @click="downloadDocument"
-                />
+                <div class="ido-document-actions">
+                    <span class="ido-info-label">Файлы заявки</span>
+                    <div class="ido-document-buttons">
+                        <Button
+                            label="Word"
+                            icon="pi pi-file-word"
+                            :loading="documentLoading === 'word'"
+                            @click="downloadDocument('word')"
+                        />
+                        <Button
+                            label="PDF"
+                            icon="pi pi-file-pdf"
+                            severity="danger"
+                            outlined
+                            :loading="documentLoading === 'pdf'"
+                            @click="downloadDocument('pdf')"
+                        />
+                    </div>
+                </div>
                 <template v-if="role === 'su'">
-                    <Button
-                        label="Оплачено"
-                        icon="pi pi-wallet"
-                        severity="success"
-                        :loading="statusLoading === 'paid'"
-                        @click="changeStatus('paid')"
-                    />
-                    <Button
-                        label="Завершено"
-                        icon="pi pi-check-circle"
-                        severity="info"
-                        :loading="statusLoading === 'completed'"
-                        @click="changeStatus('completed')"
-                    />
-                    <Button
-                        label="Отменить"
-                        icon="pi pi-times-circle"
-                        severity="danger"
-                        outlined
-                        :loading="statusLoading === 'canceled'"
-                        @click="changeStatus('canceled')"
-                    />
+                    <div class="ido-status-actions">
+                        <span class="ido-info-label">Изменение статуса</span>
+                        <div class="ido-status-buttons">
+                            <Button
+                                label="Оплачено"
+                                icon="pi pi-wallet"
+                                severity="success"
+                                :loading="statusLoading === 'paid'"
+                                @click="changeStatus('paid')"
+                            />
+                            <Button
+                                label="Завершено"
+                                icon="pi pi-check-circle"
+                                severity="info"
+                                :loading="statusLoading === 'completed'"
+                                @click="changeStatus('completed')"
+                            />
+                            <Button
+                                label="Отменить"
+                                icon="pi pi-times-circle"
+                                severity="danger"
+                                outlined
+                                :loading="statusLoading === 'canceled'"
+                                @click="changeStatus('canceled')"
+                            />
+                        </div>
+                    </div>
                 </template>
             </div>
         </div>
@@ -83,7 +100,7 @@ import {
     setOrderCompleted,
     setOrderPaid,
 } from '@/api/ido.js';
-import { buildEmployerLabel, buildTeacherLabel, downloadBase64Document } from '@/utils/ido.js';
+import { buildEmployerLabel, buildTeacherLabel, downloadIdoDocument } from '@/utils/ido.js';
 
 const props = defineProps({
     visible: {
@@ -105,7 +122,7 @@ const emit = defineEmits(['update:visible', 'updated']);
 const toast = useToast();
 
 const loading = ref(false);
-const documentLoading = ref(false);
+const documentLoading = ref('');
 const statusLoading = ref('');
 const order = ref(null);
 
@@ -139,22 +156,28 @@ const loadOrder = async () => {
     }
 };
 
-const downloadDocument = async () => {
-    documentLoading.value = true;
+const downloadDocument = async (format) => {
+    documentLoading.value = format;
 
     try {
         const response = await getIdoOrderDocuments(props.role, props.orderId);
-        downloadBase64Document(response.data?.docFile, response.data?.docName);
+        const hasDownloaded = downloadIdoDocument(response.data, format);
+
+        if (!hasDownloaded) {
+            throw new Error(`Файл формата ${format} отсутствует`);
+        }
     } catch (error) {
         console.debug('Ошибка загрузки документа ИДО:', error);
         toast.add({
             severity: 'error',
             summary: 'Документ недоступен',
-            detail: 'Не удалось скачать файл по этой заявке.',
+            detail: format === 'pdf'
+                ? 'PDF-файл по этой заявке недоступен.'
+                : 'Word-файл по этой заявке недоступен.',
             life: 3000,
         });
     } finally {
-        documentLoading.value = false;
+        documentLoading.value = '';
     }
 };
 
@@ -259,6 +282,40 @@ watch(
     display: flex;
     flex-wrap: wrap;
     gap: 0.75rem;
+    align-items: center;
+}
+
+.ido-document-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding: 0.9rem 1rem;
+    border-radius: 14px;
+    border: 1px solid var(--p-content-border-color);
+    background: color-mix(in srgb, var(--p-primary-500) 4%, var(--p-content-background));
+    align-self: stretch;
+}
+
+.ido-document-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.ido-status-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding: 0.9rem 1rem;
+    border-radius: 14px;
+    border: 1px solid var(--p-content-border-color);
+    background: color-mix(in srgb, var(--p-primary-500) 3%, var(--p-content-background));
+}
+
+.ido-status-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
 }
 
 .ido-detail-actions :deep(.p-button) {
@@ -271,6 +328,14 @@ watch(
     }
 
     .ido-detail-actions {
+        flex-direction: column;
+    }
+
+    .ido-document-buttons {
+        flex-direction: column;
+    }
+
+    .ido-status-buttons {
         flex-direction: column;
     }
 }

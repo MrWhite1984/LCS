@@ -29,13 +29,13 @@ export function buildEmployerLabel(employer) {
     return [employer?.surname, employer?.name, employer?.patronymic].filter(Boolean).join(' ');
 }
 
-export function downloadBase64Document(docFile, docName) {
+export function downloadBase64Document(docFile, docName, mimeType = 'application/octet-stream') {
     if (!docFile || !docName) return;
 
     const binary = atob(docFile);
     const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
     const blob = new Blob([bytes], {
-        type: 'application/octet-stream',
+        type: mimeType,
     });
 
     const url = URL.createObjectURL(blob);
@@ -46,6 +46,39 @@ export function downloadBase64Document(docFile, docName) {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+}
+
+export function ensureFileNameWithExtension(value, extension, fallbackBaseName = 'document') {
+    const normalized = String(value || '').trim();
+
+    if (!normalized) {
+        return `${fallbackBaseName}.${extension}`;
+    }
+
+    return new RegExp(`\\.${extension}$`, 'i').test(normalized)
+        ? normalized
+        : `${normalized}.${extension}`;
+}
+
+export function downloadIdoDocument(documents, format) {
+    if (!documents || !format) return false;
+
+    const config = format === 'pdf'
+        ? {
+            file: documents.pdfFile,
+            name: ensureFileNameWithExtension(documents.pdfName, 'pdf', 'ido-document'),
+            mimeType: 'application/pdf',
+        }
+        : {
+            file: documents.docFile,
+            name: ensureFileNameWithExtension(documents.docName, 'docx', 'ido-document'),
+            mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        };
+
+    if (!config.file) return false;
+
+    downloadBase64Document(config.file, config.name, config.mimeType);
+    return true;
 }
 
 export function fileToBase64(file) {

@@ -36,6 +36,10 @@ export function getIdoOrders(role, params = {}) {
     return axiosInstance.get(endpointMap[role] || endpointMap['employer-lks'], { params });
 }
 
+export function exportIdoOrdersReport(params = {}) {
+    return axiosInstance.get('/api/ido/acc/su/export/excel', { params });
+}
+
 export function getIdoOrder(role, orderId) {
     const base = role === 'su' ? '/api/ido/acc/su/orders' : '/api/ido/acc/orders';
     return axiosInstance.get(`${base}/${orderId}`);

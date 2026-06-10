@@ -203,13 +203,30 @@
             </template>
         </Card>
 
-        <div class="ido-actions">
-            <Button
-                label="Сформировать договор"
-                icon="pi pi-file-word"
-                :loading="submitting"
-                @click="submitForm"
-            />
+        <div class="ido-actions-card">
+            <div class="ido-actions-copy">
+                <span class="ido-actions-kicker">Формат договора</span>
+                <h3 class="ido-actions-title">Выберите файл заранее</h3>
+                <p class="ido-actions-description">
+                    Форма отправится один раз, а затем сразу скачается выбранный формат документа.
+                </p>
+            </div>
+            <div class="ido-actions">
+                <Button
+                    label="Сформировать Word"
+                    icon="pi pi-file-word"
+                    :loading="submitting === 'word'"
+                    @click="submitForm('word')"
+                />
+                <Button
+                    label="Сформировать PDF"
+                    icon="pi pi-file-pdf"
+                    severity="danger"
+                    outlined
+                    :loading="submitting === 'pdf'"
+                    @click="submitForm('pdf')"
+                />
+            </div>
         </div>
     </div>
 </template>
@@ -221,13 +238,13 @@ import { useToast } from 'primevue/usetoast';
 import { createIdoOrder, createPublicIdoOrder, fetchCurrentUserPhones, getTeacherDivisions, searchTeachers } from '@/api/ido.js';
 import { isAuthenticated } from '@/utils/auth.js';
 import { getCurrentUser } from '@/utils/currentUser.js';
-import { buildTeacherLabel, downloadBase64Document, getPrimaryPhone } from '@/utils/ido.js';
+import { buildTeacherLabel, downloadIdoDocument, getPrimaryPhone } from '@/utils/ido.js';
 
 const toast = useToast();
 
 const profileLoading = ref(false);
 const teacherLoading = ref(false);
-const submitting = ref(false);
+const submitting = ref('');
 const submitted = ref(false);
 const selectedTeacher = ref(null);
 const teacherSuggestions = ref([]);
@@ -391,7 +408,7 @@ const handleTeacherSelect = async ({ value }) => {
     }
 };
 
-const submitForm = async () => {
+const submitForm = async (format) => {
     submitted.value = true;
 
     if (!requiredFields.value) {
@@ -404,7 +421,7 @@ const submitForm = async () => {
         return;
     }
 
-    submitting.value = true;
+    submitting.value = format;
 
     try {
         const payload = {
@@ -426,12 +443,18 @@ const submitForm = async () => {
         const response = canUseAutofill.value
             ? await createIdoOrder(payload)
             : await createPublicIdoOrder(payload);
-        downloadBase64Document(response.data?.docFile, response.data?.docName);
+        const hasDownloaded = downloadIdoDocument(response.data, format);
+
+        if (!hasDownloaded) {
+            throw new Error(`Файл формата ${format} отсутствует`);
+        }
 
         toast.add({
             severity: 'success',
             summary: 'Договор сформирован',
-            detail: 'Документ подготовлен и скачивается.',
+            detail: format === 'pdf'
+                ? 'PDF-документ подготовлен и скачивается.'
+                : 'Word-документ подготовлен и скачивается.',
             life: 3000,
         });
     } catch (error) {
@@ -439,11 +462,13 @@ const submitForm = async () => {
         toast.add({
             severity: 'error',
             summary: 'Не удалось создать договор',
-            detail: 'Проверьте поля формы и повторите попытку.',
+            detail: format === 'pdf'
+                ? 'Не удалось подготовить PDF. Проверьте поля формы и повторите попытку.'
+                : 'Не удалось подготовить Word. Проверьте поля формы и повторите попытку.',
             life: 3500,
         });
     } finally {
-        submitting.value = false;
+        submitting.value = '';
     }
 };
 
@@ -573,13 +598,58 @@ watch(
     border-radius: 14px;
 }
 
+.ido-actions-card {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.2rem 1.25rem;
+    border-radius: 18px;
+    border: 1px solid var(--p-content-border-color);
+    background:
+        radial-gradient(circle at top left, rgba(var(--p-primary-500-rgb), 0.12), transparent 42%),
+        linear-gradient(135deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.94));
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+}
+
+.ido-actions-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    max-width: 28rem;
+}
+
+.ido-actions-kicker {
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--p-primary-color);
+}
+
+.ido-actions-title {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--p-text-color);
+}
+
+.ido-actions-description {
+    margin: 0;
+    color: var(--p-text-color-secondary);
+    line-height: 1.5;
+}
+
 .ido-actions {
     display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
     justify-content: flex-end;
 }
 
 .ido-actions :deep(.p-button) {
-    min-width: 240px;
+    min-width: 220px;
     border-radius: 14px;
 }
 
@@ -623,6 +693,7 @@ watch(
         align-items: center;
     }
 
+    .ido-actions-card,
     .ido-actions {
         justify-content: stretch;
     }
