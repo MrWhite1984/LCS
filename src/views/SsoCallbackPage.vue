@@ -91,16 +91,27 @@ onMounted(async () => {
 });
 
 const verifySSO = async (code, state) => {
+    const codeVerifier = sessionStorage.getItem('codeVerifier');
+
+    if (!codeVerifier) {
+        errorMessage.value = 'Отсутствует code_verifier. Пожалуйста, попробуйте войти снова.';
+        cleanCallbackUrl();
+        return;
+    }
+
     try {
         const response = await axiosInstance.post('/api/auth/sso/verification', {
             code: code,
-            state: state
+            state: state,
+            codeVerifier: codeVerifier
         }, {
             headers: {
                 'accept': 'text/plain',
                 'Content-Type': 'application/json'
             }
         });
+
+        sessionStorage.removeItem('codeVerifier');
 
         saveAuthData({
             accessToken: response.data.accessToken,

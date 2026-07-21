@@ -1,11 +1,11 @@
 import axiosInstance from '@/utils/axios.js';
-import { USE_MOCK_DATA } from '@/mocks/config.js';
+import { USE_MOCK_DATA } from '@/config/mocks/config.js';
 import {
     mockGetMyTicket,
     mockGetMyTicketsList,
     mockGetTicketRequestType,
     mockTicketRequestTypes,
-} from '@/mocks/tickets.js';
+} from '@/config/mocks/tickets.js';
 
 const wrapMockResponse = (data) => Promise.resolve({ data });
 

@@ -148,7 +148,7 @@ import {
 
 const DASHBOARD_SCHEDULE_TYPE_KEY = 'dashboardScheduleType';
 const permissionStore = usePermissionStore();
-const firstName = localStorage.getItem('firstName');
+const firstName = ref(localStorage.getItem('firstName') || '');
 const roleTitle = ref('');
 const isBlocked = ref(false);
 const infraStatusText = ref('—');
@@ -194,6 +194,8 @@ const ticketsDashboardLink = computed(() => (
 const fetchUserStatus = async () => {
     try {
         const me = await getCurrentUser();
+        firstName.value = me.firstName || '';
+        localStorage.setItem('firstName', firstName.value);
         roleTitle.value = me.roles?.[0]?.title || '';
         isBlocked.value = !!me.isBlocked;
     } catch (error) {

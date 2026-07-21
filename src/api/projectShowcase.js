@@ -1,5 +1,5 @@
 import axiosInstance from '@/utils/axios.js';
-import { USE_PROJECT_SHOWCASE_MOCK_DATA } from '@/mocks/config.js';
+import { USE_PROJECT_SHOWCASE_MOCK_DATA } from '@/config/mocks/config.js';
 import {
     mockAddCriterias,
     mockAddProjectDocument,
@@ -35,7 +35,7 @@ import {
     mockSearchUsers,
     mockUpdateRoadMapItem,
     mockUpdateRoadMapItemDocuments,
-} from '@/mocks/projectShowcase.js';
+} from '@/config/mocks/projectShowcase.js';
 
 export const projectShowcaseInitiatorResource = 'ProjectShowcase_Initiator';
 export const projectShowcaseSuResource = 'ProjectShowcase_SU';

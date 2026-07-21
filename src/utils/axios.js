@@ -5,6 +5,7 @@ import {
     getAccessToken,
     markSessionExpired,
     clearAuthData,
+    isLocalAuthBypassActive,
 } from "@/utils/TokenService";
 import { getBaseUrl } from './baseUrl';
 import { isSessionExpiredFlag } from "./TokenService";
@@ -53,6 +54,10 @@ axiosInstance.interceptors.response.use(
             !originalRequest._retry &&
             !isSessionExpiredFlag()
         ) {
+            if (isLocalAuthBypassActive()) {
+                return Promise.reject(error);
+            }
+
             originalRequest._retry = true;
 
             if (isRefreshing) {

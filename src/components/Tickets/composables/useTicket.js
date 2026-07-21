@@ -1,6 +1,6 @@
 import { ref } from 'vue';
-import { mockTicketDetails } from '@/mocks/tickets.js';
-import { USE_MOCK_DATA } from '@/mocks/config.js';
+import { mockTicketDetails } from '@/config/mocks/tickets.js';
+import { USE_MOCK_DATA } from '@/config/mocks/config.js';
 
 export const useTicket = (axiosInstance) => {
     const selectedTicket = ref(null);

@@ -627,7 +627,6 @@ const confirmLogout = () => {
         },
         accept: () => {
             logout();
-            toast.add({ severity: 'success', summary: 'Успешно', detail: 'Вы вышли из системы', life: 3000 });
         },
         reject: () => {
             toast.add({ severity: 'info', summary: 'Отклонено', detail: 'Вы отклонили выход', life: 3000 })
@@ -636,6 +635,15 @@ const confirmLogout = () => {
 };
 
 const logout = async () => {
+    let ssoLogoutUrl = null;
+
+    try {
+        const response = await axiosInstance.post('/api/auth/sso/logout/redirection');
+        ssoLogoutUrl = response.data || null;
+    } catch (error) {
+        console.error('Не удалось получить URL для выхода из SSO:', error);
+    }
+
     await disconnectNotificationsHub();
     notificationStore.reset();
     clearAuthData();
@@ -644,7 +652,16 @@ const logout = async () => {
     resetRequestAccessCache();
     resetCurrentUserCache();
 
-    await runLogoutClipTransition(() => router.push('/auth'));
+    sessionStorage.setItem('loggedOut', '1');
+
+    if (ssoLogoutUrl) {
+        await runLogoutClipTransition(() => {
+            window.location.href = ssoLogoutUrl;
+            return new Promise(() => {});
+        });
+    } else {
+        await runLogoutClipTransition(() => router.push('/auth'));
+    }
 };
 
 onMounted(async () => {

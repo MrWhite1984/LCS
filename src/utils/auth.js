@@ -1,3 +1,5 @@
-import { isAuthenticated as isSessionAuthenticated } from "@/utils/TokenService";
+import { isAuthenticated as isSessionAuthenticated, isLocalAuthBypassActive } from "@/utils/TokenService";
 
-export const isAuthenticated = () => isSessionAuthenticated();
+export const isAuthenticated = () => isLocalAuthBypassActive() || isSessionAuthenticated();
+
+export const isLocalAuthBypass = isLocalAuthBypassActive;

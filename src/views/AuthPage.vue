@@ -20,43 +20,14 @@
                                 @click="ssoLogin"
                                 :loading="ssoLoading"
                             />
-
-                            <div class="divider">
-                                <span>или</span>
-                            </div>
-
-                            <form @submit.prevent="auth" class="login-form">
-                                <label class="field-label" for="email">Email</label>
-                                <InputGroup class="field-group">
-                                    <InputGroupAddon>
-                                        <i class="pi pi-at"></i>
-                                    </InputGroupAddon>
-                                    <InputText placeholder="Введитe email" id="email" name="email" v-model="email" required />
-                                </InputGroup>
-
-                                <label class="field-label" for="password">Пароль</label>
-                                <InputGroup class="field-group">
-                                    <InputGroupAddon>
-                                        <i class="pi pi-key"></i>
-                                    </InputGroupAddon>
-                                    <Password
-                                        v-model="password"
-                                        id="password"
-                                        name="password"
-                                        toggleMask
-                                        :feedback="false"
-                                        placeholder="Введите пароль"
-                                        required
-                                    />
-                                </InputGroup>
-
-                                <div class="form-actions">
-                                    <!-- <Button label="Забыли пароль?" text class="forgot-password" /> -->
-                                </div>
-
-                                <Button class="submit-button" type="submit" label="Войти" />
-                                <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
-                            </form>
+                            <Button
+                                class="guide-button"
+                                icon="pi pi-question-circle"
+                                label="Как войти в систему?"
+                                text
+                                @click="openLoginGuide"
+                            />
+                            <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
                         </div>
 
                         <div class="theme-switcher-wrap">
@@ -135,8 +106,6 @@ import slide4 from '@/assets/backgrounds/slide4.webp';
 import slide5 from '@/assets/backgrounds/slide5.webp';
 import slide6 from '@/assets/backgrounds/slide6.webp';
 
-const email = ref('');
-const password = ref('');
 const errorMessage = ref('');
 const toast = useToast();
 const router = useRouter();
@@ -177,39 +146,22 @@ const setActiveSlide = (index) => {
     startSlider();
 };
 
-const auth = async () => {
-    errorMessage.value = '';
+const generateCodeVerifier = () => {
+    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const randomValues = new Uint8Array(64);
+    window.crypto.getRandomValues(randomValues);
 
-    try {
-        const response = await axiosInstance.post('/api/auth/login', {
-            email: email.value,
-            password: password.value,
-        }, {
-            headers: {
-                accept: 'text/plain',
-                'Content-Type': 'application/json',
-            },
-        });
-
-        saveAuthData({
-            accessToken: response.data.accessToken,
-            userId: response.data.userId,
-            refreshTokenValue: response.data.refreshTokenValue,
-            refreshTokenExpired: response.data.refreshTokenExpired,
-            accessTokenExpired: response.data.accessTokenExpired,
-            accessTokenExpiresIn: response.data.accessTokenExpiresIn,
-        });
-
-        startTokenWorker();
-
-        playSplashAndNavigate(() =>
-            router.replace({
-                name: 'Dashboard',
-            })
-        );
-    } catch (error) {
-        errorMessage.value = error.response?.data?.message || 'Неверный логин или пароль';
+    let result = '';
+    for (let i = 0; i < randomValues.length; i++) {
+        result += charset[randomValues[i] % charset.length];
     }
+
+    return result;
+};
+
+const openLoginGuide = () => {
+    const url = router.resolve({ name: 'LoginGuide' }).href;
+    window.open(url, '_blank', 'noopener');
 };
 
 const ssoLogin = async () => {
@@ -217,13 +169,12 @@ const ssoLogin = async () => {
     errorMessage.value = '';
 
     try {
-        const response = await axiosInstance.get('/api/auth/sso/redirection', {
-            headers: {
-                accept: 'text/plain',
-            },
-        });
+        const codeVerifier = generateCodeVerifier();
+
+        const response = await axiosInstance.post('/api/auth/sso/redirection', codeVerifier);
 
         if (response.data) {
+            sessionStorage.setItem('codeVerifier', codeVerifier);
             window.location.href = response.data;
         } else {
             throw new Error('Не удалось получить URL для SSO авторизации');
@@ -244,6 +195,16 @@ const ssoLogin = async () => {
 
 onMounted(() => {
     startSlider();
+
+    if (sessionStorage.getItem('loggedOut') === '1') {
+        sessionStorage.removeItem('loggedOut');
+        toast.add({
+            severity: 'success',
+            summary: 'Выход выполнен',
+            detail: 'Вы вышли из аккаунта',
+            life: 3000,
+        });
+    }
 });
 
 onBeforeUnmount(() => {
@@ -455,6 +416,17 @@ onBeforeUnmount(() => {
 .sso-button:hover {
     background: var(--p-blue-400) !important;
     color: #fff !important;
+}
+
+.guide-button {
+    width: 100%;
+    justify-content: center;
+    color: var(--p-text-muted-color);
+    font-weight: 600;
+}
+
+.guide-button:hover {
+    color: var(--p-blue-400);
 }
 
 .divider {

@@ -1,7 +1,7 @@
 // stores/permissions.js
 import { defineStore } from 'pinia';
 import axiosInstance from '@/utils/axios.js';
-import { isSessionExpiredFlag } from '../utils/TokenService';
+import { isSessionExpiredFlag, isLocalAuthBypassActive } from '../utils/TokenService';
 
 export const usePermissionStore = defineStore('permissions', {
   state: () => ({
@@ -43,6 +43,10 @@ export const usePermissionStore = defineStore('permissions', {
     },
 
     hasPermission(resourceType, actionType) {
+      if (isLocalAuthBypassActive()) {
+        return true;
+      }
+
       const resource = this.permissions.find(
         item => item.type === resourceType
       );

@@ -1,7 +1,7 @@
 import { createMemoryHistory, createRouter, createWebHistory } from "vue-router";
 import { isAuthenticated } from "@/utils/auth";
 import { usePermissionStore } from '@/stores/permissions.js';
-import { ensureAuthSession, isSessionExpiredFlag } from "@/utils/TokenService";
+import { ensureAuthSession, isSessionExpiredFlag, isLocalAuthBypassActive } from "@/utils/TokenService";
 import { ENABLE_PROJECT_OFFICE } from '@/config/features.js';
 import { canAccessNewsManagement, hasNewsPermission } from '@/api/news.js';
 
@@ -39,6 +39,15 @@ const routes = [
         }
     },
     {
+        path: "/login-guide",
+        component: () => import('@/views/LoginGuidePage.vue'),
+        name: 'LoginGuide',
+        meta: {
+            requiresAuth: false,
+            title: 'Как войти в систему?'
+        }
+    },
+    {
         path: "/consultation-request",
         component: () => import('@/views/IdoConsultationCreatePage.vue'),
         name: 'PublicIdoConsultationCreate',
@@ -48,9 +57,10 @@ const routes = [
         }
     },
     { 
-        path: "/", 
+        path: "/",
         component: () => import('@/views/HomePage.vue'),
         name: 'HomePage',
+        redirect: { path: '/overview' },
         meta: { 
             requiresAuth: true,
             title: 'Главная'
@@ -401,6 +411,10 @@ router.beforeEach(async (to, from) => {
 
     const permissionStore = usePermissionStore();
     const requiresAuthRoute = to.matched.some(record => record.meta.requiresAuth);
+
+    if (isLocalAuthBypassActive()) {
+        return true;
+    }
 
     if ((requiresAuthRoute || to.path === "/auth") && !isAuthenticated() && !isSessionExpiredFlag()) {
         await ensureAuthSession();

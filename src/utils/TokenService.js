@@ -10,6 +10,27 @@ const REFRESH_TOKEN_KEY = "refreshToken";
 const USER_ID_KEY = "userId";
 const REFRESH_TOKEN_EXPIRED_KEY = "refreshTokenExpired";
 
+const LOCALHOST_HOSTNAMES = ['localhost', '127.0.0.1', '[::1]'];
+
+export const isLocalAuthBypassActive = () => {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  const hostname = window.location.hostname;
+  const bypassEnv = import.meta.env.VITE_BYPASS_AUTH === 'true';
+  return bypassEnv || LOCALHOST_HOSTNAMES.includes(hostname);
+};
+
+// Пользовательские ключи, которые пишут другие модули; чистим их вместе с токенами,
+// чтобы после выхода в браузере не оставалось данных предыдущего пользователя
+const USER_SCOPED_STORAGE_KEYS = [
+    "firstName",
+    "InfraStatus",
+    "infraManagerUserId",
+    "projectShowcaseUserId",
+];
+
 const authSession = {
     accessToken: null,
     accessTokenExpired: 0,
@@ -111,6 +132,12 @@ export function clearAuthData({ redirectToAuth = false } = {}) {
     localStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(USER_ID_KEY);
     localStorage.removeItem(REFRESH_TOKEN_EXPIRED_KEY);
+
+    for (const key of USER_SCOPED_STORAGE_KEYS) {
+        localStorage.removeItem(key);
+    }
+
+    sessionStorage.removeItem("codeVerifier");
 
     stopTokenWorker();
     markSessionExpired();
