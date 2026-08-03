@@ -92,47 +92,16 @@
                 </section>
             </Transition>
 
-            <section class="services-section">
-                <div class="services-section-head">
-                    <h3 class="m-0">Микросервисы</h3>
-                </div>
-
-                <Transition name="content-fade" mode="out-in">
-                    <div v-if="!loading" key="services-content" class="services-cards">
-                        <InfraManagerMicroService />
-                        <RatingService />
-                        <MlAnalyticsMicroService />
-                        <UmuSiriusMicroService />
-                        <NewsMicroService v-if="canManageNews" />
-                    </div>
-                    <div v-else key="services-skeleton" class="services-cards">
-                        <Skeleton width="100%" height="110px" />
-                        <Skeleton width="100%" height="110px" />
-                        <Skeleton width="100%" height="110px" />
-                        <Skeleton width="100%" height="110px" />
-                        <Skeleton v-if="canManageNews" width="100%" height="110px" />
-                    </div>
-                </Transition>
-            </section>
         </div>
     </main>
 </template>
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { usePermissionStore } from '@/stores/permissions.js';
-import InfraManagerMicroService from '@/components/Microservice/InfraManager/InfraManagerMicroService.vue';
-import RatingService from '@/components/Microservice/Rating/RatingMicroService.vue';
-import MlAnalyticsMicroService from '@/components/Microservice/MlAnalytics/MlAnalyticsMicroService.vue';
-import UmuSiriusMicroService from '@/components/Microservice/UmuSiriusMicroService.vue';
-import NewsMicroService from '@/components/News/NewsMicroService.vue';
-import { canAccessNewsManagement } from '@/api/news.js';
 import axiosInstance from '@/utils/axios.js';
 
 const loading = ref(true);
 const checkingAll = ref(false);
-const permissionStore = usePermissionStore();
-const canManageNews = computed(() => canAccessNewsManagement(permissionStore));
 
 const services = ref([
     {
@@ -370,17 +339,17 @@ main {
     position: relative;
     display: flex;
     flex-direction: column;
-    height: 100%;
+    min-height: 100dvh;
     box-sizing: border-box;
 }
 
 .content-wrapper {
-    flex-shrink: 1;
+    flex: 1 0 auto;
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
     padding: var(--app-page-padding-y) var(--app-page-padding-x) 1.5rem;
-    overflow: auto;
+    overflow: visible;
     color: var(--p-text-color);
     gap: 1.5rem;
 }

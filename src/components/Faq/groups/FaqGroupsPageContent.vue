@@ -73,9 +73,9 @@
                 <div class="faq-tree-header">
                     <h4>Часто задаваемые вопросы</h4>
                     <div class="faq-tree-actions">
-                        <button class="create-root-btn" type="button" @click="openCreateRootGroupDialog" :disabled="actionLoading">
+                        <button class="create-root-btn" type="button" aria-label="Создать группу" @click="openCreateRootGroupDialog" :disabled="actionLoading">
                             <i class="pi pi-folder-plus"></i>
-                            Создать группу
+                            <span class="create-root-btn-label">Создать группу</span>
                         </button>
                         <button class="refresh-btn" type="button" @click="fetchRootGroups" :disabled="loadingRoot">
                             <i class="pi pi-sync"></i>
@@ -541,6 +541,19 @@ main {
 
     .faq-subtitle {
         font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 420px) {
+    .create-root-btn {
+        width: 2.7rem;
+        height: 2.7rem;
+        justify-content: center;
+        padding: 0;
+    }
+
+    .create-root-btn-label {
+        display: none;
     }
 }
 </style>

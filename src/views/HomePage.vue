@@ -2,49 +2,32 @@
   <div class="layout" :class="{ 'layout-phone': isPhone }">
     <MobileSpeedDial v-if="authenticated" />
 
-    <aside v-if="authenticated && !isPhone" class="sidebar" :class="{ 'sidebar-collapsed': !isExpanded }">
-      <div class="sidebar-shell">
-        <SideBar :collapsed="!isExpanded" class="position-relative" />
-      </div>
-      <Button
-        class="expand"
-        :icon="isExpanded ? 'pi pi-angle-left' : 'pi pi-angle-right'"
-        @click="toggleSidebar"
-      />
-    </aside>
-
-    <Drawer
-      v-if="authenticated && isPhone"
-      v-model:visible="isMobileMenuOpen"
-      position="left"
-      class="mobile-drawer"
+    <aside
+      v-if="authenticated && !isPhone"
+      class="sidebar sidebar-collapsed"
+      :class="{ 'sidebar-hovered': isSidebarOpen }"
+      @mouseenter="handleSidebarMouseEnter"
+      @mouseleave="handleSidebarMouseLeave"
+      @focusin="openSidebarImmediately"
+      @focusout="closeSidebarAfterFocus"
     >
-      <template #header>
-        <div class="mobile-drawer-header">
-          <div class="mobile-drawer-title">Навигация</div>
-          <div class="mobile-drawer-subtitle">Разделы личного кабинета</div>
-        </div>
-      </template>
-      <SideBar mobile class="position-relative mobile-sidebar" />
-    </Drawer>
+      <div class="sidebar-shell">
+        <SideBar
+          :collapsed="!isSidebarOpen"
+          class="position-relative"
+          @overlay-open="lockSidebarForOverlay"
+          @overlay-close="lockSidebarForOverlay"
+          @request-expand="openSidebarForSearch"
+        />
+      </div>
+    </aside>
 
     <main class="content" :class="{ 'content-phone': authenticated && isPhone }">
       <header v-if="authenticated && isPhone" class="mobile-topbar">
-        <Button
-          icon="pi pi-bars"
-          severity="secondary"
-          outlined
-          rounded
-          aria-label="Открыть меню"
-          @click="isMobileMenuOpen = true"
-        />
+        <div class="mobile-topbar-mark" aria-hidden="true">L</div>
         <div class="mobile-topbar-copy">
           <div class="mobile-topbar-kicker">LCS</div>
           <div class="mobile-topbar-title">{{ currentPageTitle }}</div>
-        </div>
-        <div class="mobile-topbar-badge" :class="{ 'has-unread': notificationStore.unreadCount > 0 }">
-          <i class="pi pi-bell"></i>
-          <span>{{ notificationStore.unreadCount }}</span>
         </div>
       </header>
       <section class="content-body">
@@ -59,23 +42,14 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import SideBar from '@/components/SideBar.vue';
 import MobileSpeedDial from '@/components/Utils/MobileSpeedDial.vue';
-import { isAuthenticated } from '@/utils/auth';
+import { isAuthenticated, isLocalAuthBypass } from '@/utils/auth';
 import { useRoute } from 'vue-router';
 import { useNotificationStore } from '@/stores/notifications.js';
 import { getUnreadNotifications, normalizeNotification } from '@/api/notifications.js';
 import { connectNotificationsHub, disconnectNotificationsHub } from '@/utils/notificationHub.js';
 import { useResponsiveLayout } from '@/composables/useResponsiveLayout.js';
 
-const SIDEBAR_EXPANDED_STORAGE_KEY = 'sidebarExpanded';
-
-const getSavedSidebarState = () => {
-  const saved = localStorage.getItem(SIDEBAR_EXPANDED_STORAGE_KEY);
-  if (saved === null) return true;
-  return saved === 'true';
-};
-
-const isExpanded = ref(getSavedSidebarState());
-const isMobileMenuOpen = ref(false);
+const isSidebarOpen = ref(false);
 const toast = useToast();
 const route = useRoute();
 const notificationStore = useNotificationStore();
@@ -83,6 +57,11 @@ const { isPhone } = useResponsiveLayout();
 const authenticated = computed(() => isAuthenticated());
 const currentPageTitle = computed(() => route.meta?.title || 'Личный кабинет');
 let notificationsBootstrapPromise = null;
+let sidebarHoverTimer = null;
+let sidebarOverlayObserver = null;
+let isSidebarInteractionLocked = false;
+let isPointerOverSidebar = false;
+let hasTrackedOpenModal = false;
 
 const showMessage = (message, summary, detail) => {
 if (message === 'success') {
@@ -149,39 +128,110 @@ const teardownNotifications = async () => {
     notificationStore.reset();
   }
 };
-const toggleSidebar = () => {
-  isExpanded.value = !isExpanded.value;
+const closeSidebarAfterFocus = (event) => {
+  if (!event.currentTarget.contains(event.relatedTarget)) {
+    closeSidebar();
+  }
 };
 
-watch(isExpanded, (value) => {
-  localStorage.setItem(SIDEBAR_EXPANDED_STORAGE_KEY, String(value));
-});
+const closeSidebar = () => {
+  clearTimeout(sidebarHoverTimer);
+  const activeElement = document.activeElement;
+  if (activeElement instanceof HTMLElement && activeElement.id === 'searchQuery') {
+    activeElement.blur();
+  }
+  isSidebarOpen.value = false;
+};
+
+const scheduleSidebarOpen = () => {
+  if (isSidebarInteractionLocked) return;
+
+  clearTimeout(sidebarHoverTimer);
+  sidebarHoverTimer = setTimeout(() => {
+    isSidebarOpen.value = true;
+  }, 140);
+};
+
+const openSidebarImmediately = () => {
+  if (isSidebarInteractionLocked) return;
+
+  clearTimeout(sidebarHoverTimer);
+  isSidebarOpen.value = true;
+};
+
+const openSidebarForSearch = async () => {
+  openSidebarImmediately();
+  await nextTick();
+  window.setTimeout(() => document.getElementById('searchQuery')?.focus(), 120);
+};
+
+const handleSidebarMouseLeave = () => {
+  isPointerOverSidebar = false;
+  isSidebarInteractionLocked = false;
+  closeSidebar();
+};
+
+const handleSidebarMouseEnter = () => {
+  isPointerOverSidebar = true;
+  scheduleSidebarOpen();
+};
+
+const lockSidebarForOverlay = () => {
+  isSidebarInteractionLocked = true;
+  closeSidebar();
+};
+
+const handleOverlayMutation = () => {
+  const hasOpenModal = document.querySelector('.p-dialog-mask, .p-confirm-dialog, .p-drawer-mask');
+
+  if (hasOpenModal) {
+    hasTrackedOpenModal = true;
+    lockSidebarForOverlay();
+    return;
+  }
+
+  if (hasTrackedOpenModal) {
+    hasTrackedOpenModal = false;
+    isSidebarInteractionLocked = false;
+
+    if (isPointerOverSidebar) {
+      scheduleSidebarOpen();
+    }
+  }
+};
+
+const handleGlobalFocus = (event) => {
+  if (event.target instanceof Element && event.target.closest('.p-dialog, .p-confirm-dialog, .p-drawer')) {
+    hasTrackedOpenModal = true;
+    lockSidebarForOverlay();
+  }
+};
 
 watch(
   () => route.fullPath,
   () => {
-    isMobileMenuOpen.value = false;
+    closeSidebar();
   }
 );
 
-watch(isPhone, (value) => {
-  if (!value) {
-    isMobileMenuOpen.value = false;
-  }
-});
-
 onMounted(() => {
+sidebarOverlayObserver = new MutationObserver(handleOverlayMutation);
+sidebarOverlayObserver.observe(document.body, { childList: true, subtree: true });
+document.addEventListener('focusin', handleGlobalFocus, true);
 const query = route.query;
 if (query.message) {
   showMessage(query.message, query.summary, query.detail);
 }
 
-if (isAuthenticated()) {
+if (isAuthenticated() && !isLocalAuthBypass()) {
   bootstrapNotifications();
 }
 });
 
 onBeforeUnmount(() => {
+  clearTimeout(sidebarHoverTimer);
+  sidebarOverlayObserver?.disconnect();
+  document.removeEventListener('focusin', handleGlobalFocus, true);
   void teardownNotifications();
 });
 </script>
@@ -189,7 +239,9 @@ onBeforeUnmount(() => {
 <style scoped>
 .layout {
   display: flex;
+  height: 100dvh;
   min-height: 100dvh;
+  overflow: hidden;
   background: linear-gradient(
     180deg,
     rgba(var(--p-blue-500-rgb), 0.02),
@@ -202,19 +254,17 @@ onBeforeUnmount(() => {
 }
 
 .sidebar {
-  position: sticky;
-  top: 0;
+  position: relative;
   height: 100dvh;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: visible;
   flex-shrink: 0;
-  transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  width: 280px;
+  width: 90px;
   display: flex;
   flex-direction: column;
   padding: 10px;
   background: transparent;
   box-sizing: border-box;
+  z-index: 30;
 }
 
 .sidebar::-webkit-scrollbar-track {
@@ -227,12 +277,69 @@ onBeforeUnmount(() => {
 }
 
 .sidebar-shell {
-  flex: 1;
-  height: 100%;
+  position: absolute;
+  inset: 14px auto 14px 10px;
+  width: 70px;
   min-height: 0;
   border-radius: 16px;
   overflow: hidden;
   border: 1px solid rgba(var(--p-blue-500-rgb), 0.12);
+  background: rgba(var(--p-bg-color-rgb), 0.16);
+  backdrop-filter: blur(28px) saturate(150%);
+  -webkit-backdrop-filter: blur(28px) saturate(150%);
+  transition:
+    width 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.28s ease;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  will-change: width, transform, box-shadow;
+}
+
+.sidebar-shell::after {
+  content: '';
+  position: absolute;
+  inset: 18px 0 18px auto;
+  width: 1px;
+  opacity: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    rgba(var(--p-blue-500-rgb), 0.5) 24%,
+    rgba(var(--p-blue-500-rgb), 0.22) 76%,
+    transparent
+  );
+  transition: opacity 0.35s ease 0.1s;
+}
+
+.sidebar-hovered .sidebar-shell {
+  width: 280px;
+  z-index: 2;
+  transform: translateY(-1px);
+  border-color: rgba(var(--p-blue-500-rgb), 0.28);
+  box-shadow:
+    0 24px 56px rgba(17, 24, 39, 0.19),
+    0 8px 24px rgba(var(--p-blue-500-rgb), 0.14);
+}
+
+.sidebar-hovered .sidebar-shell::after {
+  opacity: 1;
+}
+
+.sidebar-hovered::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background: radial-gradient(circle at 0 50%, rgba(var(--p-blue-500-rgb), 0.08), transparent 31%);
+  animation: sidebar-overlay-in 0.38s ease both;
+}
+
+@keyframes sidebar-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .sidebar-shell :deep(.sidebar-container) {
@@ -241,7 +348,9 @@ onBeforeUnmount(() => {
 
 .content {
   flex-grow: 1;
-  overflow: auto;
+  height: 100dvh;
+  overflow-y: auto;
+  overflow-x: hidden;
   transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   min-width: 0;
   min-height: 100dvh;
@@ -293,73 +402,20 @@ onBeforeUnmount(() => {
   text-overflow: ellipsis;
 }
 
-.mobile-topbar-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.55rem 0.7rem;
-  border-radius: 999px;
-  background: rgba(var(--p-blue-500-rgb), 0.08);
-  color: var(--p-text-color);
-  font-size: 0.85rem;
-  font-weight: 600;
+.mobile-topbar-mark {
+  display: grid;
+  width: 2.35rem;
+  height: 2.35rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgba(var(--p-blue-500-rgb), 0.14);
+  border-radius: 0.85rem;
+  background: linear-gradient(145deg, rgba(var(--p-blue-500-rgb), 0.18), rgba(var(--p-blue-500-rgb), 0.05));
+  color: var(--p-primary-color);
+  font-size: 1.1rem;
+  font-weight: 800;
 }
 
-.mobile-topbar-badge.has-unread {
-  background: rgba(var(--p-blue-500-rgb), 0.14);
-}
-
-.mobile-drawer-header {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-
-.mobile-drawer-title {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--p-text-color);
-}
-
-.mobile-drawer-subtitle {
-  font-size: 0.85rem;
-  color: var(--p-text-muted-color, var(--p-grey-2));
-}
-
-.mobile-sidebar {
-  height: 100%;
-}
-
-.expand {
-  position: relative;
-  height: 40px;
-  width: 100%;
-  border-radius: 12px;
-  z-index: 1000;
-  border: 1px solid rgba(var(--p-blue-500-rgb), 0.12);
-  background: rgba(var(--p-blue-500-rgb), 0.05);
-  color: var(--p-text-color);
-  transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  flex-shrink: 0;
-  margin-top: 10px;
-}
-
-.expand:hover {
-  background: rgba(var(--p-blue-500-rgb), 0.1);
-  border-color: rgba(var(--p-blue-500-rgb), 0.22);
-}
-
-.p-dark .expand {
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.p-dark .expand:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
 
 .p-dark .content-shell {
   background: linear-gradient(
@@ -379,27 +435,45 @@ onBeforeUnmount(() => {
   border-color: rgba(255, 255, 255, 0.06);
 }
 
-:deep(.mobile-drawer) {
-  width: min(88vw, 22rem);
-  max-width: 22rem;
-}
-
-:deep(.mobile-drawer .p-drawer-content) {
-  padding: 0;
-}
-
-:deep(.mobile-drawer .p-drawer-header) {
-  padding: 1rem 1rem 0.75rem;
-  border-bottom: 1px solid rgba(var(--p-blue-500-rgb), 0.12);
-}
-
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .layout {
     display: block;
+    height: auto;
+    overflow: visible;
+  }
+
+  .content {
+    height: auto;
+    overflow: visible;
   }
 
   .content-body {
     padding-bottom: var(--app-mobile-bottom-offset);
   }
+}
+
+@media (min-width: 769px) and (max-width: 1100px) {
+  .sidebar,
+  .sidebar-collapsed {
+    width: 82px;
+    padding: 8px;
+  }
+
+  .sidebar-shell {
+    inset: 12px auto 12px 8px;
+    width: 66px;
+  }
+
+  .sidebar-hovered .sidebar-shell {
+    width: min(260px, calc(100vw - 2rem));
+  }
+}
+
+@media (max-width: 420px) {
+  .mobile-topbar {
+    gap: 0.65rem;
+    padding: calc(env(safe-area-inset-top, 0px) + 0.7rem) 0.75rem 0.7rem;
+  }
+
 }
 </style>

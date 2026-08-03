@@ -70,22 +70,41 @@ const fetchUserPriority = async () => {
 };
 
 const createRole = async () => {
-    if (newRole.value.priority < userPriority.value) {
+    const name = newRole.value.title.trim();
+    const priority = Number(newRole.value.priority);
+
+    if (!name) {
+        toast.add({ severity: 'warn', summary: 'Роли', detail: 'Введите название роли', life: 3000 });
+        return;
+    }
+    if (!Number.isInteger(priority)) {
+        toast.add({ severity: 'warn', summary: 'Роли', detail: 'Выберите приоритет роли', life: 3000 });
+        return;
+    }
+    if (priority < userPriority.value) {
         toast.add({ severity: 'info', summary: 'Приоритет ролей', detail: 'Вы не можете создавать роль с приоритетом выше вашего.', life: 3000 });
         return;
     }
-    if (newRole.value.priority === 0) {
+    if (priority === 0) {
         toast.add({ severity: 'info', summary: 'Приоритет ролей', detail: 'Вы не можете создавать роль с приоритетом 0.', life: 3000 });
+        return;
     }
 
     try {
-        await axiosInstance.post('/api/rbac/roles', newRole.value);
+        await axiosInstance.post('/api/rbac/roles', {
+            name,
+            displayName: name,
+            description: newRole.value.description.trim() || null,
+            priority,
+        });
         visible.value = false;
+        newRole.value = { title: '', description: '', priority: null };
         await props.refreshRoles();
 
         toast.add({ severity: 'success', summary: 'Успешно', detail: 'Роль создана', life: 3000 });
     } catch (error) {
         console.debug('Ошибка при создании роли: ', error);
+        toast.add({ severity: 'error', summary: 'Ошибка', detail: 'Не удалось создать роль', life: 3000 });
     }
 };
 

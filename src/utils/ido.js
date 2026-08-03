@@ -1,4 +1,5 @@
 import { idoSuResource } from '@/api/ido.js';
+import { isLecturer } from '@/utils/roles.js';
 
 const TEACHER_ROLE_MATCHER = /(преподав|доцент|професс|ассистент|старш(?:ий|ая)\s+преподав|ппс)/i;
 
@@ -13,7 +14,7 @@ export function getIdoAvailableRoles(currentUser, permissionStore) {
     if (hasSuAccess) return ['su'];
 
     const roles = Array.isArray(currentUser?.roles) ? currentUser.roles : [];
-    const isTeacher = roles.some((role) => {
+    const isTeacher = isLecturer(currentUser) || roles.some((role) => {
         const haystack = `${role?.title || ''} ${role?.description || ''}`;
         return TEACHER_ROLE_MATCHER.test(haystack);
     });

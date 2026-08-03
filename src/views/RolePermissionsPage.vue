@@ -55,15 +55,15 @@ const rolePermissions = ref([]);
 
 const resolveRoleContext = async () => {
     const rawRoleId = route.query['id'];
-    const queryRoleId = Number(rawRoleId);
+    const queryRoleId = typeof rawRoleId === 'string' ? rawRoleId.trim() : '';
 
-    if (Number.isFinite(queryRoleId) && queryRoleId > 0) {
-        if (Number(roleStore.roleId) === queryRoleId) {
+    if (queryRoleId) {
+        if (roleStore.roleId === queryRoleId) {
             return true;
         }
         try {
             const response = await axiosInstance.get('/api/rbac/roles');
-            const role = response.data.find((item) => Number(item.id) === queryRoleId);
+            const role = response.data.find((item) => item.id === queryRoleId);
             if (!role) return false;
 
             roleStore.setRoleInfo({
@@ -79,7 +79,7 @@ const resolveRoleContext = async () => {
         }
     }
 
-    return Number.isFinite(Number(roleStore.roleId)) && Number(roleStore.roleId) > 0;
+    return typeof roleStore.roleId === 'string' && roleStore.roleId.length > 0;
 };
 
 const fetchAllPermissions = async () => {
@@ -92,12 +92,14 @@ const fetchAllPermissions = async () => {
 };
 
 const fetchRolePermissions = async () => {
-    const roleId = Number(roleStore.roleId);
-    if (!Number.isFinite(roleId) || roleId <= 0) return;
+    const roleId = roleStore.roleId;
+    if (typeof roleId !== 'string' || !roleId) return;
 
     try {
         const response = await axiosInstance.get(`/api/rbac/roles/${roleId}/permissions`);
-        rolePermissions.value = response.data.resourcesWithPermissions; // Получаем полномочия роли
+        rolePermissions.value = Array.isArray(response.data)
+            ? response.data
+            : response.data.resourcesWithPermissions || [];
         updatePermissionsWithRoleStatus();
     } catch (error) {
         console.debug('Ошибка при загрузке полномочий роли:', error);

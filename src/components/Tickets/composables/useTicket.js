@@ -1,6 +1,5 @@
 import { ref } from 'vue';
-import { mockTicketDetails } from '@/config/mocks/tickets.js';
-import { USE_MOCK_DATA } from '@/config/mocks/config.js';
+import { ticketMocks, USE_MOCK_DATA } from '@/config/mockRuntime.js';
 
 export const useTicket = (axiosInstance) => {
     const selectedTicket = ref(null);
@@ -17,7 +16,7 @@ export const useTicket = (axiosInstance) => {
         
         try {
             if (useMockData.value) {
-                selectedTicket.value = mockTicketDetails;
+                selectedTicket.value = ticketMocks.mockTicketDetails ?? null;
                 return;
             }
             const response = await axiosInstance.get(`/api/tickets/${ticketId}`);

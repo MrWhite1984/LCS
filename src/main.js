@@ -18,11 +18,13 @@ import { createPinia } from 'pinia';
 
 import Tooltip from 'primevue/tooltip';
 import { syncPrimaryTheme } from '@/utils/accentTheme.js';
+import { initializeThemeMode } from '@/utils/themeMode.js';
 
 const app = createApp(App);
 const pinia = createPinia();
 
 syncPrimaryTheme();
+initializeThemeMode();
 
 app.use(PrimeVue, {
     theme: {

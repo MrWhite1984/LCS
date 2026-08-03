@@ -6,6 +6,7 @@ import axiosInstance from '@/utils/axios.js';
 import { getSessionUserId } from '@/utils/TokenService';
 import { buildFaqEndpoint, hasFaqSuPermission } from '@/utils/faqEndpoints.js';
 import { usePermissionStore } from '@/stores/permissions.js';
+import { faqMocks, USE_MOCK_DATA } from '@/config/mockRuntime.js';
 
 const ROOT_PARENT_ID = '00000000-0000-0000-0000-000000000000';
 
@@ -618,6 +619,11 @@ export const useFaqGroupsPage = () => {
         loadingRoot.value = true;
         error.value = '';
         try {
+            if (USE_MOCK_DATA) {
+                items.value = normalizeGroups(faqMocks.rootGroups).map(mapGroupToItem);
+                return;
+            }
+
             const response = await axiosInstance.get(faqEndpoint('groups'));
             items.value = normalizeGroups(response.data).map(mapGroupToItem);
         } catch (fetchError) {

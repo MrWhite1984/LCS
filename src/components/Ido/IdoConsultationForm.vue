@@ -543,7 +543,7 @@ watch(
     box-shadow: 0 10px 28px rgba(15, 23, 42, 0.04);
 }
 .ido-page-public .ido-card {
-    background: rgba(255, 255, 255, 0.9);
+    background: color-mix(in srgb, var(--p-bg-color-1) 90%, transparent);
 }
 
 .ido-card :deep(.p-card-title),
@@ -609,7 +609,11 @@ watch(
     border: 1px solid var(--p-content-border-color);
     background:
         radial-gradient(circle at top left, rgba(var(--p-primary-500-rgb), 0.12), transparent 42%),
-        linear-gradient(135deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.94));
+        linear-gradient(
+            135deg,
+            color-mix(in srgb, var(--p-bg-color-1) 88%, var(--p-primary-color) 12%),
+            var(--p-bg-color-1)
+        );
     box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
 }
 

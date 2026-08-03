@@ -162,6 +162,15 @@
                             </article>
                         </div>
 
+                        <AsyncState
+                            v-else-if="loadError"
+                            tone="error"
+                            icon="pi pi-exclamation-triangle"
+                            title="Не удалось загрузить справки"
+                            description="Проверьте соединение и попробуйте ещё раз."
+                            retry
+                            @retry="fetchTickets"
+                        />
                         <div v-else class="empty-table-state tickets-empty-mobile">
                             <div class="empty-state-icon">
                                 <i class="pi pi-ticket fs-3 text-gray-400"></i>
@@ -285,7 +294,16 @@
                     </template>
 
                     <template #empty>
-                        <div class="empty-table-state">
+                        <AsyncState
+                            v-if="loadError"
+                            tone="error"
+                            icon="pi pi-exclamation-triangle"
+                            title="Не удалось загрузить справки"
+                            description="Проверьте соединение и попробуйте ещё раз."
+                            retry
+                            @retry="fetchTickets"
+                        />
+                        <div v-else class="empty-table-state">
                             <div class="empty-state-icon">
                                 <i class="pi pi-ticket fs-3 text-gray-400"></i>
                             </div>
@@ -432,9 +450,9 @@ import { ref, onMounted, computed } from 'vue';
 import axiosInstance from '@/utils/axios.js';
 import { debounce } from 'lodash';
 import TicketDetailsModal from '@/components/Tickets/TicketDetails.vue';
+import AsyncState from '@/components/Utils/AsyncState.vue';
 import { usePermissionStore } from '@/stores/permissions';
-import { mockTickets } from '@/config/mocks/tickets.js';
-import { USE_MOCK_DATA } from '@/config/mocks/config.js';
+import { ticketMocks, USE_MOCK_DATA } from '@/config/mockRuntime.js';
 import { formatDateRuLongWithTime as formatDate } from '@/utils/date.js';
 import { getSessionUserId } from '@/utils/TokenService';
 import { getCurrentUser } from '@/utils/currentUser.js';
@@ -446,6 +464,7 @@ const permissionStore = usePermissionStore();
 const tickets = ref([]);
 const totalRecords = ref(0);
 const loading = ref(true);
+const loadError = ref(false);
 const isFirstLoadDone = ref(false);
 const useMockData = ref(USE_MOCK_DATA);
 const specialFeaturesPanel = ref(null);
@@ -735,8 +754,10 @@ const onRowsPerPageChange = async () => {
 const fetchTickets = async () => {
     try {
         loading.value = true;
+        loadError.value = false;
         if (useMockData.value) {
-            tickets.value = enrichTicketsWithFio(mockTickets.tickets);
+            const mockTickets = ticketMocks.mockTickets || {};
+            tickets.value = enrichTicketsWithFio(mockTickets.tickets || []);
             totalRecords.value = mockTickets.totalCount || 0;
             return;
         }
@@ -757,6 +778,7 @@ const fetchTickets = async () => {
         totalRecords.value = data.totalCount || 0;
     } catch (error) {
         console.error('Ошибка при получении заявок:', error);
+        loadError.value = true;
     } finally {
         loading.value = false;
         isFirstLoadDone.value = true;

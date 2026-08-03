@@ -1,11 +1,20 @@
 import axiosInstance from '@/utils/axios.js';
 import { getSessionUserId, setSessionUserId } from '@/utils/TokenService';
+import { USE_MOCK_DATA, userMocks } from '@/config/mockRuntime.js';
 
 let cachedUserId = null;
 let cachedMe = null;
 let inflightPromise = null;
 
 export async function getCurrentUser(force = false) {
+    if (USE_MOCK_DATA && userMocks.mockCurrentUser) {
+        const mockUser = { ...userMocks.mockCurrentUser };
+        setSessionUserId(mockUser.id);
+        cachedUserId = mockUser.id;
+        cachedMe = mockUser;
+        return mockUser;
+    }
+
     const currentUserId = getSessionUserId();
 
     if (!force) {

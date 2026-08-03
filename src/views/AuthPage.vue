@@ -42,7 +42,8 @@
                             <div
                                 :key="activeSlide.id"
                                 class="showcase-slide"
-                                :style="{ backgroundImage: `url(${activeSlide.image})` }"
+                                :class="{ 'is-loading': !showcaseReady }"
+                                :style="showcaseReady ? { backgroundImage: `url(${activeSlide.image})` } : undefined"
                             />
                         </Transition>
 
@@ -124,8 +125,39 @@ const slides = [
 const activeSlideIndex = ref(0);
 const activeSlide = computed(() => slides[activeSlideIndex.value]);
 const activeSlideNumber = computed(() => `${String(activeSlideIndex.value + 1).padStart(2, '0')}/${String(slides.length).padStart(2, '0')}`);
+const showcaseReady = ref(false);
 
 let sliderIntervalId = null;
+const preloadedSlides = new Map();
+
+const preloadSlide = (index) => {
+    const slide = slides[index];
+    if (!slide) return Promise.resolve(false);
+    if (preloadedSlides.has(slide.id)) return preloadedSlides.get(slide.id);
+
+    const preloadPromise = new Promise((resolve) => {
+        const image = new Image();
+        image.onload = () => resolve(true);
+        image.onerror = () => resolve(false);
+        image.src = slide.image;
+    });
+
+    preloadedSlides.set(slide.id, preloadPromise);
+    return preloadPromise;
+};
+
+const preloadNextSlide = () => preloadSlide((activeSlideIndex.value + 1) % slides.length);
+
+const activateSlide = async (index) => {
+    const normalizedIndex = (index + slides.length) % slides.length;
+    const isLoaded = await preloadSlide(normalizedIndex);
+
+    if (!isLoaded) return;
+
+    activeSlideIndex.value = normalizedIndex;
+    showcaseReady.value = true;
+    preloadNextSlide();
+};
 
 const stopSlider = () => {
     if (typeof window === 'undefined' || sliderIntervalId === null) return;
@@ -137,12 +169,12 @@ const startSlider = () => {
     if (typeof window === 'undefined') return;
     stopSlider();
     sliderIntervalId = window.setInterval(() => {
-        activeSlideIndex.value = (activeSlideIndex.value + 1) % slides.length;
+        activateSlide(activeSlideIndex.value + 1);
     }, 5000);
 };
 
-const setActiveSlide = (index) => {
-    activeSlideIndex.value = index;
+const setActiveSlide = async (index) => {
+    await activateSlide(index);
     startSlider();
 };
 
@@ -193,7 +225,8 @@ const ssoLogin = async () => {
     }
 };
 
-onMounted(() => {
+onMounted(async () => {
+    await activateSlide(0);
     startSlider();
 
     if (sessionStorage.getItem('loggedOut') === '1') {

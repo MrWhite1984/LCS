@@ -24,15 +24,20 @@ const SERVICE_NAV_ITEMS = [
 const ADMIN_NAV_ITEMS = [
     { id: 'users', name: 'Пользователи', path: '/users', icon: 'pi pi-users' },
     { id: 'rbac', name: 'Роли', path: '/rbac', icon: 'pi pi-sitemap' },
-    { id: 'services', name: 'Микросервисы', path: '/services', icon: 'pi pi-desktop' },
-    { id: 'sso', name: 'Настройка SSO', path: '/sso/config', icon: 'pi pi-cog' },
-    { id: 'autorole', name: 'Авто-Роли', path: '/autorole', icon: 'pi pi-objects-column' },
+    { id: 'health-checks', name: 'Проверка сервисов', path: '/service-health', icon: 'pi pi-chart-line' },
     {
         id: 'ticket-responsibles',
         name: 'Ответственные (справки)',
         path: '/tickets/responsibles',
         icon: 'pi pi-user-plus',
     },
+];
+
+const ADMIN_NAV_ORDER = [
+    'users',
+    'rbac',
+    'ticket-responsibles',
+    'health-checks',
 ];
 
 const QUICK_ACTION_ITEMS = [
@@ -55,13 +60,11 @@ export const useAppNavigation = () => {
         const permissionMap = {
             '/rbac': hasPermission('Rbac', 'Read'),
             '/users': hasPermission('User', 'Read'),
-            '/sso/config': hasPermission('SsoResource', 'Read'),
-            '/autorole': hasPermission('RoleAutoAssigner', 'Read'),
             '/faq': hasPermission('FAQ', 'Read'),
             '/tickets': hasPermission('Tickets', 'Read'),
             '/tickets/my-requests': canAccessStudentTickets(),
             '/tickets/responsibles': hasPermission('ResponsibleTicketStudentGroup', 'Read'),
-            '/services': hasPermission('InfraManager', 'Read'),
+            '/service-health': hasPermission('InfraManager', 'Read'),
         };
 
         if (path === '/requests') {
@@ -73,7 +76,9 @@ export const useAppNavigation = () => {
 
     const topItems = computed(() => TOP_NAV_ITEMS.filter((item) => isItemVisible(item.path)));
     const serviceItems = computed(() => SERVICE_NAV_ITEMS.filter((item) => isItemVisible(item.path)));
-    const adminItems = computed(() => ADMIN_NAV_ITEMS.filter((item) => isItemVisible(item.path)));
+    const adminItems = computed(() => ADMIN_NAV_ITEMS
+        .filter((item) => isItemVisible(item.path))
+        .sort((left, right) => ADMIN_NAV_ORDER.indexOf(left.id) - ADMIN_NAV_ORDER.indexOf(right.id)));
     const ticketsItems = computed(() => [
         {
             name: 'Список справок',

@@ -409,12 +409,78 @@ main {
     font-size: larger;
 } 
 
-@media (max-width: 640px) {
-    .roles-cards .row {
-        grid-template-columns: 1fr;
+@media (max-width: 767px) {
+    main {
+        height: auto;
+        min-height: calc(100dvh - 4.25rem);
     }
 
-    .statistics .row {
+    .content-wrapper {
+        padding: 0.75rem var(--app-page-padding-x) calc(1rem + var(--app-mobile-bottom-offset));
+        overflow: visible;
+    }
+
+    .statistics .rows {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.7rem;
+    }
+
+    .statistics .rows > .col,
+    .roles-cards .row > .col {
+        width: auto;
+        padding: 0;
+    }
+
+    .stat-card {
+        min-height: 6.8rem;
+        padding: 0.8rem;
+        border-radius: 1rem;
+    }
+
+    .stat-card .row {
+        margin: 0;
+        gap: 0.45rem;
+    }
+
+    .stat-card .col,
+    .stat-card .col-auto {
+        padding: 0;
+    }
+
+    .stat-card .bi {
+        font-size: 1rem;
+    }
+
+    .stat-label {
+        font-size: 0.78rem;
+        line-height: 1.2;
+    }
+
+    .stat-number {
+        margin-top: 0.55rem;
+        font-size: 1.7rem;
+        line-height: 1;
+    }
+
+    .searchField {
+        margin-top: 1rem !important;
+    }
+
+    .searchField .row {
+        gap: 0.65rem;
+    }
+
+    .searchField .col,
+    .searchField .col-auto {
+        width: 100%;
+        padding: 0;
+    }
+
+    .searchField :deep(.p-button) {
+        width: 100%;
+    }
+
+    .roles-cards .row {
         grid-template-columns: 1fr;
     }
 }

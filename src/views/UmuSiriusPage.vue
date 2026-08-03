@@ -734,6 +734,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { debounce } from 'lodash';
 import { useToast } from 'primevue/usetoast';
 import { usePermissionStore } from '@/stores/permissions.js';
+import { USE_MOCK_DATA } from '@/config/mockRuntime.js';
 import {
     addUmuSiriusAgreementSolution,
     createUmuSiriusAgreement,
@@ -1789,6 +1790,7 @@ function showWarn(summary, detail) {
 }
 
 function showError(summary, detail) {
+    if (USE_MOCK_DATA) return;
     toast.add({ severity: 'error', summary, detail, life: 4000 });
 }
 

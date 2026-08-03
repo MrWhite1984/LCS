@@ -249,16 +249,14 @@
                                     <div class="col">
                                         <h2>{{ fullName }}</h2>
                                         <p class="profile-email">{{ email }}</p>
-                                        <div class="profile-role d-flex flex-row gap-2">
+                                        <div class="profile-role">
                                             <template v-if="userRoles.length > 0">
-                                                <div v-for="ur in userRoles" :key="ur.id">
-                                                    <Chip class="role-label" >
-                                                        <span class="roleType" :class="getRoleTypeClass(ur)">
-                                                            {{ ur.type[0] }}
-                                                        </span>
-                                                        <span>{{ ur.title }}</span>
-                                                    </Chip>
-                                                </div>
+                                                <Chip v-for="ur in userRoles" :key="ur.id" class="role-label">
+                                                    <span class="roleType" :class="getRoleTypeClass(ur)">
+                                                        {{ ur.type[0] }}
+                                                    </span>
+                                                    <span>{{ ur.title }}</span>
+                                                </Chip>
                                             </template>
                                             <template v-else>
                                                 <Tag severity="warn">Нет ролей</Tag>
@@ -581,6 +579,8 @@ import { useRoute, useRouter } from 'vue-router';
 import axiosInstance from '@/utils/axios.js';
 import { usePermissionStore } from '@/stores/permissions.js';
 import { getSessionUserId } from '@/utils/TokenService.js';
+import { isLocalAuthBypass } from '@/utils/auth.js';
+import { getCurrentUser } from '@/utils/currentUser.js';
 import { formatDateRuShort } from '@/utils/date.js';
 
 import UpdateUser from '@/components/Users/UpdateUser.vue';
@@ -1114,6 +1114,11 @@ const normalizeSystemTypeOptions = (payload) => {
 };
 
 const loadSystemTypeOptions = async () => {
+    if (isLocalAuthBypass()) {
+        systemTypeOptions.value = [];
+        return;
+    }
+
     try {
         systemTypeOptionsLoading.value = true;
         const response = await axiosInstance.get('/api/users/get-system-types');
@@ -1144,8 +1149,12 @@ const openExternalAccount = (account) => {
 
 const fetchCurrentUserRole = async () => {
     try {
-        const response = await axiosInstance.get('/api/users/me/info');
-        currentUserRoleIds.value = (response.data?.roles || []).map(role => role.id).filter(Boolean);
+        const currentUser = await getCurrentUser();
+        currentUserRoleIds.value = (currentUser?.roles || []).map(role => role.id).filter(Boolean);
+
+        if (!userId.value) {
+            userId.value = currentUser?.id || null;
+        }
     } catch (error) {
         console.debug('Ошибка при получении роли текущего пользователя: ', error);
     }
@@ -1156,9 +1165,9 @@ const fetchExternalAccounts = async () => {
 
     try {
         externalAccountsLoading.value = true;
-        const endpoint = isAdmin.value && !isCurrentUser.value
-            ? `/api/users/other-accounts/${userId.value}`
-            : '/api/users/other-accounts/getall';
+        const endpoint = isCurrentUser.value
+            ? '/api/users/other-accounts/getall'
+            : `/api/users/other-accounts/${userId.value}`;
 
         const response = await axiosInstance.get(endpoint);
         externalAccounts.value = response.data?.accounts || [];
@@ -1445,19 +1454,20 @@ const deleteExternalAccount = async () => {
 
 const fetchUserProfile = async (id) => {
     try {
-        let response;
+        let profile;
         if (isCurrentUser.value) {
-            response = await axiosInstance.get(`/api/users/me/info`);
+            profile = await getCurrentUser();
         } else {
-            response = await axiosInstance.get(`/api/users/${id}`);
+            const response = await axiosInstance.get(`/api/users/${id}`);
+            profile = response.data;
         }
 
-        firstName.value = response.data.firstName;
-        lastName.value = response.data.lastName;
-        middleName.value = response.data.middleName;
-        email.value = response.data.email;
-        userRoles.value = response.data.roles || [];
-        isBlocked.value = response.data.isBlocked;
+        firstName.value = profile.firstName;
+        lastName.value = profile.lastName;
+        middleName.value = profile.middleName;
+        email.value = profile.email;
+        userRoles.value = profile.roles || [];
+        isBlocked.value = profile.isBlocked;
 
         fullName.value = `${firstName.value} ${lastName.value}`.trim();
         statusInfra = null;
@@ -1771,6 +1781,8 @@ main {
     padding: 4px 8px;
     border-radius: 999px;
     gap: 8px;
+    flex: 0 0 auto;
+    max-width: 100%;
 }
 .profile-info-body {
     display: grid;
@@ -1800,6 +1812,10 @@ p {
 }
 .profile-role {
     margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
 }
 .pi {
     font-size: 1.5rem;

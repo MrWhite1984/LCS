@@ -1,4 +1,4 @@
-import { FAQ_ADMIN_SEGMENT } from '@/config/mocks/config.js';
+import { FAQ_ADMIN_SEGMENT } from '@/config/mockRuntime.js';
 
 const FAQ_SU_PERMISSION = 'FAQ_SU';
 

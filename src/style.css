@@ -10,6 +10,12 @@
   box-sizing: border-box;
 }
 
+html {
+  font-size: clamp(15px, calc(14px + 0.24vw), 16.5px);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 .p-datatable-paginator-bottom {
   border: 0 !important;
 }
@@ -54,7 +60,7 @@ div.p-paginator {
 }
 
 div.p-selectbutton button.p-togglebutton {
-  font-size: 14px;
+  font-size: var(--app-font-control);
   width: 100%;
   background-color: var(--p-grey-4);
   border: none;
@@ -131,6 +137,36 @@ body,
   min-height: 100%;
 }
 
+html {
+  overflow-x: clip;
+}
+
+body,
+#app {
+  width: 100%;
+}
+
+img,
+picture,
+video,
+canvas,
+iframe {
+  max-width: 100%;
+}
+
+img,
+video,
+canvas {
+  height: auto;
+}
+
+button,
+input,
+textarea,
+select {
+  max-width: 100%;
+}
+
 h1,
 h2,
 h3,
@@ -204,6 +240,18 @@ svg.lcs {
 .p-dialog-header,
 .p-dialog-footer {
   flex-shrink: 0 !important;
+}
+
+.p-datatable-wrapper,
+.p-datatable-table-container {
+  max-width: 100%;
+}
+
+.p-tablist,
+.p-tabs-nav {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 .p-inputgroupaddon {
   transition-duration: 0.5s !important;
@@ -305,6 +353,12 @@ svg.lcs {
 }
 
 :root {
+  --app-font-xs: clamp(0.7rem, 0.68rem + 0.08vw, 0.78rem);
+  --app-font-sm: clamp(0.8rem, 0.77rem + 0.1vw, 0.92rem);
+  --app-font-control: clamp(0.84rem, 0.81rem + 0.12vw, 0.95rem);
+  --app-font-body: 1rem;
+  --app-font-title: clamp(1.25rem, 1.08rem + 0.72vw, 1.8rem);
+  --app-font-display: clamp(1.75rem, 1.35rem + 1.8vw, 3rem);
   --app-page-padding-x: clamp(1rem, 3vw, 2rem);
   --app-page-padding-y: 0.625rem;
   --app-mobile-bottom-offset: calc(env(safe-area-inset-bottom, 0px) + 5.8rem);
@@ -386,6 +440,22 @@ svg.lcs {
 
 }
 
+:where(button, input, textarea, select) {
+  font: inherit;
+}
+
+:where(.p-button, .p-inputtext, .p-select-label, .p-multiselect-label, .p-autocomplete-input, .p-datepicker-input) {
+  font-size: var(--app-font-control);
+}
+
+:where(.p-datatable-thead > tr > th) {
+  font-size: var(--app-font-sm);
+}
+
+:where(.p-datatable-tbody > tr > td) {
+  font-size: var(--app-font-control);
+}
+
 .p-dark {
   --p-bg-color-0: rgba(28, 28, 30, 0.6);
   --p-bg-color-1: #1c1c1eff;
@@ -452,6 +522,16 @@ svg.lcs {
     padding-right: 1rem !important;
   }
 
+  .p-dialog .p-dialog-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .p-dialog .p-dialog-footer .p-button {
+    flex: 1 1 10rem;
+  }
+
   .p-select,
   .p-multiselect,
   .p-autocomplete,
@@ -483,11 +563,79 @@ svg.lcs {
 
   .p-datatable-table-container {
     overflow-x: auto;
+    overscroll-behavior-inline: contain;
   }
 
   div.p-datatable-header,
   div.p-paginator {
     padding-left: 0.75rem;
     padding-right: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --app-page-padding-x: 0.75rem;
+    --app-page-padding-y: 0.5rem;
+  }
+
+  .p-dialog {
+    width: calc(100vw - 0.75rem) !important;
+    max-width: calc(100vw - 0.75rem) !important;
+    max-height: calc(100dvh - 0.75rem) !important;
+    margin: 0.375rem !important;
+  }
+
+  .p-dialog-title {
+    font-size: 1.2rem !important;
+    line-height: 1.2;
+  }
+
+  .p-toast {
+    top: calc(4.25rem + env(safe-area-inset-top, 0px) + 0.5rem) !important;
+    width: min(calc(100vw - 1.5rem), 24rem) !important;
+  }
+
+  .p-paginator {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 767px) {
+  .content-body > .content {
+    height: auto !important;
+    min-height: calc(100dvh - 4.25rem) !important;
+  }
+
+  .content-body > .content > :is(.content-wrapper, .content-wrap) {
+    height: auto !important;
+    min-height: 0 !important;
+    align-content: start !important;
+    padding-bottom: calc(1rem + var(--app-mobile-bottom-offset)) !important;
+  }
+}
+
+@media (min-width: 1440px) {
+  .content-body > :is(
+    .dashboard,
+    .umu-page,
+    .tickets-student-page,
+    .project-details-page,
+    .project-showcase-page,
+    .ml-page,
+    .ido-orders-page,
+    .ido-settings-page,
+    .news-manage-page,
+    .news-editor-page,
+    .login-guide-page
+  ) {
+    width: min(100%, 1680px);
+    margin-inline: auto;
+  }
+
+  .content-body > .content > :is(.content-wrapper, .content-wrap) {
+    width: min(100%, 1680px);
+    margin-inline: auto;
   }
 }

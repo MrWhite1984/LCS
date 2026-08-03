@@ -1,8 +1,8 @@
 import { computed, onBeforeUnmount, onMounted, readonly, ref } from 'vue';
 
 export const APP_BREAKPOINTS = Object.freeze({
-    phoneMax: 768,
-    tabletMax: 1024,
+    phoneMax: 767,
+    tabletMax: 1023,
 });
 
 const viewportWidth = ref(

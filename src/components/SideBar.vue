@@ -27,7 +27,18 @@
                     </router-link>
                 </div>
 
-                <IconField v-if="!collapsed" class="searchBar">
+                <button
+                    v-if="collapsed"
+                    type="button"
+                    class="collapsed-search-trigger"
+                    aria-label="Открыть поиск"
+                    v-tooltip.right="'Поиск'"
+                    @click="requestSearchFocus"
+                >
+                    <i class="pi pi-search"></i>
+                </button>
+
+                <IconField class="searchBar">
                     <InputIcon class="pi pi-search" />
                     <InputText 
                         id="searchQuery" 
@@ -40,25 +51,59 @@
             </div>
 
             <div class="sidebar-middle">
-                <div class="menu" :class="{ 'mt-3': !collapsed, 'my-4': collapsed }">
+                <div v-if="searchQuery.trim()" class="navigation-search-results">
+                    <div class="navigation-search-caption">Результаты поиска</div>
+                    <div v-if="isNavigationSearchLoading" class="navigation-search-skeletons" aria-live="polite" aria-label="Поиск разделов">
+                        <div v-for="width in [74, 58, 68]" :key="width" class="navigation-search-skeleton">
+                            <Skeleton shape="circle" size="1.25rem" />
+                            <div class="navigation-search-skeleton-copy">
+                                <Skeleton :width="`${width}%`" height="0.8rem" />
+                                <Skeleton width="36%" height="0.58rem" />
+                            </div>
+                        </div>
+                    </div>
+                    <template v-else>
+                        <button
+                            v-for="item in displayedNavigationSearchResults"
+                            :key="item.path"
+                            type="button"
+                            class="menu-item menu-item-button navigation-search-item"
+                            @click="navigateFromSearch(item.path)"
+                        >
+                            <div class="menu-item-content">
+                                <i :class="item.icon"></i>
+                                <div class="menucrumb navigation-search-copy">
+                                    <span>{{ item.name }}</span>
+                                    <small>{{ item.section }}</small>
+                                </div>
+                            </div>
+                        </button>
+                    </template>
+                    <div v-if="!isNavigationSearchLoading && !displayedNavigationSearchResults.length" class="navigation-search-empty">
+                        Ничего не найдено
+                    </div>
+                </div>
+
+                <template v-else>
+                <div class="menu menu-primary">
                     <template v-for="item in topItems" :key="item.id">
                         <button
                             v-if="item.id === 'notifications'"
                             type="button"
-                            class="menu-item menu-item-button"
+                            class="menu-item menu-item-button notification-menu-item"
                             :class="{ 'active-link': isNotificationsItemActive }"
                             @click="toggleNotificationsPopover"
                             v-tooltip.right="collapsed ? item.name : ''"
                         >
                             <div class="menu-item-content">
-                                <OverlayBadge
+                                <Badge
                                     v-if="collapsed && notificationStore.unreadCount > 0"
                                     :value="notificationStore.unreadCount"
                                     severity="danger"
                                     class="notification-badge-collapsed"
                                 />
                                 <i :class="item.icon"></i>
-                                <div v-if="!collapsed" class="menucrumb">
+                                <div class="menucrumb">
                                     <span>{{ item.name }}</span>
                                 </div>
                                 <Badge
@@ -78,7 +123,7 @@
                         >
                             <div class="menu-item-content">
                                 <i :class="item.icon"></i>
-                                <div v-if="!collapsed" class="menucrumb">
+                                <div class="menucrumb">
                                     <span>{{ item.name }}</span>
                                 </div>
                             </div>
@@ -94,173 +139,44 @@
                         <NotificationStack @navigate="handleNotificationNavigate" />
                     </Popover>
                 </div>
+
+                <div class="sidebar-nav-divider" aria-hidden="true"></div>
     
                 <div class="menu" :class="{ 'mb-4': collapsed }">
-                    <div v-if="!collapsed && serviceItems.length" class="general mt-2">Сервисы</div>
-                    <div v-for="item in serviceItems" :key="item.path">
-                        <router-link 
-                            :to="item.path" 
-                            class="menu-item" 
-                            active-class="active-link"
-                            v-tooltip.right="collapsed ? item.name : ''"
-                        >
-                            <div class="menu-item-content">
-                                <i :class="item.icon"></i>
-                                <div v-if="!collapsed" class="menucrumb">
-                                    <span>{{ item.name }}</span>
-                                    <Badge 
-                                        v-if="item.path === '/notif' && notificationStore.unreadCount > 0"
-                                        :value="notificationStore.unreadCount"
-                                        class="p-badge ms-3"
-                                    />
-                                </div>
+                    <button
+                        v-if="showServicesMenu"
+                        type="button"
+                        class="menu-item menu-item-button"
+                        :class="{ 'active-link': servicesModalVisible }"
+                        @click="toggleServicesPopover"
+                        v-tooltip.right="collapsed ? 'Сервисы' : ''"
+                    >
+                        <div class="menu-item-content">
+                            <i class="pi pi-th-large"></i>
+                            <div class="menucrumb menucrumb-with-arrow">
+                                <span>Сервисы</span>
+                                <i class="pi pi-angle-right service-arrow"></i>
                             </div>
-                        </router-link>
-                    </div>
-                    <div v-if="showTicketsMenu" class="ido-menu-group">
-                        <button
-                            type="button"
-                            class="menu-item menu-item-button"
-                            :class="{ 'active-link': isTicketsRoute, 'menu-item-open': ticketsMenuOpen && !collapsed }"
-                            @click="toggleTicketsMenu"
-                            v-tooltip.right="collapsed ? 'Справки' : ''"
-                        >
-                            <div class="menu-item-content">
-                                <i class="pi pi-ticket"></i>
-                                <div v-if="!collapsed" class="menucrumb menucrumb-with-arrow">
-                                    <span>Справки</span>
-                                    <i class="pi pi-angle-down ido-arrow" :class="{ 'ido-arrow-open': ticketsMenuOpen }"></i>
-                                </div>
+                        </div>
+                    </button>
+                    <button
+                        v-for="item in directMenuItems"
+                        :key="item.path"
+                        type="button"
+                        class="menu-item menu-item-button"
+                        :class="{ 'menu-item-health': item.id === 'health-checks', 'active-link': route.path === item.path }"
+                        @click="router.push(item.path)"
+                        v-tooltip.right="collapsed ? item.name : ''"
+                    >
+                        <div class="menu-item-content">
+                            <i :class="item.icon"></i>
+                            <div class="menucrumb">
+                                <span>{{ item.name }}</span>
                             </div>
-                        </button>
-                        <Transition name="ido-submenu">
-                            <div v-if="ticketsMenuOpen && !collapsed" class="ido-submenu">
-                                <router-link
-                                    v-for="item in visibleTicketsMenuItems"
-                                    :key="item.path"
-                                    :to="item.path"
-                                    class="ido-submenu-item"
-                                    active-class="ido-submenu-item-active"
-                                >
-                                    <i :class="item.icon"></i>
-                                    <span>{{ item.name }}</span>
-                                </router-link>
-                            </div>
-                        </Transition>
-                    </div>
-                    <div v-if="showIdoMenu" class="ido-menu-group">
-                        <button
-                            type="button"
-                            class="menu-item menu-item-button"
-                            :class="{ 'active-link': isIdoRoute, 'menu-item-open': idoMenuOpen && !collapsed }"
-                            @click="toggleIdoMenu"
-                            v-tooltip.right="collapsed ? 'ИДО' : ''"
-                        >
-                            <div class="menu-item-content">
-                                <i class="pi pi-building-columns"></i>
-                                <div v-if="!collapsed" class="menucrumb menucrumb-with-arrow">
-                                    <span>ИДО</span>
-                                    <i class="pi pi-angle-down ido-arrow" :class="{ 'ido-arrow-open': idoMenuOpen }"></i>
-                                </div>
-                            </div>
-                        </button>
-                        <Transition name="ido-submenu">
-                            <div v-if="idoMenuOpen && !collapsed" class="ido-submenu">
-                                <router-link
-                                    v-for="item in visibleIdoMenuItems"
-                                    :key="item.path"
-                                    :to="item.path"
-                                    class="ido-submenu-item"
-                                    active-class="ido-submenu-item-active"
-                                >
-                                    <i :class="item.icon"></i>
-                                    <span>{{ item.name }}</span>
-                                </router-link>
-                            </div>
-                        </Transition>
-                    </div>
-                    <div v-if="showUmuSiriusMenu" class="ido-menu-group">
-                        <button
-                            type="button"
-                            class="menu-item menu-item-button"
-                            :class="{ 'active-link': isUmuSiriusRoute, 'menu-item-open': umuSiriusMenuOpen && !collapsed }"
-                            @click="toggleUmuSiriusMenu"
-                            v-tooltip.right="collapsed ? 'УМУ' : ''"
-                        >
-                            <div class="menu-item-content">
-                                <i class="pi pi-briefcase"></i>
-                                <div v-if="!collapsed" class="menucrumb menucrumb-with-arrow">
-                                    <span>УМУ</span>
-                                    <i class="pi pi-angle-down ido-arrow" :class="{ 'ido-arrow-open': umuSiriusMenuOpen }"></i>
-                                </div>
-                            </div>
-                        </button>
-                        <Transition name="ido-submenu">
-                            <div v-if="umuSiriusMenuOpen && !collapsed" class="ido-submenu">
-                                <router-link
-                                    v-for="item in visibleUmuSiriusMenuItems"
-                                    :key="item.path"
-                                    :to="item.path"
-                                    class="ido-submenu-item"
-                                    active-class="ido-submenu-item-active"
-                                >
-                                    <i :class="item.icon"></i>
-                                    <span>{{ item.name }}</span>
-                                </router-link>
-                            </div>
-                        </Transition>
-                    </div>
-                    <div v-if="showProjectOfficeMenu" class="ido-menu-group">
-                        <button
-                            type="button"
-                            class="menu-item menu-item-button"
-                            :class="{ 'active-link': isProjectOfficeRoute, 'menu-item-open': projectOfficeMenuOpen && !collapsed }"
-                            @click="toggleProjectOfficeMenu"
-                            v-tooltip.right="collapsed ? 'Проектный офис' : ''"
-                        >
-                            <div class="menu-item-content">
-                                <i class="pi pi-paperclip"></i>
-                                <div v-if="!collapsed" class="menucrumb menucrumb-with-arrow">
-                                    <span>Проектный офис</span>
-                                    <i class="pi pi-angle-down ido-arrow" :class="{ 'ido-arrow-open': projectOfficeMenuOpen }"></i>
-                                </div>
-                            </div>
-                        </button>
-                        <Transition name="ido-submenu">
-                            <div v-if="projectOfficeMenuOpen && !collapsed" class="ido-submenu">
-                                <router-link
-                                    v-for="item in visibleProjectOfficeMenuItems"
-                                    :key="item.path"
-                                    :to="item.path"
-                                    class="ido-submenu-item"
-                                    active-class="ido-submenu-item-active"
-                                >
-                                    <i :class="item.icon"></i>
-                                    <span>{{ item.name }}</span>
-                                </router-link>
-                            </div>
-                        </Transition>
-                    </div>
+                        </div>
+                    </button>
                 </div>
-    
-                <div class="menu">
-                    <div v-if="!collapsed && hasPermission('User', 'Read')" class="general mt-2">Администрирование</div>
-                    <div v-for="item in filteredMenuItems" :key="item.path">
-                        <router-link 
-                            :to="item.path" 
-                            class="menu-item"
-                            active-class="active-link"
-                            v-tooltip.right="collapsed ? item.name : ''"
-                        >
-                            <div class="menu-item-content">
-                                <i :class="item.icon"></i>
-                                <div v-if="!collapsed" class="menucrumb">
-                                    <span>{{ item.name }}</span>
-                                </div>
-                            </div>
-                        </router-link>
-                    </div>
-                </div>
+                </template>
 
             </div>
             
@@ -298,7 +214,7 @@
                                 class="initials-circle"
                             />
                         </div>
-                        <div v-if="!collapsed" class="profile-info">
+                        <div class="profile-info">
                             <div class="middle">
                                 <div class="name">{{ fullName }}</div>
                                 <div class="email">
@@ -314,7 +230,7 @@
                         <button @click="confirmLogout()" class="logout-button" v-tooltip.right="collapsed ? 'Выйти' : ''">
                             <div class="logout-content" :class="{ 'collapsed': collapsed }">
                                 <i class="pi pi-sign-out"></i>
-                                <p v-if="!collapsed" class="logout-text">Выйти из аккаунта</p>
+                                <p class="logout-text">Выйти из аккаунта</p>
                             </div>
                         </button>
                     </div>
@@ -322,10 +238,16 @@
             </div>
         </div>
     </div>
+    <ServicesCatalogModal
+        :visible="servicesModalVisible"
+        :items="servicesCatalogItems"
+        :admin-items="adminCatalogItems"
+        @update:visible="onServicesModalVisibilityChange"
+    />
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, nextTick } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import Popover from 'primevue/popover';
 
 import Lcs from '@/assets/logo/lcs.svg';
@@ -336,6 +258,7 @@ import { usePermissionStore } from '@/stores/permissions.js';
 import { disconnectNotificationsHub } from '@/utils/notificationHub.js';
 
 import AccentColorEditor from './Utils/AccentColorEditor.vue';
+import ServicesCatalogModal from './ServicesCatalogModal.vue';
 
 import { useConfirm } from "primevue/useconfirm";
 import { useToast } from "primevue/usetoast";
@@ -365,6 +288,8 @@ const props = defineProps({
         default: false
     }
 });
+
+const emit = defineEmits(['overlay-open', 'overlay-close', 'request-expand']);
 
 const confirm = useConfirm();
 const toast = useToast();
@@ -398,10 +323,10 @@ const email = ref('');
 const initials = ref('');
 const fullName = ref('');
 const searchQuery = ref('');
-const ticketsMenuOpen = ref(false);
-const idoMenuOpen = ref(false);
-const umuSiriusMenuOpen = ref(false);
-const projectOfficeMenuOpen = ref(false);
+const displayedNavigationSearchResults = ref([]);
+const isNavigationSearchLoading = ref(false);
+let navigationSearchTimer = null;
+const servicesModalVisible = ref(false);
 const notificationsPopoverRef = ref(null);
 const notificationsPopoverVisible = ref(false);
 const {
@@ -428,21 +353,84 @@ const profileLink = computed(() => {
     const params = new URLSearchParams({ id: String(userId.value) });
     return `/profile?${params.toString()}`;
 });
-const defaultTicketsPath = computed(() => visibleTicketsMenuItems.value[0]?.path || '/tickets');
-const isTicketsRoute = computed(() => (
-    route.path === '/tickets' || route.path.startsWith('/tickets/my-requests')
-));
-const isIdoRoute = computed(() => route.path.startsWith('/ido'));
-const isUmuSiriusRoute = computed(() => route.path.startsWith('/umu-sirius'));
-const isProjectOfficeRoute = computed(() => route.path.startsWith('/project-office'));
 const isNotificationsItemActive = computed(() => (
     notificationsPopoverVisible.value || route.path === '/notif'
 ));
 
-const filteredMenuItems = computed(() => {
-    return adminItems.value.filter(item =>
-        item.name.toLowerCase().startsWith(searchQuery.value.toLowerCase())
-    );
+const healthCheckItem = computed(() => adminItems.value.find((item) => item.id === 'health-checks'));
+const adminCatalogItems = computed(() => adminItems.value.filter((item) => item.id !== 'health-checks'));
+const directMenuItems = computed(() => [
+    ...serviceItems.value.filter((item) => ['schedule', 'faq'].includes(item.id)),
+    ...(healthCheckItem.value ? [healthCheckItem.value] : []),
+]);
+const servicesCatalogItems = computed(() => {
+    const items = serviceItems.value
+        .filter((item) => !['schedule', 'faq'].includes(item.id));
+
+    if (showTicketsMenu.value) {
+        items.push({ id: 'tickets', name: 'Справки', icon: 'pi pi-ticket', children: visibleTicketsMenuItems.value });
+    }
+
+    if (showIdoMenu.value) {
+        items.push({ id: 'ido', name: 'ИДО', icon: 'pi pi-building-columns', children: visibleIdoMenuItems.value });
+    }
+
+    if (showUmuSiriusMenu.value) {
+        items.push({ id: 'umu-sirius', name: 'УМУ', icon: 'pi pi-briefcase', children: visibleUmuSiriusMenuItems.value });
+    }
+
+    if (showProjectOfficeMenu.value) {
+        items.push({ id: 'project-office', name: 'Проектный офис', icon: 'pi pi-paperclip', children: visibleProjectOfficeMenuItems.value });
+    }
+
+    return items;
+});
+const showServicesMenu = computed(() => (
+    servicesCatalogItems.value.length > 0
+    || adminItems.value.length > 0
+    || hasPermission('InfraManager', 'Read')
+));
+const navigationSearchResults = computed(() => {
+    const query = searchQuery.value.trim().toLowerCase();
+    if (!query) return [];
+
+    const withSection = (items, section) => (Array.isArray(items?.value)
+        ? items.value.map((item) => ({ ...item, section }))
+        : []);
+
+    const entries = [
+        ...withSection(topItems, 'Основное'),
+        ...withSection(serviceItems, 'Сервисы'),
+        ...withSection(visibleTicketsMenuItems, 'Справки'),
+        ...withSection(visibleIdoMenuItems, 'ИДО'),
+        ...withSection(visibleUmuSiriusMenuItems, 'УМУ'),
+        ...withSection(visibleProjectOfficeMenuItems, 'Проектный офис'),
+        ...withSection(adminItems, 'Администрирование'),
+    ];
+
+    return [...new Map(entries.map((item) => [item.path, item])).values()]
+        .filter((item) => item.name.toLowerCase().includes(query))
+        .slice(0, 8);
+});
+
+watch(searchQuery, (query) => {
+    window.clearTimeout(navigationSearchTimer);
+
+    if (!query.trim()) {
+        isNavigationSearchLoading.value = false;
+        displayedNavigationSearchResults.value = [];
+        return;
+    }
+
+    isNavigationSearchLoading.value = true;
+    navigationSearchTimer = window.setTimeout(() => {
+        displayedNavigationSearchResults.value = navigationSearchResults.value;
+        isNavigationSearchLoading.value = false;
+    }, 240);
+});
+
+onBeforeUnmount(() => {
+    window.clearTimeout(navigationSearchTimer);
 });
 
 // Функции
@@ -451,40 +439,26 @@ const getInitials = (firstName, lastName) => {
     return initials;
 };
 
-const toggleIdoMenu = () => {
-    if (props.collapsed) {
-        router.push('/ido/consultations');
-        return;
-    }
-
-    idoMenuOpen.value = !idoMenuOpen.value;
+const toggleServicesPopover = () => {
+    servicesModalVisible.value = true;
+    emit('overlay-open');
 };
 
-const toggleTicketsMenu = () => {
-    if (props.collapsed) {
-        router.push(defaultTicketsPath.value);
-        return;
-    }
-
-    ticketsMenuOpen.value = !ticketsMenuOpen.value;
+const navigateFromSearch = async (path) => {
+    searchQuery.value = '';
+    await router.push(path);
 };
 
-const toggleUmuSiriusMenu = () => {
-    if (props.collapsed) {
-        router.push('/umu-sirius');
-        return;
-    }
-
-    umuSiriusMenuOpen.value = !umuSiriusMenuOpen.value;
+const requestSearchFocus = () => {
+    emit('request-expand');
 };
 
-const toggleProjectOfficeMenu = () => {
-    if (props.collapsed) {
-        router.push('/project-office/projects');
-        return;
-    }
+const onServicesModalVisibilityChange = (visible) => {
+    servicesModalVisible.value = visible;
 
-    projectOfficeMenuOpen.value = !projectOfficeMenuOpen.value;
+    if (!visible) {
+        emit('overlay-close');
+    }
 };
 
 const positionNotificationsPopover = () => {
@@ -589,23 +563,20 @@ watch(currentSeason, () => {
 
 watch(
     () => route.path,
-    (path) => {
+    () => {
         notificationsPopoverRef.value?.hide();
-
-        if (path === '/tickets' || path.startsWith('/tickets/my-requests')) {
-            ticketsMenuOpen.value = true;
-        }
-        if (path.startsWith('/ido')) {
-            idoMenuOpen.value = true;
-        }
-        if (path.startsWith('/umu-sirius')) {
-            umuSiriusMenuOpen.value = true;
-        }
-        if (path.startsWith('/project-office')) {
-            projectOfficeMenuOpen.value = true;
-        }
+        servicesModalVisible.value = false;
     },
     { immediate: true }
+);
+
+watch(
+    () => props.collapsed,
+    (collapsed) => {
+        if (collapsed) {
+            notificationsPopoverRef.value?.hide();
+        }
+    }
 );
 
 let lastCheckedMonth = null;
@@ -691,6 +662,7 @@ onMounted(async () => {
 <style scoped>
 /* ============ ОСНОВНЫЕ СТИЛИ САЙДБАРА ============ */
 .sidebar-container {
+    --sidebar-tint: rgba(var(--p-blue-500-rgb), 0.22);
     height: 100vh;
     display: flex;
     box-sizing: border-box;
@@ -703,8 +675,7 @@ onMounted(async () => {
     width: 100%;
     min-width: 0;
     max-width: 100%;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    background: rgba(var(--p-bg-color-rgb), 0.16);
 }
 
 .sidebar-container.sidebar-collapsed {
@@ -720,7 +691,7 @@ onMounted(async () => {
     height: 100%;
 }
 
-/* ============ ФОНОВОЕ ИЗОБРАЖЕНИЕ ============ */
+/* ============ МАТОВОЕ СТЕКЛО И МИКРОЗЕРНО ============ */
 .sidebar-container::before {
     content: "";
     position: absolute;
@@ -728,41 +699,25 @@ onMounted(async () => {
     left: 0;
     width: 100%;
     height: 100%;
-    opacity: 0.7;
-    background-size: cover;
-    background-repeat: no-repeat;
-    background-position: center;
-    filter: blur(2px);
-    z-index: -1;
-    transition: 
-        background-image 1.2s cubic-bezier(0.4, 0, 0.2, 1),
-        opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1);
-    will-change: background-image, opacity;
+    opacity: 1;
+    z-index: 0;
+    background:
+        radial-gradient(circle at 12% 8%, var(--sidebar-tint), transparent 42%),
+        radial-gradient(circle at 92% 78%, rgba(255, 255, 255, 0.13), transparent 38%),
+        linear-gradient(160deg, rgba(255, 255, 255, 0.14), transparent 55%);
+    transition: background 0.7s ease;
 }
 
-.sidebar-container.season-winter::before {
-    background-image: url('/src/assets/backgrounds/winter.webp');
-    opacity: 0.4;
-}
-
-.sidebar-container.season-spring::before {
-    background-image: url('/src/assets/backgrounds/spring.webp');
-    opacity: 0.2;
-}
-
-.sidebar-container.season-summer::before {
-    background-image: url('/src/assets/backgrounds/summer.webp');
-    opacity: 0.2;
-}
-
-.sidebar-container.season-autumn::before {
-    background-image: url('/src/assets/backgrounds/autism.webp');
-    opacity: 0.2;
-}
-
-.sidebar-container.bg-image::before {
-    background-image: url('/src/assets/backgrounds/winter.webp');
-    opacity: 0.8;
+.sidebar-container::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.075;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.9'/%3E%3C/svg%3E");
+    background-size: 170px 170px;
+    mix-blend-mode: soft-light;
 }
 
 /* ============ ОСНОВНОЙ КОНТЕЙНЕР ============ */
@@ -772,30 +727,31 @@ onMounted(async () => {
     width: 100%;
     height: 100%;
     padding: 1.5rem 1rem;
-    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: padding 0.42s cubic-bezier(0.22, 1, 0.36, 1), background 0.28s ease;
     border-right: 1px solid rgba(255, 255, 255, 0.1);
     overflow: hidden;
     will-change: transform, padding;
     background: linear-gradient(
-        180deg,
-        rgba(var(--p-bg-color-rgb), 0.95) 0%,
-        rgba(var(--p-bg-color-2-rgb), 0.85) 100%
+        160deg,
+        rgba(var(--p-bg-color-rgb), 0.66) 0%,
+        rgba(var(--p-bg-color-2-rgb), 0.44) 100%
     );
+    backdrop-filter: blur(24px) saturate(135%);
+    -webkit-backdrop-filter: blur(24px) saturate(135%);
     position: relative;
+    z-index: 1;
 }
 
 .rectangle.season-overlay {
     background: linear-gradient(
-        180deg,
-        var(--season-gradient-start) 0%,
-        var(--season-gradient-end) 100%
+        145deg,
+        color-mix(in srgb, var(--sidebar-tint) 52%, rgba(var(--p-bg-color-rgb), 0.66)) 0%,
+        rgba(var(--p-bg-color-2-rgb), 0.44) 64%
     );
-    z-index: 1;
 }
 
 .rectangle.collapsed {
     padding: 1.5rem 0.5rem;
-    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.1s;
 }
 
 /* ============ СТРУКТУРНЫЕ БЛОКИ ============ */
@@ -832,6 +788,69 @@ onMounted(async () => {
     display: none;
 }
 
+.navigation-search-results {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    padding: 0.5rem 0;
+}
+
+.navigation-search-caption {
+    padding: 0 0.75rem 0.45rem;
+    color: var(--p-text-muted-color, var(--p-text-color-secondary));
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.navigation-search-item {
+    min-height: 52px;
+}
+
+.navigation-search-skeletons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.navigation-search-skeleton {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    min-height: 52px;
+    padding: 0.65rem 0.75rem;
+}
+
+.navigation-search-skeleton-copy {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    flex-direction: column;
+    gap: 0.38rem;
+}
+
+.navigation-search-copy {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.1rem;
+}
+
+.navigation-search-copy small {
+    color: var(--p-text-muted-color, var(--p-text-color-secondary));
+    font-size: 0.72rem;
+    font-weight: 500;
+}
+
+.navigation-search-empty {
+    padding: 1rem 0.75rem;
+    color: var(--p-text-muted-color, var(--p-text-color-secondary));
+    font-size: 0.9rem;
+    text-align: center;
+}
+
 /* Фоновый градиент */
 .sidebar-middle::before {
     content: "";
@@ -862,13 +881,34 @@ onMounted(async () => {
     display: flex;
     flex-direction: column;
     gap: .5rem;
-    padding-top: 0.5rem;
+    position: relative;
+    padding-top: 1rem;
     z-index: 2;
     width: 100%;
     box-sizing: border-box;
 }
+
+.sidebar-bottom::before {
+    position: absolute;
+    top: 0;
+    right: 1rem;
+    left: 1rem;
+    height: 1px;
+    content: '';
+    background: linear-gradient(
+        90deg,
+        transparent,
+        color-mix(in srgb, var(--p-text-color) 20%, transparent),
+        transparent
+    );
+}
 .rectangle.collapsed .sidebar-bottom {
-    padding: 0.125rem 0;
+    padding: 0.5rem 0 0.125rem;
+}
+
+.rectangle.collapsed .sidebar-bottom::before {
+    right: 0.65rem;
+    left: 0.65rem;
 }
 .rectangle:not(.collapsed) .sidebar-bottom {
     align-items: stretch;
@@ -937,6 +977,30 @@ onMounted(async () => {
     will-change: opacity, max-height, margin, transform;
 }
 
+.collapsed-search-trigger {
+    display: grid;
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 0.75rem;
+    place-items: center;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--p-text-color);
+    cursor: pointer;
+    transition: background 0.22s ease, color 0.22s ease, transform 0.22s ease;
+}
+
+.collapsed-search-trigger:hover {
+    background: var(--p-blue-500-low-op);
+    color: var(--p-primary-color);
+    transform: translateY(-1px);
+}
+
+.collapsed-search-trigger .pi {
+    font-size: 1.25rem;
+}
+
 .rectangle.collapsed .searchBar {
     opacity: 0;
     max-height: 0;
@@ -970,8 +1034,26 @@ onMounted(async () => {
     contain: layout style;
 }
 
-.rectangle.collapsed .menu {
-    gap: 0.5rem;
+.sidebar-nav-divider {
+    height: 1px;
+    margin: 0.7rem 1rem 0.85rem;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        color-mix(in srgb, var(--p-text-color) 20%, transparent),
+        transparent
+    );
+    opacity: 0.8;
+    transition: margin 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+}
+
+.rectangle.collapsed .sidebar-nav-divider {
+    margin: 0.4rem 0.65rem;
+    opacity: 0.5;
+}
+
+.menu-primary {
+    margin-top: 1rem;
 }
 
 .menu-item {
@@ -1001,6 +1083,30 @@ onMounted(async () => {
     cursor: pointer;
 }
 
+.menu-item-health {
+    margin-top: 0.25rem;
+    border: 1px solid rgba(34, 197, 94, 0.2);
+    background: linear-gradient(90deg, rgba(34, 197, 94, 0.1), transparent);
+}
+
+.menu-item-health .menu-item-content > .pi {
+    color: #16a34a;
+}
+
+.menu-item-health:not(.active-link)::before {
+    content: '';
+    width: 0.42rem;
+    height: 0.42rem;
+    margin-left: 0.65rem;
+    border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.12);
+}
+
+.rectangle.collapsed .menu-item-health:not(.active-link)::before {
+    display: none;
+}
+
 .menu-item-content {
     display: flex;
     align-items: center;
@@ -1008,7 +1114,7 @@ onMounted(async () => {
     height: 100%;
     position: relative;
     padding: 0 1rem;
-    transition: padding 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: padding 0.42s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .rectangle.collapsed .menu-item-content {
@@ -1038,28 +1144,14 @@ onMounted(async () => {
     color: var(--p-primary-300);
 }
 
-.menu-item.active-link::before {
-    content: '';
-    position: absolute;
-    left: 0.35rem;
-    top: 50%;
-    width: 0.22rem;
-    height: 62%;
-    border-radius: 999px;
-    transform: translateY(-50%);
-    background: var(--p-primary-500);
-    box-shadow: 0 0 16px color-mix(in srgb, var(--p-primary-500) 60%, transparent);
-    animation: menu-active-bar 0.42s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
 /* ============ ИКОНКИ МЕНЮ ============ */
 .menu-item .pi {
     font-size: 1.25rem;
     position: relative;
     transition:
-        transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-        margin 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-        font-size 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+        transform 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+        margin 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+        font-size 0.42s cubic-bezier(0.22, 1, 0.36, 1),
         color 0s linear;
     will-change: transform;
     min-width: 24px;
@@ -1074,9 +1166,14 @@ onMounted(async () => {
     margin-right: 1rem;
 }
 
+/* Иконки остаются на одной оси во время раскрытия сайдбара. */
+.rectangle:not(.collapsed) .menu-item-content {
+    padding-left: 0;
+}
+
 .rectangle.collapsed .menu-item .pi {
     margin: 0;
-    font-size: 1.5rem;
+    font-size: 1.25rem;
 }
 
 /* ============ ТЕКСТ МЕНЮ ============ */
@@ -1089,9 +1186,9 @@ onMounted(async () => {
     white-space: nowrap;
     overflow: hidden;
     transition: 
-        opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1),
-        max-width 0.4s cubic-bezier(0.16, 1, 0.3, 1),
-        transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        opacity 0.18s ease,
+        max-width 0.36s cubic-bezier(0.22, 1, 0.36, 1),
+        transform 0.36s cubic-bezier(0.22, 1, 0.36, 1);
     will-change: opacity, max-width, transform;
     transform: translateX(0);
     text-overflow: ellipsis;
@@ -1105,14 +1202,13 @@ onMounted(async () => {
     opacity: 0;
     max-width: 0;
     transform: translateX(-10px);
-    position: absolute;
 }
 
 .rectangle:not(.collapsed) .menucrumb {
     opacity: 1;
     max-width: 200px;
     transform: translateX(0);
-    transition-delay: 0.15s;
+    transition-delay: 0.055s;
 }
 
 .menucrumb-with-arrow {
@@ -1132,6 +1228,18 @@ onMounted(async () => {
 
 .ido-arrow-open {
     transform: rotate(180deg);
+}
+
+.service-arrow {
+    margin-left: auto;
+    margin-right: 0 !important;
+    font-size: 0.95rem !important;
+    transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.menu-item:hover .service-arrow,
+.menu-item.active-link .service-arrow {
+    transform: translateX(3px);
 }
 
 .ido-menu-group {
@@ -1285,18 +1393,20 @@ onMounted(async () => {
     flex: 1;
     min-width: 0;
     overflow: hidden;
-    transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: opacity 0.18s ease, max-width 0.36s cubic-bezier(0.22, 1, 0.36, 1), transform 0.36s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .rectangle.collapsed .profile-info {
     opacity: 0;
     max-width: 0;
+    transform: translateX(-8px);
 }
 
 .rectangle:not(.collapsed) .profile-info {
     opacity: 1;
     max-width: 200px;
-    transition-delay: 0.15s;
+    transform: translateX(0);
+    transition-delay: 0.055s;
 }
 
 .middle {
@@ -1385,7 +1495,7 @@ onMounted(async () => {
     opacity: 1;
     max-width: 200px;
     transform: translateX(0);
-    transition-delay: 0.15s;
+    transition-delay: 0.055s;
 }
 
 /* ============ БЕЙДЖИ ============ */
@@ -1401,11 +1511,20 @@ onMounted(async () => {
 
 .notification-badge-collapsed {
     position: absolute;
-    top: 10px;
-    right: 20px;
-    z-index: 10;
+    top: 4px;
+    right: 7px;
+    z-index: 12;
+    min-width: 1.1rem;
+    height: 1.1rem;
+    margin: 0;
+    padding: 0 0.25rem;
+    line-height: 1.1rem;
     transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     transform-origin: center;
+}
+
+.notification-menu-item {
+    overflow: visible;
 }
 
 :deep(.notifications-popover.p-popover) {
@@ -1586,7 +1705,7 @@ onMounted(async () => {
 }
 
 /* ============ RESPONSIVE ADJUSTMENTS ============ */
-@media (max-width: 768px) {
+@media (max-width: 767px) {
     .sidebar-container:not(.sidebar-mobile) {
         width: 90px !important;
         max-width: 90px;

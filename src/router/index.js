@@ -133,23 +133,31 @@ const routes = [
             },
             // Services section
             {
-                path: "/services",
+                path: "/service-health",
                 component: () => import('@/views/ServicesPage.vue'),
-                name: 'Services',
+                name: 'ServiceHealth',
                 meta: { 
                     permission: { 
                         type: 'InfraManager', 
                         action: 'Read' 
                     }, 
                     requiresAuth: true,
-                    title: 'Микросервисы'
+                    title: 'Проверка сервисов'
                 },
+            },
+            {
+                path: "/services",
+                redirect: "/service-health",
             },
             {
                 path: "/services/infraManager",
                 component: () => import('@/components/Microservice/InfraManager/InfraManagerTable.vue'),
                 name: 'InfraTable',
                 meta: {
+                    permission: {
+                        type: 'InfraManager',
+                        action: 'Read'
+                    },
                     title: 'Все Заявки'
                 }
             },
@@ -158,6 +166,10 @@ const routes = [
                 component: () => import('@/components/Microservice/Rating/RatingSeasons.vue'),
                 name: 'Seasons',
                 meta: {
+                    permission: {
+                        type: 'InfraManager',
+                        action: 'Read'
+                    },
                     title: 'Сезон'
                 }
             },
@@ -166,6 +178,10 @@ const routes = [
                 component: () => import('@/components/Microservice/Rating/CertainSeason.vue'),
                 name: 'Indicators',
                 meta: {
+                    permission: {
+                        type: 'InfraManager',
+                        action: 'Read'
+                    },
                     title: 'Показатели'
                 },
             },
@@ -174,6 +190,10 @@ const routes = [
                 component: () => import('@/views/MlAnalyticsPage.vue'),
                 name: 'MlAnalytics',
                 meta: {
+                    permission: {
+                        type: 'InfraManager',
+                        action: 'Read'
+                    },
                     title: 'ML Analytics'
                 }
             },
@@ -369,24 +389,6 @@ const routes = [
                     title: 'Заявки на справки'
                 }
             },
-            // SSO
-            {
-                path: "/sso/config",
-                component: () => import('@/views/SsoConfig.vue'),
-                meta: {
-                    requiresAuth: true,
-                    title: 'Настройка SSO'
-                }
-            },
-            // AutoRoleAssigner
-            {
-                path: "/autorole",
-                component: () => import('@/views/AutoRolesManagerPage.vue'),
-                meta: {
-                    requiresAuth: true,
-                    title: 'Авто Роли'
-                }
-            }
         ]
     }, 
     {

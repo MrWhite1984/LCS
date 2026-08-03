@@ -133,6 +133,15 @@
                                 </div>
                             </article>
                         </div>
+                        <AsyncState
+                            v-else-if="requestsLoadError"
+                            tone="error"
+                            icon="pi pi-exclamation-triangle"
+                            title="Не удалось загрузить заявки"
+                            description="Проверьте соединение и попробуйте ещё раз."
+                            retry
+                            @retry="fetchCalls"
+                        />
                         <div v-else class="requests-empty-state">Не найдено.</div>
 
                         <div class="requests-mobile-paginator">
@@ -187,7 +196,18 @@
                         </div>
                     </template>
 
-                    <template #empty>Не найдено.</template>
+                    <template #empty>
+                        <AsyncState
+                            v-if="requestsLoadError"
+                            tone="error"
+                            icon="pi pi-exclamation-triangle"
+                            title="Не удалось загрузить заявки"
+                            description="Проверьте соединение и попробуйте ещё раз."
+                            retry
+                            @retry="fetchCalls"
+                        />
+                        <span v-else>Не найдено.</span>
+                    </template>
 
                     <Column field="documentCount" header="" sortable style="min-width: 50px;">
                         <template #body="{ data }">
@@ -315,8 +335,11 @@ import {
 
 import InfraManagerCallsMe from '@/components/InfraManager/InfraManagerCallsMe.vue';
 import CreateRequest from '@/components/InfraManager/CreateRequest.vue';
+import AsyncState from '@/components/Utils/AsyncState.vue';
+import { requestMocks, USE_MOCK_DATA } from '@/config/mockRuntime.js';
 
 const loading = ref(true);
+const requestsLoadError = ref(false);
 const calls = ref([]);  // Все загруженные заявки
 const currentPage = ref(1);  // Текущая страница
 const rowsPerPage = ref(10);  // Количество строк на странице
@@ -408,10 +431,29 @@ const formatUtcFields = (obj) => {
 
 const lastCreatedId = ref(null);
 
+const getMockCalls = () => requestMocks.filter((call) => {
+    const matchesNumber = !filters.number || String(call.number).toLowerCase().includes(String(filters.number).toLowerCase());
+    const matchesSummary = !filters.callSummaryName || call.callSummaryName.toLowerCase().includes(String(filters.callSummaryName).toLowerCase());
+    const matchesPriority = !filters.priorityId || call.priorityId === filters.priorityId;
+    const matchesState = !filters.entityStateNames?.length || filters.entityStateNames.includes(call.entityStateName);
+    const matchesService = !filters.serviceName?.length || filters.serviceName.includes(call.serviceName);
+    return matchesNumber && matchesSummary && matchesPriority && matchesState && matchesService;
+});
+
 // Загрузка заявок (по страницам)
 const fetchCalls = async (highlightId = null) => {
     try {
         loading.value = true;
+        requestsLoadError.value = false;
+
+        if (USE_MOCK_DATA) {
+            calls.value = formatUtcFields(getMockCalls());
+            totalRecords.value = calls.value.length;
+            totalPages.value = Math.max(1, Math.ceil(totalRecords.value / rowsPerPage.value));
+            loadedPages.value = totalPages.value;
+            loading.value = false;
+            return;
+        }
 
         const response = await axiosInstance.get('/api/infra-manager/users/me/calls', {
             params: {
@@ -444,11 +486,14 @@ const fetchCalls = async (highlightId = null) => {
         loading.value = false;
     } catch (error) {
         console.error('Ошибка при загрузке: ', error);
+        requestsLoadError.value = true;
         loading.value = false;
     }
 };
 
 const loadMorePages = async () => {
+    if (USE_MOCK_DATA) return;
+
     try {
         const response = await axiosInstance.get('/api/infra-manager/users/me/calls', {
             params: {
@@ -485,6 +530,19 @@ const onRowsPerPageChange = async () => {
 };
 
 const fetchFilterOptions = async () => {
+    if (USE_MOCK_DATA) {
+        const mockCalls = requestMocks;
+        serviceOptions.value = [...new Set(mockCalls.map((call) => call.serviceName))].map((service) => ({ label: service, value: service }));
+        priorityOptions.value = [
+            { id: '', name: 'Все' },
+            { id: 'high', name: 'Высокий' },
+            { id: 'medium', name: 'Средний' },
+            { id: 'low', name: 'Низкий' },
+        ];
+        stateOptions.value = [...new Set(mockCalls.map((call) => call.entityStateName))].map((state) => ({ label: state, value: state }));
+        return;
+    }
+
     try {
         const [services, priorities, states] = await Promise.all([
             axiosInstance.get('/api/infra-manager/calls/service-names'),

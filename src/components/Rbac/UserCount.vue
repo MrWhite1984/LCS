@@ -37,7 +37,7 @@ import axiosInstance from '@/utils/axios.js';
 
 const props = defineProps({
     roleId: {
-        type: Number,
+        type: String,
         required: true
     },
     userCount: {

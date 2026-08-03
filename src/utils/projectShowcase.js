@@ -2,6 +2,7 @@ import {
     projectShowcaseInitiatorResource,
     projectShowcaseSuResource,
 } from '@/api/projectShowcase.js';
+import { isLecturer } from '@/utils/roles.js';
 
 export const PROJECT_SHOWCASE_USER_ID_STORAGE_KEY = 'projectShowcaseUserId';
 
@@ -63,9 +64,7 @@ export function resolveDefaultProjectShowcaseMode(permissionStore, hasShowcaseAc
 }
 
 export function isTeacherRole(currentUser) {
-    return Array.isArray(currentUser?.roles)
-        ? currentUser.roles.some((role) => role?.title === 'Преподаватель')
-        : false;
+    return isLecturer(currentUser);
 }
 
 export function canCreateProject(permissionStore) {

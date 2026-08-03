@@ -1,11 +1,11 @@
 <template>
     <div class="d-flex justify-content-center">
         <Button v-if="showButton" icon="pi pi-plus" @click="visible = true"/>
-        <Dialog v-model:visible="visible" modal header="Создание заявки" :style="{ 'max-width': '32rem' }">
-            <div class="p-4">
-                <div class="row mb-4">
+        <Dialog v-model:visible="visible" modal header="Создание заявки" :style="{ 'max-width': '32rem' }" class="create-request-dialog">
+            <div class="request-form">
+                <div class="row request-form-row">
                     <div class="col">
-                        <label class="ms-2 mb-1" for="whoami">Для кого заявка?</label>
+                        <label for="whoami">Для кого заявка?</label>
                         <div class="input-with-button">
                             <AutoComplete 
                                 id="whoami"
@@ -21,9 +21,9 @@
                         </div>
                     </div>
                 </div>
-                <div class="row mb-4">
+                <div class="row request-form-row">
                     <div class="col">
-                        <label for="service" class="ms-2 mb-1">Сервис</label>
+                        <label for="service">Сервис</label>
                         <TreeSelect 
                             v-model="selectedService"
                             :options="serviceTree"
@@ -38,24 +38,24 @@
                         </TreeSelect>
                     </div>
                 </div>
-                <div class="row mb-4">
+                <div class="row request-form-row">
                     <div class="col">
-                        <label for="priority" class="ms-2 mb-1">Приоритет</label>
+                        <label for="priority">Приоритет</label>
                         <InputText id="priority" readonly v-model="store.selectedPriority" class="form-input" placeholder="Выберите приоритет..." @click="toggle"/>
                         <Popover ref="op">
                             <PrioritySelect />
                         </Popover>
                     </div>
                 </div>
-                <div class="row mb-4">
+                <div class="row request-form-row">
                     <div class="col">
-                        <label for="shortDescriprion" class="ms-2 mb-1">Аудитория</label>
+                        <label for="shortDescriprion">Аудитория</label>
                         <InputText id="shortDescriprion" v-model="shortDescriprion" class="form-input" placeholder="Введите аудиторию..."/>
                     </div>
                 </div>
-                <div class="row mb-4">
+                <div class="row request-form-row">
                     <div class="col">
-                        <label for="inventoryNumber" class="ms-2 mb-1">Инвентарный номер</label>
+                        <label for="inventoryNumber">Инвентарный номер</label>
                         <InputText
                             id="inventoryNumber"
                             v-model="inventoryNumber"
@@ -64,18 +64,19 @@
                         />
                     </div>
                 </div>
-                <div class="row mb-4">
+                <div class="row request-form-row">
                     <div class="col">
-                        <label for="description" class="ms-2 mb-1">Краткое описание</label>
-                        <Textarea id="descriprion" v-model="description" class="form-input" rows="5" placeholder="Введите описание..."/>
+                        <label for="description">Краткое описание</label>
+                        <Textarea id="descriprion" v-model="description" class="form-input" rows="4" placeholder="Введите описание..."/>
                     </div>
                 </div>
-                <div class="row mb-4">
+                <div class="row request-form-row">
                     <div class="col">
-                        <label class="ms-2 mb-2">Файлы</label>
+                        <label>Файлы</label>
                         <FileDropzone
                             :disabled="isSubmitting"
                             :multiple="true"
+                            compact
                             icon="pi pi-file-arrow-up"
                             title="Перетащите файлы сюда"
                             subtitle="или нажмите, чтобы выбрать через проводник"
@@ -149,7 +150,7 @@
                         </small>
                     </div>
                 </div>
-                <div class="row align-items-center justify-content-end">
+                <div class="row align-items-center justify-content-end request-form-actions">
                     <div class="col-auto">
                         <div class="create-call-action" @click="handleCreateClick">
                             <Button
@@ -164,10 +165,6 @@
                     </div>
                     <div class="col-auto">
                         <Button text label="Отмена" severity="danger" :disabled="isSubmitting" @click="handleCancel" />
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col">
                     </div>
                 </div>
             </div>
@@ -501,6 +498,28 @@ defineExpose({
 </script>
 
 <style scoped>
+.request-form {
+    padding: 0.75rem 0.9rem 0.9rem;
+}
+.request-form-row {
+    margin-bottom: 0.8rem;
+}
+.request-form label {
+    display: block;
+    margin: 0 0 0.35rem;
+    padding: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+.request-form-actions {
+    margin-top: -0.1rem;
+}
+:deep(.create-request-dialog .p-dialog-header) {
+    padding: 1rem 1.1rem 0.55rem;
+}
+:deep(.create-request-dialog .p-dialog-content) {
+    padding: 0;
+}
 .muted {
     color: var(--p-grey-1);
 }

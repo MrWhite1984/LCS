@@ -9,10 +9,12 @@
 
             <div class="news-head-actions">
                 <Button
-                    v-if="canManageNews"
-                    label="Управление новостями"
-                    icon="pi pi-cog"
-                    @click="router.push('/news/manage')"
+                    :label="isPhone ? undefined : 'Настроить ленту'"
+                    icon="pi pi-sliders-h"
+                    outlined
+                    severity="secondary"
+                    aria-label="Настроить ленту"
+                    @click="newsSettingsVisible = true"
                 />
                 <Button
                     icon="pi pi-refresh"
@@ -24,37 +26,6 @@
                 />
             </div>
         </header>
-
-        <div class="news-toolbar">
-            <SelectButton
-                v-model="mode"
-                :options="modeOptions"
-                optionLabel="label"
-                optionValue="value"
-                class="mode-switch"
-            />
-
-            <AutoComplete
-                v-model="selectedTags"
-                multiple
-                optionLabel="name"
-                :suggestions="tagSuggestions"
-                placeholder="Фильтр по тегам"
-                class="tag-autocomplete"
-                @complete="completeTagSearch"
-                @item-select="onTagsChanged"
-                @item-unselect="onTagsChanged"
-                @clear="onTagsChanged"
-            />
-
-            <Button
-                label="Сбросить теги"
-                text
-                severity="secondary"
-                :disabled="selectedTags.length === 0"
-                @click="clearTags"
-            />
-        </div>
 
         <div v-if="selectedTags.length > 0" class="active-tags">
             <span>Активные теги:</span>
@@ -115,6 +86,54 @@
                 Новостей больше нет
             </div>
         </div>
+
+        <Dialog v-model:visible="newsSettingsVisible" header="Настройка ленты" modal class="news-settings-dialog">
+            <div class="news-settings-panel">
+                <div class="news-settings-section">
+                    <span class="news-settings-label">Показывать</span>
+                    <SelectButton
+                        v-model="mode"
+                        :options="modeOptions"
+                        optionLabel="label"
+                        optionValue="value"
+                        class="mode-switch"
+                    />
+                </div>
+
+                <div class="news-settings-section">
+                    <span class="news-settings-label">Фильтр по тегам</span>
+                    <AutoComplete
+                        v-model="selectedTags"
+                        multiple
+                        optionLabel="name"
+                        :suggestions="tagSuggestions"
+                        placeholder="Начните вводить тег"
+                        class="tag-autocomplete"
+                        @complete="completeTagSearch"
+                        @item-select="onTagsChanged"
+                        @item-unselect="onTagsChanged"
+                        @clear="onTagsChanged"
+                    />
+                </div>
+
+                <Button
+                    label="Сбросить фильтры"
+                    icon="pi pi-times"
+                    text
+                    severity="secondary"
+                    :disabled="mode === 'all' && selectedTags.length === 0"
+                    @click="clearNewsFilters"
+                />
+                <Button
+                    v-if="canManageNews"
+                    label="Управление новостями"
+                    icon="pi pi-cog"
+                    outlined
+                    severity="secondary"
+                    @click="newsSettingsVisible = false; router.push('/news/manage')"
+                />
+            </div>
+        </Dialog>
     </section>
 </template>
 
@@ -122,6 +141,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { usePermissionStore } from '@/stores/permissions.js';
+import { useResponsiveLayout } from '@/composables/useResponsiveLayout.js';
 import { getCurrentUser } from '@/utils/currentUser.js';
 import {
     NEWS_PAGE_SIZE,
@@ -143,6 +163,7 @@ import NewsPostCard from '@/components/News/NewsPostCard.vue';
 
 const router = useRouter();
 const permissionStore = usePermissionStore();
+const { isPhone } = useResponsiveLayout();
 
 const posts = ref([]);
 const emojis = ref([]);
@@ -152,6 +173,7 @@ const page = ref(1);
 const pageCount = ref(0);
 const pageSize = NEWS_PAGE_SIZE;
 const mode = ref('all');
+const newsSettingsVisible = ref(false);
 const modeOptions = [
     { label: 'Все', value: 'all' },
     { label: 'Закладки', value: 'bookmarked' },
@@ -257,6 +279,11 @@ function clearTags() {
     fetchPosts(true);
 }
 
+function clearNewsFilters() {
+    mode.value = 'all';
+    clearTags();
+}
+
 function removeTag(tagId) {
     selectedTags.value = selectedTags.value.filter((tag) => tag.id !== tagId);
     onTagsChanged();
@@ -347,7 +374,6 @@ onMounted(async () => {
 }
 
 .news-head,
-.news-toolbar,
 .news-head-actions,
 .active-tags {
     display: flex;
@@ -379,13 +405,6 @@ onMounted(async () => {
     margin: 0.45rem 0 0;
     color: var(--p-text-muted-color, var(--p-grey-2));
     max-width: 46rem;
-}
-
-.news-toolbar {
-    padding: 0.9rem 1rem;
-    border-radius: 20px;
-    background: rgba(var(--p-blue-500-rgb), 0.04);
-    border: 1px solid rgba(var(--p-blue-500-rgb), 0.1);
 }
 
 .tag-autocomplete {
@@ -452,14 +471,41 @@ onMounted(async () => {
     color: rgba(var(--p-blue-500-rgb), 0.75);
 }
 
+.news-settings-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+}
+
+.news-settings-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.news-settings-label {
+    color: var(--p-text-muted-color, var(--p-grey-2));
+    font-size: var(--app-font-sm);
+    font-weight: 750;
+}
+
+.news-settings-panel .mode-switch,
+.news-settings-panel .tag-autocomplete {
+    width: 100%;
+}
+
 @media (max-width: 900px) {
-    .news-toolbar {
-        align-items: stretch;
+    .mode-switch :deep(.p-togglebutton) {
+        min-height: 2.7rem;
+    }
+
+    .mode-switch :deep(.p-togglebutton-label) {
+        white-space: nowrap;
     }
 
     .tag-autocomplete {
         width: 100%;
-        min-width: 100%;
+        min-width: 0;
     }
 }
 </style>

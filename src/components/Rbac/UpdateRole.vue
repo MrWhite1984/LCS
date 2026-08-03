@@ -45,9 +45,9 @@ const roleId = ref(null);
 const toast = useToast();
 
 const props = defineProps({
-    id: Number,
+    id: String,
     refreshRoles: Function,
-    roles: Object
+    roles: Array
 })
 
 const openDialog = (id) => {
@@ -74,7 +74,8 @@ const fetchPriorities = async () => {
 const updateRole = async () => {
     try {
         await axiosInstance.put(`/api/rbac/roles/${props.id}`, {
-            title: currentRole.value.title,
+            name: currentRole.value.roleName || currentRole.value.title,
+            displayName: currentRole.value.title,
             description: currentRole.value.description,
             priority: currentRole.value.priority
         });

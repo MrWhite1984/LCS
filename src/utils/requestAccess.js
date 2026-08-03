@@ -1,5 +1,6 @@
 import axiosInstance from '@/utils/axios.js';
 import { getSessionUserId } from '@/utils/TokenService';
+import { USE_MOCK_DATA } from '@/config/mockRuntime.js';
 
 const INFRA_MANAGER_SYSTEM_TYPE = 0;
 
@@ -22,6 +23,15 @@ export async function getRequestAccess(force = false) {
 
     inflightPromise = (async () => {
         try {
+            if (USE_MOCK_DATA) {
+                cachedResult = {
+                    showRequests: true,
+                    infraManagerUserId: 'mock-infra-user',
+                };
+                cachedUserId = currentUserId;
+                return cachedResult;
+            }
+
             const response = await axiosInstance.get('/api/users/other-accounts/getall');
             const accounts = response.data?.accounts || [];
             const infraAccount = accounts.find((account) => Number(account.systemType) === INFRA_MANAGER_SYSTEM_TYPE);
