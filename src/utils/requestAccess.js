@@ -1,6 +1,6 @@
-import axiosInstance from '@/utils/axios.js';
 import { getSessionUserId } from '@/utils/TokenService';
 import { USE_MOCK_DATA } from '@/config/mockRuntime.js';
+import { getCurrentUser } from '@/utils/currentUser.js';
 
 const INFRA_MANAGER_SYSTEM_TYPE = 0;
 
@@ -32,15 +32,19 @@ export async function getRequestAccess(force = false) {
                 return cachedResult;
             }
 
-            const response = await axiosInstance.get('/api/users/other-accounts/getall');
-            const accounts = response.data?.accounts || [];
+            // The current-user response already contains external accounts, so
+            // don't make an additional `getall` request during application startup.
+            const currentUser = await getCurrentUser();
+            const accounts = Array.isArray(currentUser?.externalAccounts)
+                ? currentUser.externalAccounts
+                : [];
             const infraAccount = accounts.find((account) => Number(account.systemType) === INFRA_MANAGER_SYSTEM_TYPE);
 
             cachedResult = {
                 showRequests: Boolean(infraAccount),
                 infraManagerUserId: infraAccount?.userIdInOtherSystem || '',
             };
-            cachedUserId = currentUserId;
+            cachedUserId = currentUser?.id || currentUserId;
         } catch (error) {
             cachedResult = {
                 showRequests: false,

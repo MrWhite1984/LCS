@@ -1469,9 +1469,19 @@ const fetchUserProfile = async (id) => {
         userRoles.value = profile.roles || [];
         isBlocked.value = profile.isBlocked;
 
+        // The user payload includes external accounts; use it for the initial
+        // profile state instead of requesting `other-accounts/getall` again.
+        if (Array.isArray(profile.externalAccounts)) {
+            externalAccounts.value = profile.externalAccounts;
+            statusInfra = getInfraExternalAccount(externalAccounts.value);
+            status.value = Boolean(statusInfra);
+            const selectedId = selectedExternalAccount.value?.id;
+            selectedExternalAccount.value = externalAccounts.value.find((account) => account.id === selectedId)
+                || externalAccounts.value[0]
+                || null;
+        }
+
         fullName.value = `${firstName.value} ${lastName.value}`.trim();
-        statusInfra = null;
-        status.value = false;
     } catch (error) {
         console.debug('Ошибка при получении информации о пользователе: ', error);
     }
@@ -1482,7 +1492,6 @@ const fetchUserProfile = async (id) => {
 watch(() => route.query.id, async (newId) => {
     userId.value = newId;
     await fetchUserProfile(userId.value);
-    await fetchExternalAccounts();
 });
 
 const changeMePass = async () => {
@@ -1517,7 +1526,6 @@ onMounted(async () => {
     await loadSystemTypeOptions();
     if (!userId.value) return;
     await fetchUserProfile(userId.value);
-    await fetchExternalAccounts();
 });
 
 </script>

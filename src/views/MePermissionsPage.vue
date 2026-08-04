@@ -70,7 +70,9 @@ const fetchRolePermissions = async () => {
         );
 
         rolePermissions.value = responses.flatMap(
-            (response) => response.data?.resourcesWithPermissions || []
+            (response) => Array.isArray(response.data)
+                ? response.data
+                : response.data?.resourcesWithPermissions || []
         );
 
         updatePermissionsWithRoleStatus();
