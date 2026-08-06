@@ -31,60 +31,6 @@
                 </div>
             </div>
 
-            <GetOtpButton 
-                v-if="hasPermission('User', 'Update')"
-                :userId="userId"
-                :buttonLabel="'Получить OTP'"
-                :showLabel="true"
-                :buttonSeverity="'help'"
-                class="w-100 mb-3"
-            />
-
-            <!-- Изменить пароль -->
-            <Button class="w-100 mb-3" label="Сменить пароль" icon="pi pi-key" outlined @click="visible = true" v-if="!isCurrentUser && hasPermission('User', 'Update')" />
-            <Dialog v-model:visible="visible" modal header="Изменить пароль" :style="{ 'max-width': '30rem' }">
-                <form>
-                    <FloatLabel class="mt-4">
-                        <Password v-model="userPassword" inputId="userPassword" toggleMask class="form-input" @input="validatePassword" :feedback="false" :invalid="!passwordChecks.length || !passwordChecks.upperLower || !passwordChecks.number" />
-                        <label for="userPassword">Пароль</label>
-                    </FloatLabel>
-                </form>
-                <div class="password-requirements my-3">
-                    <p><i :class="passwordChecks.length ? 'pi pi-thumbs-up text-success' : 'pi pi-thumbs-down text-danger'" class="me-2"/> Минимум 8 символов</p>
-                    <p><i :class="passwordChecks.upperLower ? 'pi pi-thumbs-up text-success' : 'pi pi-thumbs-down text-danger'" class="me-2"/> Верхний и нижний регистры</p>
-                    <p><i :class="passwordChecks.number ? 'pi pi-thumbs-up text-success' : 'pi pi-thumbs-down text-danger'" class="me-2"/> Минимум одна цифра</p>
-                </div>
-                <Button label="Сохранить" class="w-100 text-center" @click="changePassword"/>
-            </Dialog>
-
-            <!-- Изменить о себе -->
-            <div v-if="isCurrentUser">
-                <Button label="Сменить пароль" text icon="pi pi-key" class="d-flex justify-content-between w-100" iconPos="right" @click="visiblePass = true" />
-                <Dialog v-model:visible="visiblePass" modal header="Сменить пароль" :style="{ 'max-width': '25rem' }">
-                    <form>
-                        <div class="">
-                            <label for="oldPass" class="ms-2">Старый пароль</label>
-                            <Password :inputProps="{ autocomplete: 'off' }" inputId="oldPass" name="oldPass" v-model="oldPass" class="form-input w-100" :feedback="false" toggleMask placeholder="Введите пароль" />
-                        </div>
-                        <div class="mt-2">
-                            <label for="newPass" class="ms-2">Новый пароль</label>
-                            <Password inputId="newPass" name="newPass" v-model="newPass" class="form-input w-100" :feedback="false" toggleMask @input="validateMePassword" :invalid="!passwordChecks.length || !passwordChecks.upperLower || !passwordChecks.number" autocomplete="off" placeholder="Введите новый пароль"/>
-                        </div>
-                        <div class="password-requirements my-3 mx-2">
-                            <p><i :class="passwordChecks.length ? 'pi pi-thumbs-up text-success' : 'pi pi-thumbs-down text-danger'" class="me-2"/> Минимум 8 символов</p>
-                            <p><i :class="passwordChecks.upperLower ? 'pi pi-thumbs-up text-success' : 'pi pi-thumbs-down text-danger'" class="me-2"/> Верхний и нижний регистры</p>
-                            <p><i :class="passwordChecks.number ? 'pi pi-thumbs-up text-success' : 'pi pi-thumbs-down text-danger'" class="me-2"/> Минимум одна цифра</p>
-                        </div>
-                        <div class="">
-                            <label for="confirmPass" class="ms-2">Подтвердите новый пароль</label>
-                            <Password inputId="confirmPass" name="confirmPass" v-model="confirmPass" class="form-input w-100" :feedback="false" toggleMask :invalid="newPass !== confirmPass && confirmPass" />
-                        </div>
-                        <Button label="Сохранить" icon="pi pi-check" class="w-100 mt-4" @click="changeMePass"/>
-                    </form>
-                </Dialog>
-            </div>
-
-            
             <!-- Кнопка блокировки -->
             <Button 
                 v-if="!isCurrentUser && hasPermission('User', 'Update')"
@@ -585,8 +531,6 @@ import { formatDateRuShort } from '@/utils/date.js';
 
 import UpdateUser from '@/components/Users/UpdateUser.vue';
 import MePermissionsPage from '@/views/MePermissionsPage.vue';
-
-import GetOtpButton from '@/components/Users/GetOtpButton.vue';
 
 const permissionStore = usePermissionStore();
 const router = useRouter();

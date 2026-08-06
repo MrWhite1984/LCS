@@ -34,25 +34,6 @@
                             </div>
                         </div>
 
-                        <OverlayPanel ref="specialUsersPanel">
-                            <div class="special-users-panel">
-                                <Button
-                                    label="Синхронизировать с InfraManager"
-                                    icon="pi pi-sync"
-                                    :loading="syncLoading"
-                                    :disabled="syncLoading"
-                                    @click="syncPasImAccounts"
-                                />
-                                <Button
-                                    label="Синхронизировать с 1СЗКГУ"
-                                    icon="pi pi-sync"
-                                    :loading="syncLoading"
-                                    :disabled="syncLoading"
-                                    @click="syncPasOneCzkguAccounts"
-                                />
-                            </div>
-                        </OverlayPanel>
-
                         <div v-if="showMobileFilters" class="users-mobile-filters">
                             <InputText
                                 :model-value="filters.lastName"
@@ -160,12 +141,6 @@
                                 </div>
 
                                 <div class="users-card-actions">
-                                    <GetOtpButton
-                                        :userId="customer.id"
-                                        :buttonClass="'p-button-sm'"
-                                        :showLabel="true"
-                                        :buttonLabel="'OTP'"
-                                    />
                                     <Button
                                         label="Профиль"
                                         size="small"
@@ -208,30 +183,6 @@
                         <div class="d-flex justify-content-between align-items-center users-table-header">
                             <h3 class="m-0 ps-4">Пользователи</h3>
                             <div class="d-flex gap-2 users-table-actions">
-                                <Button
-                                    icon="pi pi-sliders-h"
-                                    outlined
-                                    severity="secondary"
-                                    @click="toggleSpecialUsersPanel"
-                                />
-                                <OverlayPanel ref="specialUsersPanel">
-                                    <div class="special-users-panel">
-                                        <Button
-                                            label="Синхронизировать с InfraManager"
-                                            icon="pi pi-sync"
-                                            :loading="syncLoading"
-                                            :disabled="syncLoading"
-                                            @click="syncPasImAccounts"
-                                        />
-                                        <Button
-                                            label="Синхронизировать с 1СЗКГУ"
-                                            icon="pi pi-sync"
-                                            :loading="syncLoading"
-                                            :disabled="syncLoading"
-                                            @click="syncPasOneCzkguAccounts"
-                                        />
-                                    </div>
-                                </OverlayPanel>
                                 <MultiSelect
                                     :modelValue="selectedColumns"
                                     :options="columns"
@@ -265,16 +216,6 @@
 
                     <template #empty>Не найдено.</template>
                     <template #loading>Данные загружаются. Подождите.</template>
-
-                    <Column header="OTP" :showFilterMenu="false" :exportable="false" style="min-width: 60px;">
-                        <template #body="{ data }">
-                            <GetOtpButton
-                                :userId="data.id"
-                                :buttonClass="'p-button-sm me-2'"
-                                :showLabel="false"
-                            />
-                        </template>
-                    </Column>
 
                     <Column
                         v-for="col in ordinaryColumns"
@@ -418,7 +359,6 @@ import { useResponsiveLayout } from '@/composables/useResponsiveLayout.js';
 import { useMobileTableView } from '@/composables/useMobileTableView.js';
 
 import CreateUser from '@/components/Users/CreateUser.vue';
-import GetOtpButton from '@/components/Users/GetOtpButton.vue';
 import { usePermissionStore } from '@/stores/permissions.js';
 
 const router = useRouter();
@@ -624,24 +564,6 @@ const runUsersSync = async ({ endpoint, successDetail, errorDetail, errorLogLabe
     } finally {
         syncLoading.value = false;
     }
-};
-
-const syncPasImAccounts = async () => {
-    await runUsersSync({
-        endpoint: '/api/users/other-accounts/sync-pas-im',
-        successDetail: 'Синхронизация с InfraManager успешно запущена',
-        errorDetail: 'Не удалось запустить синхронизацию с InfraManager',
-        errorLogLabel: 'Ошибка синхронизации с InfraManager: '
-    });
-};
-
-const syncPasOneCzkguAccounts = async () => {
-    await runUsersSync({
-        endpoint: '/api/users/other-accounts/sync-pas-oneczkgu',
-        successDetail: 'Синхронизация с 1СЗКГУ успешно запущена',
-        errorDetail: 'Не удалось запустить синхронизацию с 1СЗКГУ',
-        errorLogLabel: 'Ошибка синхронизации с 1СЗКГУ: '
-    });
 };
 
 // Классы для отображения ролей в зависимости от их типа
