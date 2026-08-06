@@ -210,7 +210,7 @@
                                         </div>
                                     </div>
                                     <div class="col-auto d-flex align-items-center profile-user-action-col">
-                                        <UpdateUser v-if="!isCurrentUser && hasPermission('User', 'Update')" :userId="userId"/>
+                                        <UpdateUser v-if="!isCurrentUser && hasPermission('User', 'Update')" :userId="userId" @roles-changed="reloadProfile"/>
                                     </div>
                                 </div>
                             </div>
@@ -646,6 +646,10 @@ const isExternalInfoStructured = ref(false);
 
 const blockButtonLabel = computed(() => (isBlocked.value ? 'Разблокировать' : 'Заблокировать'));
 const blockButtonSeverity = computed(() => (isBlocked.value ? 'success' : 'danger'));
+
+const reloadProfile = () => {
+    fetchUserProfile(userId.value);
+};
 
 const toggleUserBlock = async () => {
     try {

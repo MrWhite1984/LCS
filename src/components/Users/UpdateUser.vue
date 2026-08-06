@@ -1,7 +1,7 @@
 <template>
     <div class="d-flex justify-content-center">
         <Button icon="pi pi-user-edit" label="Изменить" class="edit-btn" severity="contrast" rounded @click="fetchUserData"/>
-        <Dialog v-model:visible="visible" modal header="Изменить информацию" :style="{ 'max-width': '30rem' }">
+        <Dialog v-model:visible="visible" modal header="Изменить информацию" :style="{ 'max-width': '30rem' }" @hide="handleDialogHide">
             <div class="row mt-4 mb-5">
                 <div class="col">
                     <FloatLabel>
@@ -35,23 +35,27 @@
                     </FloatLabel>
                 </div>
             </div>
+            <Button label="Сохранить" class="search w-100 mb-3" @click="updateUserData"/>
+
+            <Divider class="mb-3 py-1"/>
+
             <div class="row mb-3">
-                <div class="col">
-                    <FloatLabel>
-                        <MultiSelect 
-                            v-model="selectedRoles" 
-                            display="chip" 
-                            :options="roles"
-                            optionLabel="title"
-                            optionValue="id" 
-                            :maxSelectedLabels="3"
-                            class="form-input"
-                        />
-                        <label for="selectedRoles">Роли</label>
-                    </FloatLabel>
+                <div class="col roles-chips-col">
+                    <label class="form-label mb-2">Роли</label>
+                    <div class="roles-chips">
+                        <button
+                            v-for="role in roles"
+                            :key="role.id"
+                            type="button"
+                            class="role-chip"
+                            :class="{ 'role-chip--active': selectedRoles.includes(role.id) }"
+                            @click="toggleRole(role.id)"
+                        >
+                            {{ role.title }}
+                        </button>
+                    </div>
                 </div>
             </div>
-            <Button label="Сохранить" class="search w-100 mb-2" @click="updateUserData"/>
         </Dialog>
     </div>
 </template>
@@ -62,6 +66,34 @@ import axiosInstance from '@/utils/axios.js';
 import { useToast } from 'primevue/usetoast';
 
 const toast = useToast();
+
+const emit = defineEmits(['rolesChanged']);
+
+const rolesChangedFlag = ref(false);
+
+const toggleRole = async (id) => {
+    const idx = selectedRoles.value.indexOf(id);
+    const isAdding = idx < 0;
+
+    try {
+        await axiosInstance.post(`/api/users/${ Iduser.value }/${ isAdding ? 'set-role' : 'remove-role' }/${ id }`);
+
+        if (isAdding) {
+            selectedRoles.value.push(id);
+        } else {
+            selectedRoles.value.splice(idx, 1);
+        }
+        rolesChangedFlag.value = true;
+    } catch (error) {
+        console.debug('Ошибка при изменении роли: ', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Ошибка',
+            detail: isAdding ? 'Не удалось назначить роль' : 'Не удалось снять роль',
+            life: 3000
+        });
+    }
+};
 
 const props = defineProps({
     userId: String,
@@ -85,6 +117,7 @@ const originalEmail = ref('');
 const fetchUserData = async () => {
     visible.value = true;
     Iduser.value = props.userId;
+    rolesChangedFlag.value = false;
     try {
         const response = await axiosInstance.get(`/api/users/${ Iduser.value }`);
         const userData = response.data;
@@ -100,6 +133,13 @@ const fetchUserData = async () => {
         userPriority.value = userData.roles[0]?.priority;
     } catch (error) {
         console.debug('Ошибка при получении данных: ', error);
+    }
+};
+
+const handleDialogHide = () => {
+    if (rolesChangedFlag.value) {
+        rolesChangedFlag.value = false;
+        emit('rolesChanged');
     }
 };
 
@@ -140,8 +180,7 @@ const updateUserData = async () => {
             firstName: firstName.value,
             lastName: lastName.value,
             middleName: middleName.value,
-            email: email.value,
-            roleIds: selectedRoles.value
+            email: email.value
         };
 
         await axiosInstance.put(`/api/users/${ Iduser.value }`, updatedUser);
@@ -193,5 +232,36 @@ label {
 .upd-btn:hover {
     background-color: var(--p-blue-500) !important;
     color: white !important;
+}
+
+.roles-chips-col { min-width: 0; }
+
+.roles-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.role-chip {
+    padding: 0.4rem 1rem;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--p-text-color);
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+}
+
+.role-chip:hover {
+    background: rgba(var(--p-primary-500-rgb), 0.12);
+}
+
+.role-chip--active {
+    background: var(--p-primary-color);
+    color: var(--p-primary-contrast-color, #fff);
+    border-color: var(--p-primary-color);
 }
 </style>
