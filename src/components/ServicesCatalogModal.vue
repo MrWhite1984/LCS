@@ -201,6 +201,10 @@ const openItem = (item) => {
     }
     if (!item.path) return;
     closeModal();
+    if (/^https?:\/\//i.test(item.path)) {
+        window.open(item.path, '_blank', 'noopener');
+        return;
+    }
     router.push(item.path);
 };
 </script>

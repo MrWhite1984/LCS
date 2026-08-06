@@ -382,6 +382,8 @@ const servicesCatalogItems = computed(() => {
 const platformsCatalogItems = computed(() => {
     const items = [];
 
+    items.push({ id: 'portal', name: 'Портал', badge: 'Платформа', icon: 'pi pi-globe', description: 'Учебный портал СибАДИ', path: 'https://portal.sibadi.org' });
+
     if (showUmuSiriusMenu.value) {
         items.push({ id: 'umu-sirius', name: 'УМУ', icon: 'pi pi-briefcase', children: visibleUmuSiriusMenuItems.value, badge: 'Скоро' });
     }
