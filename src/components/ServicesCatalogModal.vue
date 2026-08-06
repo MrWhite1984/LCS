@@ -148,18 +148,18 @@ const microserviceItems = computed(() => {
 
     if (canAccessInfraSuite.value) {
         items.push(
-            { id: 'infra-manager', name: 'ИТ-заявки', badge: 'Заявки', description: 'Заявки, связи пользователей и управление ИТ-процессами.', path: '/services/infraManager', icon: 'pi pi-ticket', theme: 0 },
-            { id: 'rating', name: 'Рейтинг', badge: 'Рейтинг', description: 'Сезоны, показатели и расчет рейтингов сотрудников.', path: '/services/rating', icon: 'pi pi-star', theme: 1 },
-            { id: 'analytics', name: 'Аналитика студентов', badge: 'Прогноз', description: 'Академические риски, активность и рекомендации кураторам.', path: '/services/ml-analytics', icon: 'pi pi-chart-line', theme: 2 },
+            { id: 'infra-manager', name: 'ИТ-заявки', badge: 'Заявки', description: 'Заявки, связи пользователей и управление ИТ-процессами.', path: '/services/infraManager', icon: 'pi pi-ticket' },
+            { id: 'rating', name: 'Рейтинг', badge: 'Рейтинг', description: 'Сезоны, показатели и расчет рейтингов сотрудников.', path: '/services/rating', icon: 'pi pi-star' },
+            { id: 'analytics', name: 'Аналитика студентов', badge: 'Прогноз', description: 'Академические риски, активность и рекомендации кураторам.', path: '/services/ml-analytics', icon: 'pi pi-chart-line' },
         );
     }
 
     if (canReadUmuSirius.value) {
-        items.push({ id: 'umu', name: 'УМУ · ГПХ', badge: 'Документы', description: 'Исполнители, договоры, решения и шаблоны для ГПХ.', path: '/umu-sirius', icon: 'pi pi-briefcase', theme: 3 });
+        items.push({ id: 'umu', name: 'УМУ · ГПХ', badge: 'Документы', description: 'Исполнители, договоры, решения и шаблоны для ГПХ.', path: '/umu-sirius', icon: 'pi pi-briefcase' });
     }
 
     if (canManageNews.value) {
-        items.push({ id: 'news', name: 'Новости', badge: 'Контент', description: 'Публикации, редактура и управление новостной лентой.', path: '/news/manage', icon: 'pi pi-megaphone', theme: 4 });
+        items.push({ id: 'news', name: 'Новости', badge: 'Контент', description: 'Публикации, редактура и управление новостной лентой.', path: '/news/manage', icon: 'pi pi-megaphone' });
     }
 
     return items;

@@ -37,6 +37,11 @@ const themes = [
     { accent: '#0f766e', soft: 'rgba(20, 184, 166, 0.14)' },
     { accent: '#be185d', soft: 'rgba(236, 72, 153, 0.14)' },
     { accent: '#7c3aed', soft: 'rgba(139, 92, 246, 0.14)' },
+    { accent: '#dc2626', soft: 'rgba(239, 68, 68, 0.14)' },
+    { accent: '#4f46e5', soft: 'rgba(99, 102, 241, 0.14)' },
+    { accent: '#0891b2', soft: 'rgba(34, 211, 238, 0.14)' },
+    { accent: '#65a30d', soft: 'rgba(163, 230, 53, 0.15)' },
+    { accent: '#c026d3', soft: 'rgba(232, 121, 249, 0.14)' },
 ];
 
 const cardStyle = computed(() => {
