@@ -184,7 +184,7 @@ import AsyncState from '@/components/Utils/AsyncState.vue';
 import { usePermissionStore } from '@/stores/permissions.js';
 import { getRequestAccess } from '@/utils/requestAccess.js';
 import { getCurrentUser } from '@/utils/currentUser.js';
-import { formatDateOmskFromUtcString } from '@/utils/date.js';
+import { formatDateOmskFromUtcString, formatDateRuLongWithTime } from '@/utils/date.js';
 import { getInfraStatusSeverity } from '@/utils/infraStatus.js';
 import { listMyTickets } from '@/api/tickets.js';
 import { requestMocks, ticketMocks, USE_MOCK_DATA } from '@/config/mockRuntime.js';
@@ -252,7 +252,7 @@ const ticketsDashboardLink = computed(() => (
 
 const getTicketStatusSeverity = getInfraStatusSeverity;
 const formatTicketDate = (date) => formatDateOmskFromUtcString(date);
-const formatCertificateDate = (date) => formatDateOmskFromUtcString(date);
+const formatCertificateDate = (date) => formatDateRuLongWithTime(date);
 const getCertificateStatusSeverity = (status) => ({
     New: 'info',
     Open: 'warning',
