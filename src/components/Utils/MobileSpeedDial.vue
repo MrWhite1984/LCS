@@ -73,11 +73,11 @@ const servicesCatalogItems = computed(() => {
     }
 
     if (showUmuSiriusMenu.value) {
-        items.push({ id: 'umu-sirius', name: 'УМУ', icon: 'pi pi-briefcase', children: umuSiriusItems.value });
+        items.push({ id: 'umu-sirius', name: 'УМУ', icon: 'pi pi-briefcase', children: umuSiriusItems.value, badge: 'Скоро' });
     }
 
     if (showProjectOfficeMenu.value) {
-        items.push({ id: 'project-office', name: 'Проектный офис', icon: 'pi pi-paperclip', children: projectOfficeItems.value });
+        items.push({ id: 'project-office', name: 'Проектный офис', icon: 'pi pi-paperclip', children: projectOfficeItems.value, badge: 'Скоро' });
     }
 
     return items;

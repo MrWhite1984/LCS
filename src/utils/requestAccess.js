@@ -38,7 +38,7 @@ export async function getRequestAccess(force = false) {
             const accounts = Array.isArray(currentUser?.externalAccounts)
                 ? currentUser.externalAccounts
                 : [];
-            const infraAccount = accounts.find((account) => Number(account.systemType) === INFRA_MANAGER_SYSTEM_TYPE);
+            const infraAccount = accounts.find((account) => account.systemType === 'inframanager');
 
             cachedResult = {
                 showRequests: Boolean(infraAccount),

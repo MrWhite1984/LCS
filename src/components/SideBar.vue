@@ -241,6 +241,7 @@
     <ServicesCatalogModal
         :visible="servicesModalVisible"
         :items="servicesCatalogItems"
+        :platform-items="platformsCatalogItems"
         :admin-items="adminCatalogItems"
         @update:visible="onServicesModalVisibilityChange"
     />
@@ -365,7 +366,7 @@ const directMenuItems = computed(() => [
 ]);
 const servicesCatalogItems = computed(() => {
     const items = serviceItems.value
-        .filter((item) => !['schedule', 'faq'].includes(item.id));
+        .filter((item) => !['schedule', 'faq', 'umu-sirius', 'project-office'].includes(item.id));
 
     if (showTicketsMenu.value) {
         items.push({ id: 'tickets', name: 'Справки', icon: 'pi pi-ticket', children: visibleTicketsMenuItems.value });
@@ -375,18 +376,26 @@ const servicesCatalogItems = computed(() => {
         items.push({ id: 'ido', name: 'ИДО', icon: 'pi pi-building-columns', children: visibleIdoMenuItems.value });
     }
 
+    return items;
+});
+
+const platformsCatalogItems = computed(() => {
+    const items = [];
+
     if (showUmuSiriusMenu.value) {
-        items.push({ id: 'umu-sirius', name: 'УМУ', icon: 'pi pi-briefcase', children: visibleUmuSiriusMenuItems.value });
+        items.push({ id: 'umu-sirius', name: 'УМУ', icon: 'pi pi-briefcase', children: visibleUmuSiriusMenuItems.value, badge: 'Скоро' });
     }
 
     if (showProjectOfficeMenu.value) {
-        items.push({ id: 'project-office', name: 'Проектный офис', icon: 'pi pi-paperclip', children: visibleProjectOfficeMenuItems.value });
+        items.push({ id: 'project-office', name: 'Проектный офис', icon: 'pi pi-paperclip', children: visibleProjectOfficeMenuItems.value, badge: 'Скоро', disabled: true });
     }
 
     return items;
 });
+
 const showServicesMenu = computed(() => (
     servicesCatalogItems.value.length > 0
+    || platformsCatalogItems.value.length > 0
     || adminItems.value.length > 0
     || hasPermission('InfraManager', 'Read')
 ));

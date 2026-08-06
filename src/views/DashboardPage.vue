@@ -82,15 +82,20 @@
             <div class="panel-card">
                 <div class="panel-header">
                     <h3>Последние заявки</h3>
-                    <router-link
-                        v-if="showRequests"
-                        class="panel-header-action"
-                        :to="{ path: '/requests', query: { create: '1' } }"
-                        aria-label="Создать заявку"
-                        v-tooltip.top="'Создать заявку'"
-                    >
-                        <i class="pi pi-plus"></i>
-                    </router-link>
+                    <div class="panel-header-actions">
+                        <router-link
+                            v-if="showRequests"
+                            class="panel-header-action panel-header-action-primary"
+                            :to="{ path: '/requests', query: { create: '1' } }"
+                            aria-label="Создать заявку"
+                            v-tooltip.top="'Создать заявку'"
+                        >
+                            <i class="pi pi-plus"></i>
+                        </router-link>
+                        <router-link class="panel-header-action" to="/requests" aria-label="Открыть заявки" v-tooltip.top="'Открыть заявки'">
+                            <i class="pi pi-arrow-up-right"></i>
+                        </router-link>
+                    </div>
                 </div>
                 <div class="panel-content">
                     <div v-if="recentTicketsLoading" class="schedule-skeleton">
@@ -101,7 +106,7 @@
                             v-for="ticket in recentTickets"
                             :key="ticket.id"
                             class="recent-ticket"
-                            to="/requests"
+                            :to="{ path: '/requests', query: { callId: ticket.id } }"
                         >
                             <div class="recent-ticket-main">
                                 <strong>{{ ticket.callSummaryName || ticket.fullName || `Заявка №${ticket.number}` }}</strong>

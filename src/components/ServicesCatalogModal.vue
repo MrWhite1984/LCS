@@ -52,6 +52,24 @@
                     </div>
                 </section>
 
+                <section v-if="platformItems.length" class="services-group">
+                    <div class="modal-section-heading">
+                        <div>
+                            <span class="services-group-kicker">Внешние платформы</span>
+                            <h3>Платформы</h3>
+                        </div>
+                    </div>
+                    <div class="services-grid">
+                        <CatalogServiceCard
+                            v-for="(item, index) in platformItems"
+                            :key="item.id || item.path"
+                            :item="withDescription(item)"
+                            :index="index + items.length"
+                            @select="openItem"
+                        />
+                    </div>
+                </section>
+
                 <section v-if="adminItems.length" class="services-group">
                     <div class="modal-section-heading">
                         <div>
@@ -64,7 +82,7 @@
                             v-for="(item, index) in adminItems"
                             :key="item.id || item.path"
                             :item="withDescription(item)"
-                            :index="index + 2"
+                            :index="index + items.length + platformItems.length"
                             @select="openItem"
                         />
                     </div>
@@ -82,7 +100,7 @@
                             v-for="(item, index) in microserviceItems"
                             :key="item.id"
                             :item="item"
-                            :index="index"
+                            :index="index + items.length + platformItems.length + adminItems.length"
                             @select="openItem"
                         />
                     </div>
@@ -114,6 +132,7 @@ const props = defineProps({
     visible: Boolean,
     items: { type: Array, default: () => [] },
     adminItems: { type: Array, default: () => [] },
+    platformItems: { type: Array, default: () => [] },
     showThemeEditor: { type: Boolean, default: false },
 });
 
@@ -123,7 +142,7 @@ const permissionStore = usePermissionStore();
 const activeParent = ref(null);
 const canManageNews = computed(() => canAccessNewsManagement(permissionStore));
 const canAccessInfraSuite = computed(() => permissionStore.hasPermission('InfraManager', 'Read'));
-const canReadUmuSirius = computed(() => props.items.some((item) => item.id === 'umu-sirius'));
+const canReadUmuSirius = computed(() => props.platformItems.some((item) => item.id === 'umu-sirius'));
 const microserviceItems = computed(() => {
     const items = [];
 
@@ -175,6 +194,7 @@ const closeModal = () => {
 };
 
 const openItem = (item) => {
+    if (item.id === 'project-office' || item.id === 'umu-sirius') return;
     if (item.children?.length) {
         activeParent.value = item;
         return;
