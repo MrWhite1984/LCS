@@ -290,7 +290,7 @@ const props = defineProps({
     }
 });
 
-const emit = defineEmits(['overlay-open', 'overlay-close', 'request-expand']);
+const emit = defineEmits(['overlay-open', 'overlay-close', 'request-expand', 'notifications-panel-open', 'notifications-panel-close']);
 
 const confirm = useConfirm();
 const toast = useToast();
@@ -509,12 +509,14 @@ const toggleNotificationsPopover = (event) => {
 
 const handleNotificationsPopoverShow = async () => {
     notificationsPopoverVisible.value = true;
+    emit('notifications-panel-open');
     await nextTick();
     positionNotificationsPopover();
 };
 
 const handleNotificationsPopoverHide = () => {
     notificationsPopoverVisible.value = false;
+    emit('notifications-panel-close');
 };
 
 const handleNotificationNavigate = () => {

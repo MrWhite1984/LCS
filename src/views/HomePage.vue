@@ -18,6 +18,8 @@
           @overlay-open="lockSidebarForOverlay"
           @overlay-close="lockSidebarForOverlay"
           @request-expand="openSidebarForSearch"
+          @notifications-panel-open="handleNotificationsPanelOpen"
+          @notifications-panel-close="handleNotificationsPanelClose"
         />
       </div>
     </aside>
@@ -50,6 +52,7 @@ import { connectNotificationsHub, disconnectNotificationsHub } from '@/utils/not
 import { useResponsiveLayout } from '@/composables/useResponsiveLayout.js';
 
 const isSidebarOpen = ref(false);
+const isNotificationsPanelOpen = ref(false);
 const toast = useToast();
 const route = useRoute();
 const notificationStore = useNotificationStore();
@@ -129,6 +132,7 @@ const teardownNotifications = async () => {
   }
 };
 const closeSidebarAfterFocus = (event) => {
+  if (isNotificationsPanelOpen.value) return;
   if (!event.currentTarget.contains(event.relatedTarget)) {
     closeSidebar();
   }
@@ -168,7 +172,19 @@ const openSidebarForSearch = async () => {
 const handleSidebarMouseLeave = () => {
   isPointerOverSidebar = false;
   isSidebarInteractionLocked = false;
+  if (isNotificationsPanelOpen.value) return;
   closeSidebar();
+};
+
+const handleNotificationsPanelOpen = () => {
+  isNotificationsPanelOpen.value = true;
+};
+
+const handleNotificationsPanelClose = () => {
+  isNotificationsPanelOpen.value = false;
+  if (!isPointerOverSidebar) {
+    closeSidebar();
+  }
 };
 
 const handleSidebarMouseEnter = () => {
