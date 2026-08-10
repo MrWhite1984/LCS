@@ -246,9 +246,7 @@ const canAccessStudentTickets = computed(() => (
 ));
 const canCreateStudentTickets = computed(() => permissionStore.hasPermission('TicketsStudent', 'Create'));
 const showTicketsShortcut = computed(() => canReadTickets.value || canAccessStudentTickets.value);
-const ticketsDashboardLink = computed(() => (
-    canReadTickets.value ? '/tickets' : '/tickets/my-requests'
-));
+const ticketsDashboardLink = computed(() => '/tickets/my-requests');
 
 const getTicketStatusSeverity = getInfraStatusSeverity;
 const formatTicketDate = (date) => formatDateOmskFromUtcString(date);
