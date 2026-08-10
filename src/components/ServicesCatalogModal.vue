@@ -213,7 +213,7 @@ const openItem = (item) => {
 .services-catalog-modal.p-dialog { max-height: min(88vh, 860px); }
 .services-catalog-modal .p-dialog-header { padding: 1.3rem 1.35rem 0.75rem; font-size: clamp(1.35rem, 2vw, 1.65rem); font-weight: 850; letter-spacing: -0.035em; }
 .services-catalog-modal .p-dialog-content { padding: 0.8rem 1.35rem 1.35rem; scrollbar-color: color-mix(in srgb, var(--p-primary-color) 55%, transparent) transparent; scrollbar-width: thin; }
-.services-catalog-modal .p-dialog-content::-webkit-scrollbar { width: 0.65rem; }
+.services-catalog-modal .p-dialog-content::-webkit-scrollbar { width: 0.5rem; }
 .services-catalog-modal .p-dialog-content::-webkit-scrollbar-track { margin: 0.5rem 0; border-radius: 999px; background: color-mix(in srgb, var(--p-primary-color) 6%, transparent); }
 .services-catalog-modal .p-dialog-content::-webkit-scrollbar-thumb { min-height: 3rem; border: 0.18rem solid transparent; border-radius: 999px; background: color-mix(in srgb, var(--p-primary-color) 48%, transparent); background-clip: padding-box; }
 .services-catalog-modal .p-dialog-content::-webkit-scrollbar-thumb:hover { background: var(--p-primary-color); background-clip: padding-box; }

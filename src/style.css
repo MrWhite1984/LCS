@@ -10,6 +10,30 @@
   box-sizing: border-box;
 }
 
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--p-primary-color) 55%, transparent) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--p-primary-color) 6%, transparent);
+}
+*::-webkit-scrollbar-thumb {
+  min-height: 3rem;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--p-primary-color) 48%, transparent);
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--p-primary-color);
+  background-clip: padding-box;
+}
+
 html {
   font-size: clamp(15px, calc(14px + 0.24vw), 16.5px);
   -webkit-text-size-adjust: 100%;
