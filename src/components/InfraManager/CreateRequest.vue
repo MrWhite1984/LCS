@@ -12,7 +12,6 @@
                                 v-model="whoami"
                                 :suggestions="userSuggestions"
                                 class="custom-input"
-                                optionValue="id"
                                 @complete="searchUsers"
                                 optionLabel="fullName"
                                 placeholder="Выберите пользователя..."
@@ -21,13 +20,14 @@
                         </div>
                     </div>
                 </div>
+                <template v-if="isUserSelected">
                 <div class="row request-form-row">
                     <div class="col">
                         <label for="service">Сервис</label>
                         <TreeSelect 
                             v-model="selectedService"
                             :options="serviceTree"
-                            :disabled="!whoami"
+                            :disabled="!isUserSelected"
                             placeholder="Выберите сервис..."
                             filter
                             class="form-input"
@@ -150,6 +150,11 @@
                         </small>
                     </div>
                 </div>
+                </template>
+                <div v-else class="request-form-note">
+                    <strong>Примечание</strong>
+                    <p>В выпадающем списке выберите пользователя, для которого создаете заявку. Если не получается найти пользователя, попробуйте убрать из введенного текста знаки препинания.</p>
+                </div>
                 <div class="row align-items-center justify-content-end request-form-actions">
                     <div class="col-auto">
                         <div class="create-call-action" @click="handleCreateClick">
@@ -158,7 +163,7 @@
                                 label="Создать заявку"
                                 severity="success"
                                 :loading="isSubmitting"
-                                :disabled="isSubmitting || isCreateBlocked"
+                                :disabled="isSubmitting || isCreateBlocked || !isUserSelected"
                                 @click="createCall"
                             />
                         </div>
@@ -191,6 +196,8 @@ defineProps({
 const visible = ref(false);
 const whoami = ref('');
 const loading = ref(false);
+
+const isUserSelected = computed(() => !!whoami.value && typeof whoami.value === 'object');
 
 const userSuggestions = ref([]);
 
@@ -513,6 +520,20 @@ defineExpose({
 }
 .request-form-actions {
     margin-top: -0.1rem;
+}
+.request-form-note {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 0.9rem 1rem;
+    border-radius: 14px;
+    border: 1px solid rgba(var(--p-blue-500-rgb), 0.14);
+    background: rgba(var(--p-blue-500-rgb), 0.05);
+}
+.request-form-note p {
+    margin: 0;
+    color: var(--p-grey-1);
+    line-height: 1.5;
 }
 :deep(.create-request-dialog .p-dialog-header) {
     padding: 1rem 1.1rem 0.55rem;
