@@ -134,15 +134,15 @@
                 <div class="panel-header">
                     <h3>Справки</h3>
                     <div class="panel-header-actions">
-                        <router-link
+                        <button
                             v-if="canCreateStudentTickets"
                             class="panel-header-action panel-header-action-primary"
-                            to="/tickets/my-requests"
                             aria-label="Создать справку"
                             v-tooltip.top="'Создать справку'"
+                            @click="openCertificateModal"
                         >
                             <i class="pi pi-plus"></i>
-                        </router-link>
+                        </button>
                         <router-link class="panel-header-action" :to="ticketsDashboardLink" aria-label="Открыть справки" v-tooltip.top="'Открыть справки'">
                             <i class="pi pi-arrow-up-right"></i>
                         </router-link>
@@ -172,6 +172,11 @@
         </section>
 
         <NewsFeedSection />
+        <StudentTicketCreateDialog
+            ref="createCertificateDialogRef"
+            :show-button="false"
+            @created="onCertificateCreated"
+        />
     </main>
 </template>
 
@@ -181,6 +186,7 @@ import axios from 'axios';
 import axiosInstance from '@/utils/axios.js';
 import NewsFeedSection from '@/components/News/NewsFeedSection.vue';
 import AsyncState from '@/components/Utils/AsyncState.vue';
+import StudentTicketCreateDialog from '@/components/Tickets/StudentTicketCreateDialog.vue';
 import { usePermissionStore } from '@/stores/permissions.js';
 import { getRequestAccess } from '@/utils/requestAccess.js';
 import { getCurrentUser } from '@/utils/currentUser.js';
@@ -247,6 +253,15 @@ const canAccessStudentTickets = computed(() => (
 const canCreateStudentTickets = computed(() => permissionStore.hasPermission('TicketsStudent', 'Create'));
 const showTicketsShortcut = computed(() => canReadTickets.value || canAccessStudentTickets.value);
 const ticketsDashboardLink = computed(() => '/tickets/my-requests');
+const createCertificateDialogRef = ref(null);
+
+const openCertificateModal = () => {
+    createCertificateDialogRef.value?.openModal?.();
+};
+
+const onCertificateCreated = () => {
+    fetchRecentCertificates();
+};
 
 const getTicketStatusSeverity = getInfraStatusSeverity;
 const formatTicketDate = (date) => formatDateOmskFromUtcString(date);
@@ -703,6 +718,8 @@ h3 {
     background: color-mix(in srgb, var(--p-primary-color) 8%, transparent);
     color: var(--p-primary-color);
     text-decoration: none;
+    cursor: pointer;
+    font: inherit;
     transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
 }
 .panel-header-action:hover {
