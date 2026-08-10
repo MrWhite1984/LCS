@@ -3,6 +3,7 @@
         :visible="visible"
         header="Сервисы"
         modal
+        :dismissableMask="true"
         :style="{ width: 'min(96vw, 1360px)' }"
         class="services-catalog-modal"
         @update:visible="emit('update:visible', $event)"
