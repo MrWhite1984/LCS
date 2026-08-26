@@ -47,13 +47,13 @@
                         </Popover>
                     </div>
                 </div>
-                <div class="row request-form-row">
+                <div v-if="!isWebsiteServiceSelected" class="row request-form-row">
                     <div class="col">
                         <label for="shortDescriprion">Аудитория</label>
                         <InputText id="shortDescriprion" v-model="shortDescriprion" class="form-input" placeholder="Введите аудиторию..."/>
                     </div>
                 </div>
-                <div class="row request-form-row">
+                <div v-if="!isWebsiteServiceSelected" class="row request-form-row">
                     <div class="col">
                         <label for="inventoryNumber">Инвентарный номер</label>
                         <InputText
@@ -358,10 +358,13 @@ const fetchServices = async () => {
 
 // Преобразование дерева в объект для быстрого поиска
 const serviceMap = ref({});
+const websiteServiceKeys = ref(new Set());
 
 const transformServicesToTree = (data) => {
   const map = {};
+  const websiteKeys = new Set();
   const tree = data.map((category) => {
+    const isWebsiteRoot = category.id === WEBSITE_SERVICE_ROOT_ID;
     const categoryNode = {
       key: category.id,
       label: category.name,
@@ -382,6 +385,12 @@ const transformServicesToTree = (data) => {
           map[item.key] = `${category.name} > ${service.name} > ${item.label}`;
         });
         map[serviceNode.key] = `${category.name} > ${service.name}`;
+
+        if (isWebsiteRoot) {
+          websiteKeys.add(serviceNode.key);
+          serviceNode.children.forEach((item) => websiteKeys.add(item.key));
+        }
+
         return serviceNode;
       }),
     };
@@ -391,10 +400,30 @@ const transformServicesToTree = (data) => {
   });
 
   serviceMap.value = map;
+  websiteServiceKeys.value = websiteKeys;
   return tree;
 };
 
 var serviceKey = '';
+
+const WEBSITE_SERVICE_ROOT_ID = '3431e984-d33f-41fb-a4c2-19cad9667f4a';
+
+const selectedServiceKey = computed(() => {
+    const value = selectedService.value;
+    if (!value) return null;
+    if (Array.isArray(value)) return value[0]?.key || null;
+    return Object.keys(value)[0] || null;
+});
+
+const isWebsiteServiceSelected = computed(() => {
+    const key = selectedServiceKey.value;
+    return Boolean(key && websiteServiceKeys.value.has(key));
+});
+
+watch(isWebsiteServiceSelected, (isTarget) => {
+    inventoryNumber.value = '';
+    shortDescriprion.value = isTarget ? 'Сайт СибАДИ' : '';
+});
 
 const formatSelectedService = (key) => {
     if (!key || key.length === 0) return "Выберите сервис...";

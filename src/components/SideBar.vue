@@ -385,7 +385,7 @@ const platformsCatalogItems = computed(() => {
     items.push({ id: 'portal', name: 'Портал', badge: 'Платформа', icon: 'pi pi-globe', description: 'Учебный портал СибАДИ', path: 'https://portal.sibadi.org' });
 
     if (showUmuSiriusMenu.value) {
-        items.push({ id: 'umu-sirius', name: 'УМУ', icon: 'pi pi-briefcase', children: visibleUmuSiriusMenuItems.value, badge: 'Скоро' });
+        items.push({ id: 'umu-sirius', name: 'СибАДИ - Управление', icon: 'pi pi-briefcase', children: visibleUmuSiriusMenuItems.value, badge: 'Скоро' });
     }
 
     if (showProjectOfficeMenu.value) {

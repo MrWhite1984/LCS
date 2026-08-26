@@ -73,7 +73,7 @@ const servicesCatalogItems = computed(() => {
     }
 
     if (showUmuSiriusMenu.value) {
-        items.push({ id: 'umu-sirius', name: 'УМУ', icon: 'pi pi-briefcase', children: umuSiriusItems.value, badge: 'Скоро' });
+        items.push({ id: 'umu-sirius', name: 'СибАДИ - Управление', icon: 'pi pi-briefcase', children: umuSiriusItems.value, badge: 'Скоро' });
     }
 
     if (showProjectOfficeMenu.value) {
