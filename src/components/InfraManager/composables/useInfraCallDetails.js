@@ -121,5 +121,6 @@ export const useInfraCallDetails = ({ axiosInstance, loadCallById }) => {
         openCallDetails,
         closeDialog,
         downloadDocument,
+        fetchUserFullName,
     };
 };

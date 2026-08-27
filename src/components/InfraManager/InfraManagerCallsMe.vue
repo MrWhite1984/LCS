@@ -34,7 +34,10 @@
                         <div class="call-details">
                           <!-- Основная информация -->
                           <div class="details-section">
-                              <h4><i class="pi pi-info-circle"></i> Основная информация</h4>
+                              <div class="section-header">
+                                <h4><i class="pi pi-info-circle"></i> Основная информация</h4>
+                                <Button v-if="canEditSolution" icon="pi pi-pencil" text rounded severity="secondary" @click="openEditBasicInfo" />
+                              </div>
                               <p v-if="selectedCall.fullName"><strong>Заявка:</strong> <span v-html="selectedCall.fullName"></span></p>
                               <p v-if="selectedCall.description"><strong>Описание:</strong> <span v-html="selectedCall.description"></span></p>
                               <p v-if="selectedCall.solution"><strong>Решение:</strong> <span class="override-color" v-html="selectedCall.solution"></span></p>
@@ -67,7 +70,10 @@
 
                           <!-- Статусы и приоритет -->
                           <div class="details-section">
-                              <h4><i class="pi pi-exclamation-circle"></i> Статус и приоритет</h4>
+                              <div class="section-header">
+                                <h4><i class="pi pi-exclamation-circle"></i> Статус и приоритет</h4>
+                                <Button v-if="canEditStatement" icon="pi pi-pencil" text rounded severity="secondary" @click="openEditStatement" />
+                              </div>
                               <p v-if="selectedCall.callType"><strong>Тип заявки:</strong> <span v-html="selectedCall.callType"></span></p>
                               <p v-if="selectedCall.entityStateName">
                                 <strong>Статус:</strong> 
@@ -81,7 +87,10 @@
 
                           <!-- Ответственные -->
                           <div class="details-section">
-                              <h4><i class="pi pi-user"></i> Ответственные</h4>
+                              <div class="section-header">
+                                <h4><i class="pi pi-user"></i> Ответственные</h4>
+                                <Button v-if="canEditParticipants" icon="pi pi-pencil" text rounded severity="secondary" @click="openEditParticipants" />
+                              </div>
                               <p v-if="selectedCall.initiatorFullName"><strong>Инициатор:</strong> <span v-html="selectedCall.initiatorFullName"></span></p>
                               <p v-if="selectedCall.clientFullName"><strong>Клиент:</strong> <span v-html="selectedCall.clientFullName"></span></p>
                               <p v-if="selectedCall.ownerFullName"><strong>Владелец:</strong> <span v-html="selectedCall.ownerFullName"></span></p>
@@ -155,18 +164,42 @@
                   </div>
                 </Transition>
             </Dialog>
+            <EditCallParticipantsModal ref="editParticipantsModal" @saved="handleParticipantsSaved" />
+            <EditCallBasicInformationModal ref="editBasicInfoModal" @saved="handleBasicInfoSaved" />
+            <EditCallStatementModal ref="editStatementModal" @saved="handleStatementSaved" />
         </div>
     </div>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import axiosInstance from '@/utils/axios.js';
 import { useInfraCallDetails } from '@/components/InfraManager/composables/useInfraCallDetails.js';
+import { usePermissionStore } from '@/stores/permissions.js';
+import EditCallParticipantsModal from '@/components/InfraManager/EditCallParticipantsModal.vue';
+import EditCallBasicInformationModal from '@/components/InfraManager/EditCallBasicInformationModal.vue';
+import EditCallStatementModal from '@/components/InfraManager/EditCallStatementModal.vue';
 import { getInfraStatusIcon, getInfraStatusSeverity } from '@/utils/infraStatus.js';
 import { formatDateOmskFromUnixSeconds, formatDateOmskFromUtcString, formatFileSize } from '@/utils/date.js';
 
 const emit = defineEmits(['close']);
+
+const permissionStore = usePermissionStore();
+const canEditParticipants = computed(() =>
+  permissionStore.hasPermission('InfraManager_Owner', 'Update')
+  || permissionStore.hasPermission('InfraManager_Executor', 'Update')
+  || permissionStore.hasPermission('InfraManager_Accomplisher', 'Update')
+);
+const editParticipantsModal = ref(null);
+
+const canEditSolution = computed(() => permissionStore.hasPermission('InfraManager_Solution', 'Update'));
+const editBasicInfoModal = ref(null);
+
+const canEditStatement = computed(() =>
+  permissionStore.hasPermission('InfraManager_Call_Statement', 'Update')
+  && permissionStore.hasPermission('InfraManager_Call_Statement', 'Read')
+);
+const editStatementModal = ref(null);
 
 const lastCalls = ref([]);  // Список последних заявок
 const isCallsVisible = ref(false);
@@ -181,6 +214,7 @@ const {
   openCallDetails,
   closeDialog,
   downloadDocument,
+  fetchUserFullName,
 } = useInfraCallDetails({
   axiosInstance,
   loadCallById: async (callId) => {
@@ -197,6 +231,90 @@ const formatUTCToOmsk = formatDateOmskFromUtcString;
 const handleDialogHide = () => {
   closeDialog();
   emit('close');
+};
+
+const openEditParticipants = () => {
+  if (!selectedCall.value) return;
+  editParticipantsModal.value?.openModal({
+    id: selectedCall.value.id,
+    ownerId: selectedCall.value.ownerID,
+    executorId: selectedCall.value.executorID,
+    accomplisherId: selectedCall.value.accomplisherID,
+  });
+};
+
+const handleParticipantsSaved = async () => {
+  if (!selectedCall.value) return;
+  const callId = selectedCall.value.id;
+  const callData = await (async () => {
+    try {
+      const response = await axiosInstance.get(`/api/infra-manager/users/me/calls/${callId}`);
+      return response.data;
+    } catch (error) {
+      console.debug('Ошибка при обновлении данных заявки:', error);
+      return null;
+    }
+  })();
+  if (!callData) return;
+
+  const [initiatorFullName, clientFullName, ownerFullName, executorFullName, accomplisherFullName] = await Promise.all([
+    fetchUserFullName(callData.initiatorID),
+    fetchUserFullName(callData.clientID),
+    fetchUserFullName(callData.ownerID),
+    fetchUserFullName(callData.executorID),
+    fetchUserFullName(callData.accomplisherID),
+  ]);
+
+  selectedCall.value = {
+    ...callData,
+    initiatorFullName,
+    clientFullName,
+    ownerFullName,
+    executorFullName,
+    accomplisherFullName,
+  };
+};
+
+const openEditBasicInfo = () => {
+  if (!selectedCall.value) return;
+  editBasicInfoModal.value?.openModal({
+    id: selectedCall.value.id,
+    solution: selectedCall.value.solution,
+  });
+};
+
+const handleBasicInfoSaved = async () => {
+  if (!selectedCall.value) return;
+  try {
+    const response = await axiosInstance.get(`/api/infra-manager/users/me/calls/${selectedCall.value.id}`);
+    selectedCall.value = {
+      ...selectedCall.value,
+      solution: response.data.solution,
+    };
+  } catch (error) {
+    console.debug('Ошибка при обновлении данных заявки:', error);
+  }
+};
+
+const openEditStatement = () => {
+  if (!selectedCall.value) return;
+  editStatementModal.value?.openModal({
+    id: selectedCall.value.id,
+    entityStateName: selectedCall.value.entityStateName,
+  });
+};
+
+const handleStatementSaved = async () => {
+  if (!selectedCall.value) return;
+  try {
+    const response = await axiosInstance.get(`/api/infra-manager/users/me/calls/${selectedCall.value.id}`);
+    selectedCall.value = {
+      ...selectedCall.value,
+      entityStateName: response.data.entityStateName,
+    };
+  } catch (error) {
+    console.debug('Ошибка при обновлении данных заявки:', error);
+  }
 };
 
 // Загрузить последние заявки или скрыть их по повторному нажатию
@@ -249,6 +367,15 @@ defineExpose({ openCallDetails });
 }
 .details-section h4 {
   margin-top: 0;
+}
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0;
+}
+.section-header h4 {
+  margin: 0;
 }
 .details-section p {
   margin: 5px 0;
