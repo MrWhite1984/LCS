@@ -532,10 +532,18 @@ svg.lcs {
     --app-page-padding-y: 0.75rem;
   }
 
+  /* Reserve space at the bottom of the modal mask so dialogs center above
+     the fixed mobile dock (.mobile-dock) instead of being overlapped by it. */
+  .p-dialog-mask,
+  .p-confirm-dialog,
+  .p-drawer-mask {
+    padding-bottom: var(--app-mobile-bottom-offset) !important;
+  }
+
   .p-dialog {
     width: min(calc(100vw - 1rem), 36rem) !important;
     max-width: calc(100vw - 1rem) !important;
-    max-height: calc(100dvh - 1rem) !important;
+    max-height: calc(100dvh - var(--app-mobile-bottom-offset) - 1rem) !important;
     margin: 0.5rem !important;
   }
 
@@ -603,10 +611,18 @@ svg.lcs {
     --app-page-padding-y: 0.5rem;
   }
 
+  /* Reserve space at the bottom of the modal mask so dialogs center above
+     the fixed mobile dock (.mobile-dock) instead of being overlapped by it. */
+  .p-dialog-mask,
+  .p-confirm-dialog,
+  .p-drawer-mask {
+    padding-bottom: var(--app-mobile-bottom-offset) !important;
+  }
+
   .p-dialog {
     width: calc(100vw - 0.75rem) !important;
     max-width: calc(100vw - 0.75rem) !important;
-    max-height: calc(100dvh - 0.75rem) !important;
+    max-height: calc(100dvh - var(--app-mobile-bottom-offset) - 0.75rem) !important;
     margin: 0.375rem !important;
   }
 
