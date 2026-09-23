@@ -956,16 +956,20 @@ watch(() => props.visible, async (val) => {
             await loadUsers();
         }
         
-        if (selectedTicket.value && 
-            selectedTicket.value.assigneeId && 
-            usersMap.value && 
-            usersMap.value[selectedTicket.value.assigneeId]) {
-            
-            const user = usersMap.value[selectedTicket.value.assigneeId];
-            selectedAssignee.value = {
-                id: user.id,
-                fullName: user.fullName
-            };
+        if (selectedTicket.value?.assigneeId) {
+            const fromMap = usersMap.value?.[selectedTicket.value.assigneeId];
+            if (fromMap) {
+                selectedAssignee.value = { id: fromMap.id, fullName: fromMap.fullName };
+            } else if (selectedTicket.value.assigneeName) {
+                // Исполнителя нет в выборке users/list (первые 500) —
+                // показываем ФИО, пришедшее с бэка (AssigneeName).
+                selectedAssignee.value = {
+                    id: selectedTicket.value.assigneeId,
+                    fullName: selectedTicket.value.assigneeName
+                };
+            } else {
+                selectedAssignee.value = null;
+            }
         } else {
             selectedAssignee.value = null;
         }
@@ -973,8 +977,13 @@ watch(() => props.visible, async (val) => {
 }, { immediate: true });
 
 const getRequesterName = computed(() => {
-    if (!selectedTicket.value?.requesterId) return 'Не указан';
-    return getUserName(selectedTicket.value.requesterId);
+    const ticket = selectedTicket.value;
+    if (!ticket) return 'Не указан';
+    // ФИО инициатора приходит с бэка (RequesterName). Фолбэк — резолв через
+    // usersMap (из /api/users/list), затем "ID: <guid>".
+    if (ticket.requesterName) return ticket.requesterName;
+    if (!ticket.requesterId) return 'Не указан';
+    return getUserName(ticket.requesterId);
 });
 
 </script>

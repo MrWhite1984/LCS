@@ -87,6 +87,7 @@
                             class="w-100"
                             :placeholder="field.placeholder || ''"
                             :invalid="Boolean(formErrors[field.name])"
+                            :readonly="isFioField(field)"
                         />
 
                         <Textarea
