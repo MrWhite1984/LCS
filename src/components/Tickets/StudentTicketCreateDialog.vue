@@ -59,26 +59,34 @@
                             <span v-if="field.required || isGroupField(field)" class="tickets-required-mark">*</span>
                         </label>
 
-                        <AutoComplete
+                        <Select
                             v-if="isGroupField(field)"
                             :id="`ticket-field-${field.name}`"
                             :modelValue="groupSelections[field.name] ?? null"
-                            :suggestions="filteredGroupOptions"
-                            optionLabel="label"
-                            field="label"
+                            :options="allGroupOptions"
+                            optionLabel="groupName"
+                            placeholder="Выбрать группу"
                             class="w-100"
-                            :placeholder="field.placeholder || 'Начните вводить название группы...'"
                             :loading="groupsLoading"
                             :disabled="groupsLoading"
                             :invalid="Boolean(formErrors[field.name])"
-                            dropdown
-                            dropdownMode="blank"
-                            forceSelection
                             showClear
-                            @complete="searchStudentGroups"
                             @update:modelValue="onGroupSelectionChange(field.name, $event)"
-                            @clear="clearGroupSelection(field.name)"
-                        />
+                        >
+                            <template #option="{ option }">
+                                <div class="tickets-student-group-option">
+                                    <strong>{{ option.groupName || 'Без названия' }}</strong>
+                                    <small>{{
+                                        [
+                                            option.course ? `${option.course} курс` : null,
+                                            option.specialtyCode
+                                                ? `${option.specialtyCode}${option.specialtyName ? ` ${option.specialtyName}` : ''}`
+                                                : null,
+                                        ].filter(Boolean).join(' · ') || 'Учебная запись'
+                                    }}</small>
+                                </div>
+                            </template>
+                        </Select>
 
                         <InputText
                             v-else-if="field.type === 'Text'"
@@ -260,6 +268,7 @@ import {
 } from '@/api/tickets.js';
 import FileDropzone from '@/components/Utils/FileDropzone.vue';
 import { getCurrentUser } from '@/utils/currentUser.js';
+import { getMyUmuGroups } from '@/api/umu.js';
 
 defineProps({
     showButton: {
@@ -286,7 +295,6 @@ const formErrors = ref({});
 const uploadingFieldNames = ref({});
 const groupSelections = ref({});
 const allGroupOptions = ref([]);
-const filteredGroupOptions = ref([]);
 const groupsLoading = ref(false);
 const groupsLoadError = ref('');
 
@@ -303,13 +311,6 @@ const loadCurrentUserFullName = async () => {
 };
 
 let requestTypesLoaded = false;
-
-const now = new Date();
-const currentCalendarYear = now.getFullYear();
-const currentStudyYear = now.getMonth() >= 8
-    ? currentCalendarYear
-    : currentCalendarYear - 1;
-const studentGroupsYear = `${currentStudyYear}-${currentStudyYear + 1}`;
 
 const activeRequestTypes = computed(() => (
     requestTypes.value
@@ -404,30 +405,6 @@ const buildInitialGroupSelections = (schema = []) => schema.reduce((accumulator,
 
 const isWideField = (field) => ['Textarea', 'Radio', 'File'].includes(field?.type);
 
-const extractGroupCode = (groupName) => {
-    if (!groupName) return '';
-
-    const match = String(groupName).match(/([А-Яа-яA-Za-z]+)[-\s]*(\d+)[-\s]*(\d+)?/);
-    return match ? match[0] : '';
-};
-
-const mapGroupOption = (group) => {
-    if (typeof group === 'string') {
-        return {
-            label: group,
-            value: group,
-            code: extractGroupCode(group),
-        };
-    }
-
-    const label = group?.name || group?.title || group?.groupName || String(group?.id || '');
-    return {
-        label,
-        value: group?.id || group?.code || label,
-        code: group?.code || extractGroupCode(label),
-    };
-};
-
 const ensureStudentGroupsLoaded = async () => {
     if (allGroupOptions.value.length || groupsLoading.value) return;
 
@@ -435,70 +412,54 @@ const ensureStudentGroupsLoaded = async () => {
     groupsLoadError.value = '';
 
     try {
-        const response = await fetch('https://umu.sibadi.org/api/raspGrouplist?' + new URLSearchParams({
-            year: studentGroupsYear,
-        }));
-
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
-
-        const data = await response.json();
-        allGroupOptions.value = Array.isArray(data?.data) ? data.data.map(mapGroupOption) : [];
-        filteredGroupOptions.value = [...allGroupOptions.value];
+        const response = await getMyUmuGroups();
+        // Храним сырые объекты StudentProfileEntry (groupName, course, specialtyCode, ...).
+        // Select использует optionLabel="groupName" + шаблон #option.
+        allGroupOptions.value = Array.isArray(response.data) ? response.data : [];
     } catch (error) {
         console.debug('Ошибка при загрузке списка групп для справок:', error);
         allGroupOptions.value = [];
-        filteredGroupOptions.value = [];
-        groupsLoadError.value = 'Не удалось загрузить список групп. Попробуйте обновить страницу.';
+        const status = error?.response?.status;
+        groupsLoadError.value = status === 403
+            ? 'У вашего аккаунта нет связи с системой UMU.'
+            : 'Не удалось загрузить список групп. Попробуйте обновить страницу.';
     } finally {
         groupsLoading.value = false;
     }
 };
 
-const searchStudentGroups = async (event) => {
-    await ensureStudentGroupsLoaded();
+// Самая свежая учебная запись (наибольший studentId) — выбирается по умолчанию,
+// как в «Электронной зачётке» и «Учебном плане».
+const latestStudentGroup = computed(() => allGroupOptions.value.reduce(
+    (max, g) => ((g?.studentId ?? -Infinity) > (max?.studentId ?? -Infinity) ? g : max),
+    null,
+));
 
-    const query = String(event?.query || '').trim().toLowerCase();
-
-    if (!query) {
-        filteredGroupOptions.value = [...allGroupOptions.value];
-        return;
+const applyDefaultGroupSelection = (schema) => {
+    if (!latestStudentGroup.value) return;
+    for (const field of schema) {
+        if (isGroupField(field) && !groupSelections.value[field.name]) {
+            onGroupSelectionChange(field.name, latestStudentGroup.value);
+        }
     }
-
-    filteredGroupOptions.value = allGroupOptions.value.filter((group) => (
-        group.label.toLowerCase().includes(query)
-        || group.code.toLowerCase().includes(query)
-    ));
-};
-
-const clearGroupSelection = (fieldName) => {
-    groupSelections.value = {
-        ...groupSelections.value,
-        [fieldName]: null,
-    };
-    formValues.value = {
-        ...formValues.value,
-        [fieldName]: '',
-    };
 };
 
 const onGroupSelectionChange = (fieldName, value) => {
     groupSelections.value = {
         ...groupSelections.value,
-        [fieldName]: value,
+        [fieldName]: value ?? null,
     };
 
-    const selectedLabel = value && typeof value === 'object' ? value.label || '' : '';
+    const groupName = value && typeof value === 'object' ? value.groupName || '' : '';
 
     formValues.value = {
         ...formValues.value,
-        [fieldName]: selectedLabel,
+        [fieldName]: groupName,
     };
 
     formErrors.value = {
         ...formErrors.value,
-        [fieldName]: selectedLabel ? '' : formErrors.value[fieldName],
+        [fieldName]: groupName ? '' : formErrors.value[fieldName],
     };
 };
 
@@ -508,8 +469,8 @@ const hasValidGroupSelection = (fieldName) => {
     return Boolean(
         selection
         && typeof selection === 'object'
-        && selection.label
-        && formValues.value[fieldName] === selection.label
+        && selection.groupName
+        && formValues.value[fieldName] === selection.groupName
     );
 };
 
@@ -598,6 +559,7 @@ const loadRequestTypeDetails = async (requestTypeId) => {
         groupSelections.value = buildInitialGroupSelections(schema);
         if (schema.some(isGroupField)) {
             await ensureStudentGroupsLoaded();
+            applyDefaultGroupSelection(schema);
         }
         return;
     }
@@ -619,6 +581,7 @@ const loadRequestTypeDetails = async (requestTypeId) => {
 
         if (schema.some(isGroupField)) {
             await ensureStudentGroupsLoaded();
+            applyDefaultGroupSelection(schema);
         }
     } catch (error) {
         toast.add({
