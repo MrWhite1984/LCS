@@ -404,6 +404,15 @@ const servicesCatalogItems = computed(() => {
     });
 
     items.push({
+        id: 'events',
+        name: 'Мероприятия',
+        icon: 'pi pi-calendar-plus',
+        badge: 'Скоро',
+        disabled: true,
+        description: 'События, встречи и календарь мероприятий.',
+    });
+
+    items.push({
         id: 'news',
         name: 'Новости',
         icon: 'pi pi-megaphone',

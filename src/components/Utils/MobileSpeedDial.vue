@@ -98,6 +98,15 @@ const servicesCatalogItems = computed(() => {
         description: 'Опросы и анкетирование сотрудников и студентов.',
     });
 
+    items.push({
+        id: 'events',
+        name: 'Мероприятия',
+        icon: 'pi pi-calendar-plus',
+        badge: 'Скоро',
+        disabled: true,
+        description: 'События, встречи и календарь мероприятий.',
+    });
+
     return items;
 });
 const platformsCatalogItems = computed(() => {
