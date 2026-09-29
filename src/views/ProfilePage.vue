@@ -221,7 +221,15 @@
                             <h2 class="mb-1">Информация о пользователе</h2>
                             <p class="profile-info-subtitle">Основные данные профиля</p>
                         </div>
-                        <i class="pi pi-id-card profile-info-icon"></i>
+                        <Button
+                            type="button"
+                            :icon="sensitiveVisible ? 'pi pi-eye-slash' : 'pi pi-eye'"
+                            :title="sensitiveVisible ? 'Скрыть конфиденциальные данные' : 'Показать конфиденциальные данные'"
+                            :aria-label="sensitiveVisible ? 'Скрыть конфиденциальные данные' : 'Показать конфиденциальные данные'"
+                            text
+                            severity="secondary"
+                            @click="sensitiveVisible = !sensitiveVisible"
+                        />
                     </div>
                     <div class="profile-info-body">
                         <div class="info-card">
@@ -250,27 +258,27 @@
                         </div>
                         <div class="info-card">
                             <div class="field">Паспорт: серия</div>
-                            <div class="value">{{ passportSerial || '-' }}</div>
+                            <div class="value" :class="{ 'sensitive-blurred': !sensitiveVisible }">{{ passportSerial || '-' }}</div>
                         </div>
                         <div class="info-card">
                             <div class="field">Паспорт: номер</div>
-                            <div class="value">{{ passportNumber || '-' }}</div>
+                            <div class="value" :class="{ 'sensitive-blurred': !sensitiveVisible }">{{ passportNumber || '-' }}</div>
                         </div>
                         <div class="info-card">
                             <div class="field">Паспорт: дата выдачи</div>
-                            <div class="value">{{ passportDateIssue ? formatDateRuShort(passportDateIssue) : '-' }}</div>
+                            <div class="value" :class="{ 'sensitive-blurred': !sensitiveVisible }">{{ passportDateIssue ? formatDateRuShort(passportDateIssue) : '-' }}</div>
                         </div>
                         <div class="info-card">
                             <div class="field">Паспорт: кем выдан</div>
-                            <div class="value">{{ passportIssuedBy || '-' }}</div>
+                            <div class="value" :class="{ 'sensitive-blurred': !sensitiveVisible }">{{ passportIssuedBy || '-' }}</div>
                         </div>
                         <div class="info-card">
                             <div class="field">СНИЛС</div>
-                            <div class="value">{{ snils || '-' }}</div>
+                            <div class="value" :class="{ 'sensitive-blurred': !sensitiveVisible }">{{ snils || '-' }}</div>
                         </div>
                         <div class="info-card">
                             <div class="field">Адрес регистрации</div>
-                            <div class="value">{{ registrationAddress || '-' }}</div>
+                            <div class="value" :class="{ 'sensitive-blurred': !sensitiveVisible }">{{ registrationAddress || '-' }}</div>
                         </div>
                         <div class="info-card">
                             <div class="field">Гражданство</div>
@@ -675,6 +683,7 @@ const passportIssuedBy = ref('');
 const snils = ref('');
 const registrationAddress = ref('');
 const citizenshipId = ref('');
+const sensitiveVisible = ref(false);
 
 const externalAccounts = ref([]);
 const externalAccountsLoading = ref(false);
@@ -1819,9 +1828,10 @@ main.sidebar-hidden .content-wrap {
     color: var(--p-grey-2);
     font-size: 0.9rem;
 }
-.profile-info-icon {
-    font-size: 1.5rem;
-    color: rgba(var(--p-blue-500-rgb), 0.6);
+.sensitive-blurred {
+    filter: blur(6px);
+    user-select: none;
+    transition: filter 0.25s ease;
 }
 .info-card {
     padding: 14px 16px;
