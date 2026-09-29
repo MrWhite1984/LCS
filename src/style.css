@@ -266,6 +266,10 @@ svg.lcs {
   flex-shrink: 0 !important;
 }
 
+.p-dialog-header-actions {
+  margin-left: auto;
+}
+
 .p-datatable-wrapper,
 .p-datatable-table-container {
   max-width: 100%;
