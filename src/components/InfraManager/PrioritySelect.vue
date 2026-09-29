@@ -203,5 +203,45 @@ thead th.influence{
 .priority-cell:hover {
     filter: drop-shadow(0 0 5px rgba(0, 0, 0, 0.2)) contrast(0.6);
 }
+
+@media (max-width: 768px) {
+    .priority-selector {
+        padding-inline: 0.25rem;
+    }
+    .priority-selector .row {
+        --bs-gutter-x: 0.5rem;
+    }
+    .priority-selector .col-1 {
+        flex: 0 0 auto;
+        width: auto;
+    }
+    .priority-selector table {
+        border-spacing: 5px;
+        width: 100%;
+        table-layout: fixed;
+    }
+    .priority-selector th,
+    .priority-selector td {
+        padding: 0.1rem;
+        font-size: 0.72rem;
+        line-height: 1.2;
+        overflow-wrap: anywhere;
+    }
+    thead th.influence {
+        padding: 0.1rem 0.1rem 0.4rem;
+    }
+    .priority-selector td {
+        width: auto;
+        height: 52px;
+    }
+    .priority-cell {
+        width: 40px;
+        height: 40px;
+    }
+    .vertical-header.fs-4,
+    .priority-selector .influence .fs-4 {
+        font-size: 0.95rem !important;
+    }
+}
 </style>
   

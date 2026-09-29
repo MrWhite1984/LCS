@@ -42,7 +42,7 @@
                     <div class="col">
                         <label for="priority">Приоритет</label>
                         <InputText id="priority" readonly v-model="store.selectedPriority" class="form-input" placeholder="Выберите приоритет..." @click="toggle"/>
-                        <Popover ref="op">
+                        <Popover ref="op" :breakpoints="{ '768px': 'min(92vw, 520px)' }">
                             <PrioritySelect />
                         </Popover>
                     </div>
