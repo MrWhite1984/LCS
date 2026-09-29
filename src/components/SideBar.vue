@@ -428,13 +428,31 @@ const platformsCatalogItems = computed(() => {
 
     items.push({ id: 'portal', name: 'Портал', badge: 'Платформа', icon: 'pi pi-globe', description: 'Учебный портал СибАДИ', path: 'https://portal.sibadi.org' });
 
-    if (showUmuSiriusMenu.value) {
-        items.push({ id: 'umu-sirius', name: 'СибАДИ - Управление', icon: 'pi pi-briefcase', children: visibleUmuSiriusMenuItems.value, badge: 'Скоро' });
-    }
+    items.push({ id: 'conferences', name: 'Конференции', badge: 'Платформа', icon: 'pi pi-microphone', description: 'Участие в научных конференциях СибАДИ', path: 'https://conf.sibadi.org/confsibadi/' });
 
     if (showProjectOfficeMenu.value) {
         items.push({ id: 'project-office', name: 'Проектный офис', icon: 'pi pi-paperclip', children: visibleProjectOfficeMenuItems.value, badge: 'Скоро', disabled: true });
     }
+
+    const libraryItems = [
+        { id: 'lanbook', name: 'ЭБС Лань', badge: 'Платформа', icon: 'pi pi-book', description: 'Электронная библиотечная система Лань', path: 'https://e.lanbook.com/' },
+        { id: 'urait', name: 'ЮРАЙТ', badge: 'Платформа', icon: 'pi pi-graduation-cap', description: 'Образовательная платформа ЮРАЙТ', path: 'https://urait.ru/' },
+        { id: 'elibrary', name: 'eLIBRARY', badge: 'Платформа', icon: 'pi pi-database', description: 'Научная электронная библиотека eLIBRARY', path: 'https://www.elibrary.ru/defaultx.asp?' },
+    ];
+
+    items.push({
+        id: 'libraries',
+        name: 'Библиотечные системы',
+        badge: 'Платформа',
+        icon: 'pi pi-folder',
+        description: 'Электронные библиотеки и образовательные платформы',
+        children: libraryItems,
+    });
+
+    if (showUmuSiriusMenu.value) {
+        items.push({ id: 'umu-sirius', name: 'СибАДИ - Управление', icon: 'pi pi-briefcase', children: visibleUmuSiriusMenuItems.value, badge: 'Скоро' });
+    }
+
 
     return items;
 });
