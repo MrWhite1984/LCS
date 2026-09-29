@@ -66,8 +66,16 @@
                 </div>
                 <div class="row request-form-row">
                     <div class="col">
-                        <label for="description">Краткое описание</label>
-                        <Textarea id="descriprion" v-model="description" class="form-input" rows="4" placeholder="Введите описание..."/>
+                        <label for="description">Краткое описание <span class="required-mark">*</span></label>
+                        <Textarea
+                            id="description"
+                            v-model="description"
+                            class="form-input"
+                            rows="4"
+                            placeholder="Введите описание..."
+                            :invalid="Boolean(descriptionError)"
+                        />
+                        <small v-if="descriptionError" class="p-error request-form-error">{{ descriptionError }}</small>
                     </div>
                 </div>
                 <div class="row request-form-row">
@@ -206,6 +214,7 @@ const serviceTree = ref([]);
 const shortDescriprion = ref('');
 const inventoryNumber = ref('');
 const description = ref('');
+const descriptionError = ref('');
 const attachments = ref([]);
 const isSubmitting = ref(false);
 
@@ -217,6 +226,7 @@ const hasUploadingAttachments = computed(() => attachments.value.some((attachmen
 )));
 const hasAttachmentErrors = computed(() => attachments.value.some((attachment) => attachment.status === 'error'));
 const isCreateBlocked = computed(() => hasUploadingAttachments.value || hasAttachmentErrors.value);
+const hasDescription = computed(() => description.value.trim().length > 0);
 
 const createAttachmentRecord = (file) => ({
     localId: `attachment-${Date.now()}-${attachmentSequence += 1}`,
@@ -438,6 +448,12 @@ const formatSelectedService = (key) => {
 };
 
 const createCall = async () => {
+    if (!hasDescription.value) {
+        descriptionError.value = 'Заполните краткое описание.';
+        notify('warn', 'Заполните краткое описание');
+        return;
+    }
+
     if (hasUploadingAttachments.value) {
         notify('warn', 'Дождитесь загрузки всех файлов');
         return;
@@ -495,6 +511,9 @@ const handleCreateClick = () => {
 };
 
 watch(whoami, fetchServices);
+watch(description, () => {
+    if (descriptionError.value) descriptionError.value = '';
+});
 watch(visible, (nextVisible) => {
     if (!nextVisible && !isSubmitting.value) {
         resetForm();
@@ -507,6 +526,7 @@ const resetForm = () => {
     shortDescriprion.value = '';
     inventoryNumber.value = '';
     description.value = '';
+    descriptionError.value = '';
     store.selectedPriority = null;
     attachments.value = [];
     serviceKey = '';
@@ -522,6 +542,10 @@ const op = ref();
 const toggle = (event) => {
     op.value.toggle(event);
 }
+
+watch(() => store.selectedPriorityId, () => {
+    op.value?.hide();
+});
 
 const openModal = () => {
     visible.value = true;
@@ -546,6 +570,13 @@ defineExpose({
     padding: 0;
     font-size: 0.9rem;
     font-weight: 600;
+}
+.required-mark {
+    color: var(--p-red-500);
+}
+.request-form-error {
+    display: block;
+    margin-top: 0.3rem;
 }
 .request-form-actions {
     margin-top: -0.1rem;
