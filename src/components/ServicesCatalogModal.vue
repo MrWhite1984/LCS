@@ -12,7 +12,13 @@
         <div class="services-catalog-body">
             <template v-if="activeParent">
                 <div class="catalog-section-context">
-                    <Button icon="pi pi-arrow-left" label="Все сервисы" text class="catalog-back-button" @click="activeParent = null" />
+                    <Button
+                        icon="pi pi-arrow-left"
+                        :label="parentStack.length ? 'Назад' : 'Все сервисы'"
+                        text
+                        class="catalog-back-button"
+                        @click="goBack"
+                    />
                     <div class="catalog-section-context-card">
                         <span class="catalog-section-context-icon"><i :class="activeParent.icon || 'pi pi-folder-open'"></i></span>
                         <div>
@@ -164,6 +170,7 @@ const confirm = useConfirm();
 const toast = useToast();
 const notificationStore = useNotificationStore();
 const activeParent = ref(null);
+const parentStack = ref([]);
 const canManageNews = computed(() => canAccessNewsManagement(permissionStore));
 const canAccessInfraSuite = computed(() => permissionStore.hasPermission('InfraManager', 'Read'));
 const canReadUmuSirius = computed(() => props.platformItems.some((item) => item.id === 'umu-sirius'));
@@ -268,12 +275,20 @@ const logout = async () => {
 
 const closeModal = () => {
     activeParent.value = null;
+    parentStack.value = [];
     emit('update:visible', false);
+};
+
+const goBack = () => {
+    activeParent.value = parentStack.value.pop() ?? null;
 };
 
 const openItem = (item) => {
     if (item.disabled || item.id === 'project-office' || item.id === 'umu-sirius') return;
     if (item.children?.length) {
+        if (activeParent.value) {
+            parentStack.value.push(activeParent.value);
+        }
         activeParent.value = item;
         return;
     }

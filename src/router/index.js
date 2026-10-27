@@ -295,6 +295,19 @@ const routes = [
                 }
             },
             {
+                path: "/portfolio/works",
+                component: () => import('@/views/PortfolioWorksPage.vue'),
+                name: 'PortfolioWorks',
+                meta: {
+                    permission: {
+                        type: 'Portfolio',
+                        action: 'Read'
+                    },
+                    requiresAuth: true,
+                    title: 'Учебные работы'
+                }
+            },
+            {
                 path: "/faq",
                 component: () => import('@/views/FaqPage.vue'),
                 name: 'Faq',

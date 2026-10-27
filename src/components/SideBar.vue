@@ -372,7 +372,20 @@ const servicesCatalogItems = computed(() => {
         .filter((item) => !['schedule', 'faq', 'umu-sirius', 'project-office'].includes(item.id));
 
     if (showTicketsMenu.value) {
-        items.push({ id: 'tickets', name: 'Справки', icon: 'pi pi-ticket', children: visibleTicketsMenuItems.value });
+        items.push({
+            id: 'student-office',
+            name: 'Студенческий офис',
+            icon: 'pi pi-graduation-cap',
+            description: 'Сервисы студенческого офиса.',
+            children: [
+                {
+                    id: 'tickets',
+                    name: 'Справки',
+                    icon: 'pi pi-ticket',
+                    children: visibleTicketsMenuItems.value,
+                },
+            ],
+        });
     }
 
     if (showIdoMenu.value) {
@@ -382,6 +395,9 @@ const servicesCatalogItems = computed(() => {
     const portfolioChildren = [
         { id: 'electronic-record-book', name: 'Электронная зачётка', icon: 'pi pi-id-card', path: '/electronic-record-book', description: 'Успеваемость, оценки и академические результаты.' },
         { id: 'my-curriculum', name: 'Мой учебный план', icon: 'pi pi-list-check', path: '/my-curriculum', description: 'Дисциплины, модули и график обучения по программе.' },
+        ...(hasPermission('Portfolio', 'Read') ? [
+            { id: 'portfolio-works', name: 'Учебные работы', icon: 'pi pi-folder-open', path: '/portfolio/works', description: 'Загрузка и хранение учебных работ по дисциплинам.' },
+        ] : []),
     ].filter((child) => child.id !== 'electronic-record-book' || hasUmuAccount.value);
 
     if (portfolioChildren.length > 0) {

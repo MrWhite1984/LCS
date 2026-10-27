@@ -228,7 +228,7 @@
                                                 <span>{{ cp.ratingLectures ?? 0 }}</span>
                                             </div>
                                             <div class="erb-cp-cat">
-                                                <small>Лабы · {{ cp.weightLabs ?? 0 }}%</small>
+                                                <small>Лабораторные работы · {{ cp.weightLabs ?? 0 }}%</small>
                                                 <span>{{ cp.ratingLabs ?? 0 }}</span>
                                             </div>
                                             <div class="erb-cp-cat">

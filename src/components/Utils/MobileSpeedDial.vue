@@ -67,7 +67,20 @@ const servicesCatalogItems = computed(() => {
     const items = serviceItems.value.filter((item) => !['schedule', 'faq', 'umu-sirius', 'project-office'].includes(item.id));
 
     if (showTicketsMenu.value) {
-        items.push({ id: 'tickets', name: 'Справки', icon: 'pi pi-ticket', children: ticketsItems.value });
+        items.push({
+            id: 'student-office',
+            name: 'Студенческий офис',
+            icon: 'pi pi-graduation-cap',
+            description: 'Сервисы студенческого офиса.',
+            children: [
+                {
+                    id: 'tickets',
+                    name: 'Справки',
+                    icon: 'pi pi-ticket',
+                    children: ticketsItems.value,
+                },
+            ],
+        });
     }
 
     if (showIdoMenu.value) {
