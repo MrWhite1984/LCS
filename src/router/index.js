@@ -4,6 +4,7 @@ import { usePermissionStore } from '@/stores/permissions.js';
 import { ensureAuthSession, isSessionExpiredFlag, isLocalAuthBypassActive } from "@/utils/TokenService";
 import { ENABLE_PROJECT_OFFICE } from '@/config/features.js';
 import { canAccessNewsManagement, hasNewsPermission } from '@/api/news.js';
+import { canManageSurveys } from '@/utils/surveyPermissions.js';
 
 const routes = [
     { 
@@ -308,6 +309,111 @@ const routes = [
                 }
             },
             {
+                path: "/surveys",
+                component: () => import('@/views/SurveysPage.vue'),
+                name: 'Surveys',
+                meta: {
+                    requiresAuth: true,
+                    title: 'Опросы'
+                }
+            },
+            {
+                path: "/surveys/admin",
+                component: () => import('@/views/surveysAdmin/SurveysAdminLayout.vue'),
+                meta: {
+                    requiresAuth: true,
+                    requiresSurveysManagement: true,
+                    title: 'Управление опросами'
+                },
+                children: [
+                    {
+                        path: '',
+                        redirect: { name: 'SurveysAdminList' }
+                    },
+                    {
+                        path: 'surveys',
+                        name: 'SurveysAdminList',
+                        component: () => import('@/views/surveysAdmin/SurveysAdminListPage.vue'),
+                        meta: {
+                            permission: { type: 'SurveysAdmin', action: 'Read' },
+                            title: 'Опросы'
+                        }
+                    },
+                    {
+                        path: 'surveys/:id',
+                        name: 'SurveysAdminDetails',
+                        component: () => import('@/views/surveysAdmin/SurveyAdminDetailsPage.vue'),
+                        meta: {
+                            permission: { type: 'SurveysAdmin', action: 'Read' },
+                            title: 'Опрос'
+                        }
+                    },
+                    {
+                        path: 'templates',
+                        name: 'SurveysAdminTemplates',
+                        component: () => import('@/views/surveysAdmin/SurveysAdminTemplatesPage.vue'),
+                        meta: {
+                            permission: { type: 'SurveysTemplates', action: 'Read' },
+                            title: 'Шаблоны опросов'
+                        }
+                    },
+                    {
+                        path: 'series',
+                        name: 'SurveysAdminSeries',
+                        component: () => import('@/views/surveysAdmin/SurveysAdminSeriesPage.vue'),
+                        meta: {
+                            permission: { type: 'SurveysTemplates', action: 'Read' },
+                            title: 'Серии опросов'
+                        }
+                    },
+                    {
+                        path: 'electives',
+                        name: 'SurveysAdminElectives',
+                        component: () => import('@/views/surveysAdmin/SurveysAdminElectivesPage.vue'),
+                        meta: {
+                            permission: { type: 'SurveysTemplates', action: 'Read' },
+                            title: 'Элективы'
+                        }
+                    },
+                    {
+                        path: 'fields',
+                        name: 'SurveysAdminFields',
+                        component: () => import('@/views/surveysAdmin/SurveysAdminFieldsPage.vue'),
+                        meta: {
+                            permission: { type: 'SurveysAudience', action: 'Read' },
+                            title: 'Реестр полей'
+                        }
+                    },
+                    {
+                        path: 'presets',
+                        name: 'SurveysAdminPresets',
+                        component: () => import('@/views/surveysAdmin/SurveysAdminPresetsPage.vue'),
+                        meta: {
+                            permission: { type: 'SurveysAudience', action: 'Read' },
+                            title: 'Пресеты аудитории'
+                        }
+                    },
+                    {
+                        path: 'results',
+                        name: 'SurveysAdminResults',
+                        component: () => import('@/views/surveysAdmin/SurveysAdminResultsPage.vue'),
+                        meta: {
+                            permission: { type: 'SurveysResults', action: 'Read' },
+                            title: 'Результаты опросов'
+                        }
+                    }
+                ]
+            },
+            {
+                path: "/surveys/:surveyId",
+                component: () => import('@/views/SurveysPage.vue'),
+                name: 'SurveyPassingModal',
+                meta: {
+                    requiresAuth: true,
+                    title: 'Прохождение опроса'
+                }
+            },
+            {
                 path: "/faq",
                 component: () => import('@/views/FaqPage.vue'),
                 name: 'Faq',
@@ -491,6 +597,10 @@ router.beforeEach(async (to, from) => {
                 replace: true
             };
         }
+    }
+
+    if (to.meta.requiresSurveysManagement && !canManageSurveys(permissionStore)) {
+        return { path: '/noAccess' };
     }
 
     // Проверка полномочий, если маршрут требует их

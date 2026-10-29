@@ -48,6 +48,13 @@ export const WIDGET_REGISTRY = [
         defaultColumn: 2,
     },
     {
+        id: 'surveys',
+        name: 'Опросы',
+        icon: 'pi pi-clipboard',
+        component: defineAsyncComponent(() => import('@/components/DashboardWidgets/SurveysWidget.vue')),
+        defaultColumn: 0,
+    },
+    {
         id: 'gradebook',
         name: 'Зачётка',
         icon: 'pi pi-id-card',
@@ -71,7 +78,7 @@ export const KNOWN_WIDGET_IDS = new Set(WIDGET_REGISTRY.map((widget) => widget.i
 export const DEFAULT_LAYOUT = {
     version: 1,
     columns: [
-        ['schedule'],
+        ['schedule', 'surveys'],
         ['recentTickets', 'certificates'],
         ['news'],
     ],

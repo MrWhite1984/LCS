@@ -9,6 +9,7 @@ import {
     availableWidgets,
 } from '@/config/dashboardWidgets.js';
 import { applyThemeMode, getSavedThemeMode } from '@/utils/themeMode.js';
+import { getSessionUserId } from '@/utils/TokenService';
 import {
     applyAccentTheme,
     saveAccentThemePreference,
@@ -131,11 +132,32 @@ export const useDashboardStore = defineStore('dashboard', () => {
                 accent.value = getAccentThemePreference();
             }
 
+            ensureSurveysWidget();
             applyTheme();
             applyAccent();
             loaded.value = true;
         })();
         return loadPromise;
+    }
+
+    function ensureSurveysWidget() {
+        if (typeof window === 'undefined') return;
+        if (!isWidgetAvailable('surveys', permissionStore)) return;
+
+        const storageKey = `dashboard:surveys-widget-added:${getSessionUserId() || 'anonymous'}`;
+        const alreadyPlaced = columns.value.some((column) => column.includes('surveys'));
+
+        if (alreadyPlaced) {
+            localStorage.setItem(storageKey, '1');
+            return;
+        }
+
+        if (localStorage.getItem(storageKey) === '1') return;
+
+        const targetColumn = Math.min(WIDGETS_BY_ID.surveys?.defaultColumn ?? 0, columns.value.length - 1);
+        columns.value[targetColumn].push('surveys');
+        localStorage.setItem(storageKey, '1');
+        scheduleSave();
     }
 
     function setColumn(index, arr) {

@@ -106,8 +106,7 @@ const servicesCatalogItems = computed(() => {
         id: 'surveys',
         name: 'Опросы',
         icon: 'pi pi-clipboard',
-        badge: 'Скоро',
-        disabled: true,
+        path: '/surveys',
         description: 'Опросы и анкетирование сотрудников и студентов.',
     });
 
