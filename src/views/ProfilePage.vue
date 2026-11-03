@@ -66,7 +66,7 @@
         <div class="profile-tabs">
             <button type="button" :class="{ active: activeProfile === 'user' }" @click="setActiveProfile('user')">Профиль ЛКС</button>
             <button type="button" :class="{ active: activeProfile === 'permiss' }" @click="setActiveProfile('permiss')">Полномочия</button>
-            <button type="button" :class="{ active: activeProfile === 'external' }" @click="setActiveProfile('external')">Внешние системы</button>
+            <button v-if="externalProfileTabEnabled" type="button" :class="{ active: activeProfile === 'external' }" @click="setActiveProfile('external')">Внешние системы</button>
             <button type="button" :class="{ active: activeProfile === 'requisites' }" @click="setActiveProfile('requisites')">Реквизиты для оплаты</button>
         </div>
 
@@ -222,6 +222,7 @@
                             <p class="profile-info-subtitle">Основные данные профиля</p>
                         </div>
                         <Button
+                            style="display: none;"
                             type="button"
                             :icon="sensitiveVisible ? 'pi pi-eye-slash' : 'pi pi-eye'"
                             :title="sensitiveVisible ? 'Скрыть конфиденциальные данные' : 'Показать конфиденциальные данные'"
@@ -256,27 +257,27 @@
                             <div class="field">Телефон</div>
                             <div class="value">{{ phone || '-' }}</div>
                         </div>
-                        <div class="info-card">
+                        <div class="info-card" style="display: none;">
                             <div class="field">Паспорт: серия</div>
                             <div class="value" :class="{ 'sensitive-blurred': !sensitiveVisible }">{{ passportSerial || '-' }}</div>
                         </div>
-                        <div class="info-card">
+                        <div class="info-card" style="display: none;">
                             <div class="field">Паспорт: номер</div>
                             <div class="value" :class="{ 'sensitive-blurred': !sensitiveVisible }">{{ passportNumber || '-' }}</div>
                         </div>
-                        <div class="info-card">
+                        <div class="info-card" style="display: none;">
                             <div class="field">Паспорт: дата выдачи</div>
                             <div class="value" :class="{ 'sensitive-blurred': !sensitiveVisible }">{{ passportDateIssue ? formatDateRuShort(passportDateIssue) : '-' }}</div>
                         </div>
-                        <div class="info-card">
+                        <div class="info-card" style="display: none;">
                             <div class="field">Паспорт: кем выдан</div>
                             <div class="value" :class="{ 'sensitive-blurred': !sensitiveVisible }">{{ passportIssuedBy || '-' }}</div>
                         </div>
-                        <div class="info-card">
+                        <div class="info-card" style="display: none;">
                             <div class="field">СНИЛС</div>
                             <div class="value" :class="{ 'sensitive-blurred': !sensitiveVisible }">{{ snils || '-' }}</div>
                         </div>
-                        <div class="info-card">
+                        <div class="info-card" style="display: none;">
                             <div class="field">Адрес регистрации</div>
                             <div class="value" :class="{ 'sensitive-blurred': !sensitiveVisible }">{{ registrationAddress || '-' }}</div>
                         </div>
@@ -636,6 +637,7 @@ const fileInput = ref(null);
 const isAvatarDragOver = ref(false);
 const sidebarVisible = ref(false);
 const activeProfile = ref('user'); // Переключение профилей
+const externalProfileTabEnabled = false;
 
 const firstName = ref('');
 const lastName = ref('');

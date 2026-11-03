@@ -48,6 +48,7 @@ const notificationStore = useNotificationStore();
 const { isPhone } = useResponsiveLayout();
 const servicesVisible = ref(false);
 const {
+    hasPermission,
     topItems,
     serviceItems,
     adminItems,
@@ -90,7 +91,12 @@ const servicesCatalogItems = computed(() => {
     const portfolioChildren = [
         { id: 'electronic-record-book', name: 'Электронная зачётка', icon: 'pi pi-id-card', path: '/electronic-record-book', description: 'Успеваемость, оценки и академические результаты.' },
         { id: 'my-curriculum', name: 'Мой учебный план', icon: 'pi pi-list-check', path: '/my-curriculum', description: 'Дисциплины, модули и график обучения по программе.' },
-    ].filter((child) => child.id !== 'electronic-record-book' || hasUmuAccount.value);
+        { id: 'portfolio-works', name: 'Учебные работы', icon: 'pi pi-folder-open', path: '/portfolio/works', description: 'Загрузка и хранение учебных работ по дисциплинам.' },
+    ].filter((child) => {
+        if (child.id === 'electronic-record-book') return hasUmuAccount.value;
+        if (child.id === 'portfolio-works') return hasPermission('Portfolio', 'Read');
+        return true;
+    });
 
     if (portfolioChildren.length > 0) {
         items.push({
@@ -133,6 +139,8 @@ const platformsCatalogItems = computed(() => {
     }
     
     const libraryItems = [
+        { id: 'scientific-library-website', name: 'Сайт научной библиотеки', badge: 'Платформа', icon: 'pi pi-book', description: 'Услуги и ресурсы, новости, структура, наукометрия', path: 'https://lib.sibadi.org/' },
+        { id: 'electronic-catalog-scientific-library', name: 'Электронный каталог', badge: 'Платформа', icon: 'pi pi-book', description: 'Поиск книг, статей и периодических изданий', path: 'https://bek.sibadi.org/MegaPro/Web' },
         { id: 'lanbook', name: 'ЭБС Лань', badge: 'Платформа', icon: 'pi pi-book', description: 'Электронная библиотечная система Лань', path: 'https://e.lanbook.com/' },
         { id: 'urait', name: 'ЮРАЙТ', badge: 'Платформа', icon: 'pi pi-graduation-cap', description: 'Образовательная платформа ЮРАЙТ', path: 'https://urait.ru/' },
         { id: 'elibrary', name: 'eLIBRARY', badge: 'Платформа', icon: 'pi pi-database', description: 'Научная электронная библиотека eLIBRARY', path: 'https://www.elibrary.ru/defaultx.asp?' },

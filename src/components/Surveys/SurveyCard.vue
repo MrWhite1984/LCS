@@ -6,7 +6,7 @@
             </span>
             <div class="survey-card-tags">
                 <Tag v-if="survey.isMandatory" value="Обязательный" severity="danger" />
-                <Tag :value="anonymousLabel" severity="info" />
+                <Tag v-if="anonymousLabel" :value="anonymousLabel" :severity="anonymousSeverity" />
             </div>
         </div>
 
@@ -52,10 +52,14 @@ const props = defineProps({
 const emit = defineEmits(['open']);
 
 const anonymousLabel = computed(() => {
-    if (props.survey.anonymousMode === 'open') return 'Анонимный';
-    if (props.survey.anonymousMode === 'semi') return 'Полуанонимный';
-    return 'Не анонимный';
+    if (props.survey.anonymousMode === 'semi') return 'Анонимный';
+    if (props.survey.anonymousMode === 'open') return '';
+    return 'Ошибка';
 });
+
+const anonymousSeverity = computed(() => (
+    props.survey.anonymousMode === 'open' || props.survey.anonymousMode === 'semi' ? 'info' : 'danger'
+));
 
 const statusLabel = computed(() => {
     const labels = {

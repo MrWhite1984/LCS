@@ -2,8 +2,8 @@ import axiosInstance from '@/utils/axios.js';
 
 const base = '/api/surveys/admin';
 
-export function getAdminSurveys(params = {}) {
-    return axiosInstance.get(`${base}/surveys`, { params });
+export function getAdminMySurveys(params = {}) {
+    return axiosInstance.get(`${base}/my/surveys`, { params });
 }
 
 export function getAdminSurvey(id) {
@@ -32,6 +32,30 @@ export function closeAdminSurvey(id) {
 
 export function deleteAdminSurvey(id) {
     return axiosInstance.delete(`${base}/surveys/${encodeURIComponent(id)}`);
+}
+
+export function getAdminAllSurveys(params = {}) {
+    return axiosInstance.get(`${base}/all/surveys`, { params });
+}
+
+export function getAdminAllSurvey(id) {
+    return axiosInstance.get(`${base}/all/surveys/${encodeURIComponent(id)}`);
+}
+
+export function updateAdminAllSurvey(id, payload) {
+    return axiosInstance.put(`${base}/all/surveys/${encodeURIComponent(id)}`, payload);
+}
+
+export function deleteAdminAllSurvey(id) {
+    return axiosInstance.delete(`${base}/all/surveys/${encodeURIComponent(id)}`);
+}
+
+export function publishAdminAllSurvey(id) {
+    return axiosInstance.post(`${base}/all/surveys/${encodeURIComponent(id)}/publish`);
+}
+
+export function closeAdminAllSurvey(id) {
+    return axiosInstance.post(`${base}/all/surveys/${encodeURIComponent(id)}/close`);
 }
 
 export function createAdminQuestion(surveyId, payload) {

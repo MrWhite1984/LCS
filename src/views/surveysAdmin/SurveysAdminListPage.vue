@@ -3,7 +3,7 @@
         <div class="admin-panel-head">
             <div>
                 <h3>Опросы</h3>
-                <p>Создание, публикация и управление опросами.</p>
+                <p>{{ canManageAll ? 'Создание, публикация и управление опросами.' : 'Показаны только ваши опросы.' }}</p>
             </div>
             <div class="admin-panel-actions">
                 <Button
@@ -32,7 +32,6 @@
                 placeholder="Статус"
                 showClear
             />
-            <InputText v-model="filters.creatorId" placeholder="ID автора" />
             <InputText v-model="filters.templateId" placeholder="ID шаблона" />
             <Button label="Применить" icon="pi pi-filter" @click="applyFilters" />
         </div>
@@ -81,7 +80,7 @@
 
                         <div class="admin-survey-card-tags">
                             <Tag v-if="survey.isMandatory" value="Обязательный" severity="danger" />
-                            <Tag :value="anonymousLabel(survey.anonymousMode)" severity="info" />
+                            <Tag v-if="anonymousLabel(survey.anonymousMode)" :value="anonymousLabel(survey.anonymousMode)" :severity="anonymousSeverity(survey.anonymousMode)" />
                         </div>
                     </div>
 
@@ -194,7 +193,8 @@ import {
     createAdminSurvey,
     closeAdminSurvey,
     deleteAdminSurvey,
-    getAdminSurveys,
+    getAdminAllSurveys,
+    getAdminMySurveys,
     publishAdminSurvey,
 } from '@/api/surveysAdmin.js';
 
@@ -213,7 +213,6 @@ const createVisible = ref(false);
 
 const filters = reactive({
     status: null,
-    creatorId: '',
     templateId: '',
 });
 
@@ -225,9 +224,8 @@ const statusOptions = [
 ];
 
 const anonymousOptions = [
-    { label: 'Не анонимный', value: 'unspecified' },
-    { label: 'Анонимный', value: 'open' },
-    { label: 'Полуанонимный', value: 'semi' },
+    { label: 'Открытый', value: 'open' },
+    { label: 'Анонимный', value: 'semi' },
 ];
 
 const statusLabels = {
@@ -244,21 +242,20 @@ const statusSeverities = {
     archived: 'contrast',
 };
 
-const anonymousLabels = {
-    open: 'Анонимный',
-    semi: 'Полуанонимный',
-    unspecified: 'Не анонимный',
-};
-
 const statusLabel = (status) => statusLabels[status] || status || 'вЂ”';
 const statusSeverity = (status) => statusSeverities[status] || 'secondary';
-const anonymousLabel = (mode) => anonymousLabels[mode] || 'Не анонимный';
+const anonymousLabel = (mode) => {
+    if (mode === 'semi') return 'Анонимный';
+    if (mode === 'open') return '';
+    return 'Ошибка';
+};
+const anonymousSeverity = (mode) => (mode === 'open' || mode === 'semi' ? 'info' : 'danger');
 
 const createForm = reactive({
     title: '',
     description: '',
     status: 'draft',
-    anonymousMode: 'unspecified',
+    anonymousMode: 'open',
     isMandatory: false,
     allowMultiple: false,
     startsAt: null,
@@ -268,17 +265,21 @@ const createForm = reactive({
 const canCreate = computed(() => permissionStore.hasPermission('SurveysAdmin', 'Create'));
 const canUpdate = computed(() => permissionStore.hasPermission('SurveysAdmin', 'Update'));
 const canDelete = computed(() => permissionStore.hasPermission('SurveysAdmin', 'Delete'));
+const canManageAll = computed(() => permissionStore.hasPermission('SurveysAdmin', 'ManageAll'));
 
 const loadSurveys = async () => {
     loading.value = true;
     try {
-        const response = await getAdminSurveys({
+        const params = {
             status: filters.status || undefined,
-            creatorId: filters.creatorId || undefined,
             templateId: filters.templateId || undefined,
             page: page.value,
             pageSize: pageSize.value,
-        });
+        };
+
+        const response = canManageAll.value
+            ? await getAdminAllSurveys(params)
+            : await getAdminMySurveys(params);
         surveys.value = Array.isArray(response.data?.surveys) ? response.data.surveys : [];
         total.value = Number(response.data?.total || 0);
     } catch (error) {
@@ -315,7 +316,7 @@ const openCreate = () => {
         title: '',
         description: '',
         status: 'draft',
-        anonymousMode: 'unspecified',
+        anonymousMode: 'open',
         isMandatory: false,
         allowMultiple: false,
         startsAt: null,

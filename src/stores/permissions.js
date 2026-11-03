@@ -1,7 +1,7 @@
 // stores/permissions.js
 import { defineStore } from 'pinia';
 import axiosInstance from '@/utils/axios.js';
-import { isSessionExpiredFlag, isLocalAuthBypassActive } from '../utils/TokenService';
+import { isSessionExpiredFlag } from '../utils/TokenService';
 import { getCurrentUser } from '@/utils/currentUser.js';
 import { getUserRoleNames } from '@/utils/roles.js';
 
@@ -52,16 +52,6 @@ export const usePermissionStore = defineStore('permissions', {
     },
 
     hasPermission(resourceType, actionType) {
-      if (isLocalAuthBypassActive()) {
-        return true;
-      }
-
-      // `roleName` is a stable SSO identifier, unlike a display title.
-      // The backend remains the authority for all other permission checks.
-      if (this.roleNames.includes('superadmin')) {
-        return true;
-      }
-
       const resource = this.permissions.find(
         item => item.type === resourceType
       );

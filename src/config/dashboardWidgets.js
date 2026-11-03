@@ -78,7 +78,7 @@ export const KNOWN_WIDGET_IDS = new Set(WIDGET_REGISTRY.map((widget) => widget.i
 export const DEFAULT_LAYOUT = {
     version: 1,
     columns: [
-        ['schedule', 'surveys'],
+        ['schedule'],
         ['recentTickets', 'certificates'],
         ['news'],
     ],
@@ -88,7 +88,10 @@ export const DEFAULT_LAYOUT = {
  * Виджеты, доступные пользователю (по permissionFilter), как массив описаний.
  */
 export function availableWidgets(permStore) {
-    return WIDGET_REGISTRY.filter((widget) => !widget.permissionFilter || widget.permissionFilter(permStore));
+    return WIDGET_REGISTRY.filter((widget) => (
+        !widget.hidden
+        && (!widget.permissionFilter || widget.permissionFilter(permStore))
+    ));
 }
 
 /**
@@ -96,6 +99,6 @@ export function availableWidgets(permStore) {
  */
 export function isWidgetAvailable(widgetId, permStore) {
     const widget = WIDGETS_BY_ID[widgetId];
-    if (!widget) return false;
+    if (!widget || widget.hidden) return false;
     return !widget.permissionFilter || widget.permissionFilter(permStore);
 }

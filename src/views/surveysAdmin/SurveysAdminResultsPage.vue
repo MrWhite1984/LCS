@@ -13,7 +13,7 @@
 
         <div v-if="!surveyId && !seriesId" class="admin-empty">
             <i class="pi pi-chart-bar"></i>
-            <h4>Укажите ID опроса или серии</h4>
+            <h4>Выберите опрос или серию</h4>
             <p>После выбора здесь появятся прогресс, агрегаты и ответы.</p>
         </div>
 
@@ -22,9 +22,13 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import SurveyResultsPanel from '@/components/SurveysAdmin/SurveyResultsPanel.vue';
-import { getAdminSeries, getAdminSurveys } from '@/api/surveysAdmin.js';
+import { usePermissionStore } from '@/stores/permissions.js';
+import { getAdminAllSurveys, getAdminMySurveys, getAdminSeries } from '@/api/surveysAdmin.js';
+
+const permissionStore = usePermissionStore();
+const canManageAll = computed(() => permissionStore.hasPermission('SurveysAdmin', 'ManageAll'));
 
 const surveyOptions = ref([]);
 const seriesOptions = ref([]);
@@ -54,8 +58,12 @@ const resetSelection = () => {
 
 const loadOptions = async () => {
     try {
+        const surveysRequest = canManageAll.value
+            ? getAdminAllSurveys({ page: 1, pageSize: 100 })
+            : getAdminMySurveys({ page: 1, pageSize: 100 });
+
         const [surveysResponse, seriesResponse] = await Promise.all([
-            getAdminSurveys({ page: 1, pageSize: 100 }),
+            surveysRequest,
             getAdminSeries({ page: 1, pageSize: 100 }),
         ]);
 

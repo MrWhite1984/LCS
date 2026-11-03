@@ -27,6 +27,10 @@
                                 text
                                 @click="openLoginGuide"
                             />
+                            <p class="auth-support-note">
+                                При возникновении проблем, напишите в поддержку:
+                                <a href="mailto:supportlks@sibadi.org">supportlks@sibadi.org</a>
+                            </p>
                             <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
                         </div>
 
@@ -459,6 +463,26 @@ onBeforeUnmount(() => {
 }
 
 .guide-button:hover {
+    color: var(--p-blue-400);
+}
+
+.auth-support-note {
+    margin: -0.2rem 0 0;
+    text-align: center;
+    color: var(--p-text-muted-color);
+    font-size: 0.78rem;
+    line-height: 1.4;
+}
+
+.auth-support-note a {
+    color: var(--p-blue-500);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    word-break: break-word;
+}
+
+.auth-support-note a:hover {
     color: var(--p-blue-400);
 }
 

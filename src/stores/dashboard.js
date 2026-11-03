@@ -144,7 +144,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
         if (typeof window === 'undefined') return;
         if (!isWidgetAvailable('surveys', permissionStore)) return;
 
-        const storageKey = `dashboard:surveys-widget-added:${getSessionUserId() || 'anonymous'}`;
+        const storageKey = `dashboard:surveys-widget-added:v3:${getSessionUserId() || 'anonymous'}`;
         const alreadyPlaced = columns.value.some((column) => column.includes('surveys'));
 
         if (alreadyPlaced) {

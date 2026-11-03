@@ -49,7 +49,6 @@ const allTabs = [
     { label: 'Опросы', icon: 'pi pi-list', path: '/surveys/admin/surveys', resource: 'SurveysAdmin' },
     { label: 'Шаблоны', icon: 'pi pi-copy', path: '/surveys/admin/templates', resource: 'SurveysTemplates' },
     { label: 'Серии', icon: 'pi pi-sitemap', path: '/surveys/admin/series', resource: 'SurveysTemplates' },
-    { label: 'Элективы', icon: 'pi pi-graduation-cap', path: '/surveys/admin/electives', resource: 'SurveysTemplates' },
     { label: 'Поля', icon: 'pi pi-sliders-h', path: '/surveys/admin/fields', resource: 'SurveysAudience' },
     { label: 'Пресеты', icon: 'pi pi-bookmark', path: '/surveys/admin/presets', resource: 'SurveysAudience' },
     { label: 'Результаты', icon: 'pi pi-chart-bar', path: '/surveys/admin/results', resource: 'SurveysResults' },

@@ -5,11 +5,14 @@
                 <strong>Сегменты серии</strong>
                 <p>Каждый сегмент — отдельный опрос для группы.</p>
             </div>
-            <Button label="Добавить сегмент" icon="pi pi-plus" size="small" @click="openDialog()" />
+            <div class="segments-editor-actions">
+                <Button label="Элективы" icon="pi pi-graduation-cap" size="small" outlined @click="electivesVisible = true" />
+                <Button label="Добавить сегмент" icon="pi pi-plus" size="small" @click="openDialog()" />
+            </div>
         </div>
 
         <div v-if="!items.length" class="segments-empty">
-            Пока нет сегментов. Добавьте сегмент или постройте их в разделе «Элективы».
+            Пока нет сегментов. Добавьте сегмент вручную или постройте по группам UMU через «Элективы».
         </div>
 
         <div v-else class="segments-list">
@@ -72,6 +75,8 @@
                 <Button label="Сохранить" icon="pi pi-check" @click="saveSegment" />
             </template>
         </Dialog>
+
+        <SurveyElectivesDialog v-model:visible="electivesVisible" @apply="applyElectiveSegments" />
     </div>
 </template>
 
@@ -79,6 +84,7 @@
 import { reactive, ref, watch } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import SurveyQuestionsEditor from './SurveyQuestionsEditor.vue';
+import SurveyElectivesDialog from './SurveyElectivesDialog.vue';
 
 const props = defineProps({
     modelValue: { type: Array, default: () => [] },
@@ -89,6 +95,7 @@ const toast = useToast();
 
 const items = ref(clone(props.modelValue));
 const dialogVisible = ref(false);
+const electivesVisible = ref(false);
 const editingIndex = ref(null);
 
 const form = reactive({
@@ -110,6 +117,16 @@ watch(() => props.modelValue, (value) => {
 }, { deep: true });
 
 const emitItems = () => emit('update:modelValue', clone(items.value));
+
+const applyElectiveSegments = (segments) => {
+    items.value = clone(segments);
+    emitItems();
+    toast.add({
+        severity: 'success',
+        summary: `Сегментов в серии: ${items.value.length}`,
+        life: 3000,
+    });
+};
 
 const openDialog = (segment = null, index = null) => {
     editingIndex.value = index;
@@ -180,6 +197,13 @@ const formatDate = (value) => {
     margin: 0.25rem 0 0;
     color: var(--p-grey-1);
     font-size: 0.8rem;
+}
+
+.segments-editor-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
 }
 
 .segments-empty {

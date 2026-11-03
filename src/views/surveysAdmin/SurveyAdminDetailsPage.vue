@@ -75,7 +75,7 @@
                         </div>
                     </div>
 
-                    <div class="admin-form-grid">
+                    <div class="admin-form-grid" style="display: none;">
                         <div class="admin-field">
                             <label>Уведомить до закрытия, дней</label>
                             <InputNumber v-model="form.notifyDaysBeforeClose" :min="0" :useGrouping="false" class="w-full" />
@@ -88,7 +88,7 @@
 
                     <div class="admin-checkbox-row"><Checkbox v-model="form.isMandatory" binary inputId="details-mandatory" /><label for="details-mandatory">Обязательный</label></div>
                     <div class="admin-checkbox-row"><Checkbox v-model="form.allowMultiple" binary inputId="details-multiple" /><label for="details-multiple">Разрешить повторное прохождение</label></div>
-                    <div class="admin-checkbox-row"><Checkbox v-model="form.notifyOnOpen" binary inputId="details-notify" /><label for="details-notify">Уведомлять об открытии</label></div>
+                    <div class="admin-checkbox-row" style="display: none;"><Checkbox v-model="form.notifyOnOpen" binary inputId="details-notify" /><label for="details-notify">Уведомлять об открытии</label></div>
                 </div>
 
                 <div class="admin-card-actions">
@@ -279,14 +279,17 @@ import { getApiErrorMessage } from '@/utils/apiErrors.js';
 import axiosInstance from '@/utils/axios.js';
 import {
     createAdminQuestion,
+    deleteAdminAllSurvey,
     deleteAdminQuestion,
     deleteAdminSurvey,
     evaluateAdminAudience,
+    getAdminAllSurvey,
     getAdminSurvey,
     getAdminSurveyQuestions,
     getAdminUserOptions,
     grantAdminAccess,
     reorderAdminQuestions,
+    updateAdminAllSurvey,
     updateAdminQuestion,
     updateAdminSurvey,
     upsertAdminAudience,
@@ -320,6 +323,7 @@ const canUpdateAudience = computed(() => permissionStore.hasPermission('SurveysA
 const canReadAudience = computed(() => permissionStore.hasPermission('SurveysAudience', 'Read'));
 const canReadResults = computed(() => permissionStore.hasPermission('SurveysResults', 'Read'));
 const canGrant = computed(() => permissionStore.hasPermission('SurveysAccessGrant', 'Create'));
+const canManageAll = computed(() => permissionStore.hasPermission('SurveysAdmin', 'ManageAll'));
 
 const detailTabs = computed(() => [
     { id: 'settings', label: 'Основное', icon: 'pi pi-cog' },
@@ -335,9 +339,8 @@ const statusOptions = [
     { label: 'Архив', value: 'archived' },
 ];
 const anonymousOptions = [
-    { label: 'Не анонимный', value: 'unspecified' },
-    { label: 'Анонимный', value: 'open' },
-    { label: 'Полуанонимный', value: 'semi' },
+    { label: 'Открытый', value: 'open' },
+    { label: 'Анонимный', value: 'semi' },
 ];
 const audienceModeOptions = [
     { label: 'Все', value: 'all' },
@@ -400,7 +403,7 @@ const fillForm = (data) => {
         description: data.description || '',
         status: data.status || 'draft',
         isMandatory: Boolean(data.isMandatory),
-        anonymousMode: data.anonymousMode || 'unspecified',
+        anonymousMode: data.anonymousMode === 'semi' ? 'semi' : 'open',
         allowMultiple: Boolean(data.allowMultiple),
         notifyOnOpen: Boolean(data.notifyOnOpen),
         graceDays: data.graceDays ?? null,
@@ -438,7 +441,7 @@ const loadSurvey = async () => {
 
     try {
         const [surveyResult, questionsResult] = await Promise.allSettled([
-            getAdminSurvey(id.value),
+            canManageAll.value ? getAdminAllSurvey(id.value) : getAdminSurvey(id.value),
             getAdminSurveyQuestions(id.value),
         ]);
 
@@ -475,27 +478,34 @@ const loadSurvey = async () => {
     }
 };
 
-const buildSurveyPayload = () => ({
-    ...survey.value,
-    title: form.title,
-    description: form.description || null,
-    status: form.status,
-    isMandatory: form.isMandatory,
-    anonymousMode: form.anonymousMode,
-    allowMultiple: form.allowMultiple,
-    notifyOnOpen: form.notifyOnOpen,
-    graceDays: form.graceDays,
-    graceAuthCount: form.graceAuthCount,
-    notifyDaysBeforeClose: form.notifyDaysBeforeClose,
-    notifyRepeatIntervalDays: form.notifyRepeatIntervalDays,
-    startsAt: form.startsAt ? form.startsAt.toISOString() : null,
-    endsAt: form.endsAt ? form.endsAt.toISOString() : null,
-});
+const buildSurveyPayload = () => {
+    const surveyData = { ...(survey.value || {}) };
+    delete surveyData.createdBy;
+
+    return {
+        ...surveyData,
+        title: form.title,
+        description: form.description || null,
+        status: form.status,
+        isMandatory: form.isMandatory,
+        anonymousMode: form.anonymousMode,
+        allowMultiple: form.allowMultiple,
+        notifyOnOpen: form.notifyOnOpen,
+        graceDays: form.graceDays,
+        graceAuthCount: form.graceAuthCount,
+        notifyDaysBeforeClose: form.notifyDaysBeforeClose,
+        notifyRepeatIntervalDays: form.notifyRepeatIntervalDays,
+        startsAt: form.startsAt ? form.startsAt.toISOString() : null,
+        endsAt: form.endsAt ? form.endsAt.toISOString() : null,
+    };
+};
 
 const saveSurvey = async () => {
     saving.value = true;
     try {
-        const response = await updateAdminSurvey(id.value, buildSurveyPayload());
+        const response = canManageAll.value
+            ? await updateAdminAllSurvey(id.value, buildSurveyPayload())
+            : await updateAdminSurvey(id.value, buildSurveyPayload());
         survey.value = response.data;
         fillForm(survey.value || {});
         toast.add({ severity: 'success', summary: 'Опрос сохранён', life: 3000 });
@@ -515,7 +525,11 @@ const removeSurvey = () => {
         rejectProps: { label: 'Отмена', severity: 'secondary', outlined: true },
         accept: async () => {
             try {
-                await deleteAdminSurvey(id.value);
+                if (canManageAll.value) {
+                    await deleteAdminAllSurvey(id.value);
+                } else {
+                    await deleteAdminSurvey(id.value);
+                }
                 toast.add({ severity: 'success', summary: 'Опрос удалён', life: 3000 });
                 router.push('/surveys/admin/surveys');
             } catch (requestError) {

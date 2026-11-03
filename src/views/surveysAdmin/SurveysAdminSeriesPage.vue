@@ -11,7 +11,9 @@
         <DataTable :value="series" :loading="loading" dataKey="id">
             <Column field="title" header="Название" />
             <Column field="status" header="Статус" style="width: 8rem" />
-            <Column field="templateId" header="Шаблон" />
+            <Column header="Шаблон">
+                <template #body="{ data }">{{ templateTitle(data.templateId) }}</template>
+            </Column>
             <Column header="Экземпляров" style="width: 9rem">
                 <template #body="{ data }">{{ data.surveys?.length || 0 }}</template>
             </Column>
@@ -32,12 +34,14 @@
             <div class="admin-form">
                 <label>Название серии</label>
                 <InputText v-model="createForm.title" class="w-full" />
-                <label>ID серии</label>
-                <InputText v-model="createForm.id" class="w-full" placeholder="Сгенерируется автоматически" />
                 <label>Статус</label>
                 <Select v-model="createForm.status" :options="statusOptions" optionLabel="label" optionValue="value" class="w-full" />
                 <label>Шаблон вопросов</label>
                 <Select v-model="createForm.templateId" :options="templateOptions" optionLabel="label" optionValue="value" filter editable showClear placeholder="Выберите шаблон" class="w-full" />
+                <div class="admin-checkbox-row">
+                    <Checkbox v-model="createForm.isMandatory" binary inputId="series-mandatory" />
+                    <label for="series-mandatory">Опросы обязательные</label>
+                </div>
                 <label>Сегменты</label>
                 <SurveySegmentsEditor v-model="createForm.segments" />
             </div>
@@ -101,8 +105,8 @@ const createVisible = ref(false);
 const editVisible = ref(false);
 const detailsVisible = ref(false);
 const details = ref(null);
-const createForm = reactive({ id: '', title: '', templateId: '', status: 'draft', segments: [] });
-const editForm = reactive({ id: '', title: '', templateId: '', status: 'draft', createdBy: null, surveys: [] });
+const createForm = reactive({ title: '', templateId: '', status: 'draft', isMandatory: false, segments: [] });
+const editForm = reactive({ id: '', title: '', templateId: '', status: 'draft', surveys: [] });
 
 const statusOptions = [
     { label: 'Черновик', value: 'draft' },
@@ -115,6 +119,14 @@ const templateOptions = computed(() => templates.value.map((template) => ({
     value: template.id,
     label: template.title || template.id,
 })));
+
+const templateTitles = computed(() => new Map(
+    templates.value.map((template) => [template.id, template.title || template.id]),
+));
+
+const templateTitle = (templateId) => (
+    templateId ? (templateTitles.value.get(templateId) || templateId) : '—'
+);
 
 const canCreate = computed(() => permissionStore.hasPermission('SurveysTemplates', 'Create'));
 const canUpdate = computed(() => permissionStore.hasPermission('SurveysTemplates', 'Update'));
@@ -142,10 +154,10 @@ const loadTemplates = async () => {
 };
 
 const openCreate = () => {
-    createForm.id = '';
     createForm.title = '';
     createForm.templateId = '';
     createForm.status = 'draft';
+    createForm.isMandatory = false;
     createForm.segments = [];
     createVisible.value = true;
 };
@@ -160,13 +172,13 @@ const createSeries = async () => {
     try {
         await createAdminSeriesFromTemplate({
             series: {
-                id: createForm.id.trim() || `series-${Date.now()}`,
+                id: `series-${Date.now()}`,
                 title: createForm.title.trim(),
                 templateId: String(createForm.templateId || '').trim() || null,
                 status: createForm.status,
-                createdBy: null,
                 surveys: [],
             },
+            isMandatory: createForm.isMandatory,
             segments: JSON.parse(JSON.stringify(createForm.segments)),
         });
         toast.add({ severity: 'success', summary: 'Серия создана', life: 3000 });
@@ -195,7 +207,6 @@ const openEdit = (item) => {
         title: item.title || '',
         templateId: item.templateId || '',
         status: item.status || 'draft',
-        createdBy: item.createdBy || null,
         surveys: JSON.parse(JSON.stringify(item.surveys || [])),
     });
     editVisible.value = true;
@@ -214,7 +225,6 @@ const saveEdit = async () => {
             title: editForm.title.trim(),
             templateId: String(editForm.templateId || '').trim() || null,
             status: editForm.status,
-            createdBy: editForm.createdBy,
             surveys: editForm.surveys,
         });
         toast.add({ severity: 'success', summary: 'Серия сохранена', life: 3000 });
@@ -272,5 +282,6 @@ onMounted(() => {
 .admin-row-actions { display: flex; gap: 0.15rem; }
 .admin-form { display: flex; flex-direction: column; gap: 0.55rem; }
 .admin-form label { font-size: 0.78rem; color: var(--p-grey-1); }
+.admin-checkbox-row { display: flex; align-items: center; gap: 0.5rem; }
 </style>
 

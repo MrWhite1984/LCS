@@ -153,7 +153,7 @@ const togglePermission = async (roleId, permissionId, isActive) => {
         }
         updatePermissionStatus(permissionId, isActive);
     } catch (error) {
-        console.debug('Ошибка при переключении полномочий: ', error);
+        console.debug('Ошибка при изменении прав:', error);
     }
 };
 

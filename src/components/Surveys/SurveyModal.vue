@@ -31,7 +31,7 @@
                         <div class="survey-modal-tags">
                             <Tag rounded severity="info">Опрос</Tag>
                             <Tag v-if="survey.isMandatory" value="Обязательный" severity="danger" />
-                            <Tag v-if="anonymousLabel" :value="anonymousLabel" severity="info" />
+                            <Tag v-if="anonymousLabel" :value="anonymousLabel" :severity="anonymousSeverity" />
                         </div>
                         <h3>{{ survey.title || 'Опрос' }}</h3>
                         <p v-if="survey.description">{{ survey.description }}</p>
@@ -137,10 +137,14 @@ const answeredCount = computed(() => (
 ));
 
 const anonymousLabel = computed(() => {
-    if (survey.value?.anonymousMode === 'open') return 'Анонимный';
-    if (survey.value?.anonymousMode === 'semi') return 'Полуанонимный';
-    return 'Не анонимный';
+    if (survey.value?.anonymousMode === 'semi') return 'Анонимный';
+    if (survey.value?.anonymousMode === 'open') return '';
+    return 'Ошибка';
 });
+
+const anonymousSeverity = computed(() => (
+    survey.value?.anonymousMode === 'open' || survey.value?.anonymousMode === 'semi' ? 'info' : 'danger'
+));
 
 const getErrorMessage = (requestError, fallback) => {
     const data = requestError?.response?.data;

@@ -367,15 +367,6 @@ const routes = [
                         }
                     },
                     {
-                        path: 'electives',
-                        name: 'SurveysAdminElectives',
-                        component: () => import('@/views/surveysAdmin/SurveysAdminElectivesPage.vue'),
-                        meta: {
-                            permission: { type: 'SurveysTemplates', action: 'Read' },
-                            title: 'Элективы'
-                        }
-                    },
-                    {
                         path: 'fields',
                         name: 'SurveysAdminFields',
                         component: () => import('@/views/surveysAdmin/SurveysAdminFieldsPage.vue'),
