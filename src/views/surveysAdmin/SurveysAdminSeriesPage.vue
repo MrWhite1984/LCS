@@ -10,21 +10,58 @@
 
         <DataTable :value="series" :loading="loading" dataKey="id">
             <Column field="title" header="Название" />
-            <Column field="status" header="Статус" style="width: 8rem" />
+            <Column header="Статус" style="width: 8rem">
+                <template #body="{ data }">
+                    <Tag :value="statusLabel(data.status)" :severity="statusSeverity(data.status)" />
+                </template>
+            </Column>
             <Column header="Шаблон">
                 <template #body="{ data }">{{ templateTitle(data.templateId) }}</template>
             </Column>
             <Column header="Экземпляров" style="width: 9rem">
                 <template #body="{ data }">{{ data.surveys?.length || 0 }}</template>
             </Column>
-            <Column header="Действия" style="width: 16rem">
+            <Column header="Действия" style="min-width: 18rem">
                 <template #body="{ data }">
                     <div class="admin-row-actions">
-                        <Button icon="pi pi-eye" text rounded @click="showDetails(data)" />
-                        <Button v-if="canUpdate" icon="pi pi-play" text rounded severity="success" aria-label="Опубликовать" @click="publish(data)" />
-                        <Button v-if="canUpdate" icon="pi pi-stop" text rounded severity="warn" aria-label="Закрыть" @click="close(data)" />
-                        <Button v-if="canUpdate" icon="pi pi-box" text rounded severity="secondary" aria-label="Архивировать" @click="archive(data)" />
-                        <Button v-if="canUpdate" icon="pi pi-pencil" text rounded @click="openEdit(data)" />
+                        <Button icon="pi pi-eye" text rounded aria-label="Просмотр" @click="showDetails(data)" />
+                        <Button
+                            v-if="canUpdate && data.status === 'draft'"
+                            label="Активировать"
+                            icon="pi pi-play"
+                            size="small"
+                            outlined
+                            severity="success"
+                            @click="publish(data)"
+                        />
+                        <Button
+                            v-if="canUpdate && data.status === 'active'"
+                            label="Закрыть"
+                            icon="pi pi-stop"
+                            size="small"
+                            outlined
+                            severity="warn"
+                            @click="close(data)"
+                        />
+                        <Button
+                            v-if="canUpdate && data.status === 'closed'"
+                            label="Активировать"
+                            icon="pi pi-play"
+                            size="small"
+                            outlined
+                            severity="success"
+                            @click="publish(data)"
+                        />
+                        <Button
+                            v-if="canUpdate && data.status === 'closed'"
+                            label="В архив"
+                            icon="pi pi-box"
+                            size="small"
+                            outlined
+                            severity="secondary"
+                            @click="archive(data)"
+                        />
+                        <Button v-if="canUpdate" icon="pi pi-pencil" text rounded aria-label="Изменить" @click="openEdit(data)" />
                     </div>
                 </template>
             </Column>
@@ -34,8 +71,6 @@
             <div class="admin-form">
                 <label>Название серии</label>
                 <InputText v-model="createForm.title" class="w-full" />
-                <label>Статус</label>
-                <Select v-model="createForm.status" :options="statusOptions" optionLabel="label" optionValue="value" class="w-full" />
                 <label>Шаблон вопросов</label>
                 <Select v-model="createForm.templateId" :options="templateOptions" optionLabel="label" optionValue="value" filter editable showClear placeholder="Выберите шаблон" class="w-full" />
                 <div class="admin-checkbox-row">
@@ -57,8 +92,6 @@
                 <InputText v-model="editForm.title" class="w-full" />
                 <label>Шаблон вопросов</label>
                 <Select v-model="editForm.templateId" :options="templateOptions" optionLabel="label" optionValue="value" filter editable showClear placeholder="Выберите шаблон" class="w-full" />
-                <label>Статус</label>
-                <Select v-model="editForm.status" :options="statusOptions" optionLabel="label" optionValue="value" class="w-full" />
             </div>
             <template #footer>
                 <Button label="Отмена" severity="secondary" text @click="editVisible = false" />
@@ -108,12 +141,22 @@ const details = ref(null);
 const createForm = reactive({ title: '', templateId: '', status: 'draft', isMandatory: false, segments: [] });
 const editForm = reactive({ id: '', title: '', templateId: '', status: 'draft', surveys: [] });
 
-const statusOptions = [
-    { label: 'Черновик', value: 'draft' },
-    { label: 'Активна', value: 'active' },
-    { label: 'Закрыта', value: 'closed' },
-    { label: 'Архив', value: 'archived' },
-];
+const statusLabels = {
+    draft: 'Черновик',
+    active: 'Активна',
+    closed: 'Закрыта',
+    archived: 'Архив',
+};
+
+const statusSeverities = {
+    draft: 'secondary',
+    active: 'success',
+    closed: 'warn',
+    archived: 'contrast',
+};
+
+const statusLabel = (status) => statusLabels[status] || status || '—';
+const statusSeverity = (status) => statusSeverities[status] || 'secondary';
 
 const templateOptions = computed(() => templates.value.map((template) => ({
     value: template.id,
@@ -175,7 +218,7 @@ const createSeries = async () => {
                 id: `series-${Date.now()}`,
                 title: createForm.title.trim(),
                 templateId: String(createForm.templateId || '').trim() || null,
-                status: createForm.status,
+                status: 'draft',
                 surveys: [],
             },
             isMandatory: createForm.isMandatory,
@@ -279,7 +322,7 @@ onMounted(() => {
 .admin-panel-head h3 { margin: 0; }
 .admin-panel-head p { margin: 0.35rem 0 0; color: var(--p-grey-1); }
 .admin-panel-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-.admin-row-actions { display: flex; gap: 0.15rem; }
+.admin-row-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
 .admin-form { display: flex; flex-direction: column; gap: 0.55rem; }
 .admin-form label { font-size: 0.78rem; color: var(--p-grey-1); }
 .admin-checkbox-row { display: flex; align-items: center; gap: 0.5rem; }

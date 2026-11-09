@@ -182,12 +182,10 @@ const saveQuestion = () => {
             : items.value.length + 1,
         options: ['single', 'multi', 'select'].includes(form.type)
             ? form.options.map((option, index) => ({
-                ...option,
                 id: String(option.id || '').trim() || `${questionId}-opt-${index + 1}`,
                 label: String(option.label || '').trim(),
                 position: index + 1,
                 enabled: option.enabled !== false,
-                semestr: option.semestr || null,
             })).filter((option) => option.label)
             : [],
         scaleMin: ['scale', 'rating'].includes(form.type) ? form.scaleMin : null,

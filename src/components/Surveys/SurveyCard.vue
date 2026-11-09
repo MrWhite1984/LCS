@@ -54,7 +54,7 @@ const emit = defineEmits(['open']);
 const anonymousLabel = computed(() => {
     if (props.survey.anonymousMode === 'semi') return 'Анонимный';
     if (props.survey.anonymousMode === 'open') return '';
-    return 'Ошибка';
+    return '';
 });
 
 const anonymousSeverity = computed(() => (

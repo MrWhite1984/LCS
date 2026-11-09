@@ -57,28 +57,25 @@ const resetSelection = () => {
 };
 
 const loadOptions = async () => {
-    try {
-        const surveysRequest = canManageAll.value
+    const [surveysResult, seriesResult] = await Promise.allSettled([
+        canManageAll.value
             ? getAdminAllSurveys({ page: 1, pageSize: 100 })
-            : getAdminMySurveys({ page: 1, pageSize: 100 });
+            : getAdminMySurveys({ page: 1, pageSize: 100 }),
+        getAdminSeries({ page: 1, pageSize: 100 }),
+    ]);
 
-        const [surveysResponse, seriesResponse] = await Promise.all([
-            surveysRequest,
-            getAdminSeries({ page: 1, pageSize: 100 }),
-        ]);
-
-        surveyOptions.value = (surveysResponse.data?.surveys || []).map((survey) => ({
+    surveyOptions.value = surveysResult.status === 'fulfilled'
+        ? (surveysResult.value.data?.surveys || []).map((survey) => ({
             value: survey.id,
             label: survey.title || survey.id,
-        }));
-        seriesOptions.value = (seriesResponse.data?.series || []).map((item) => ({
+        }))
+        : [];
+    seriesOptions.value = seriesResult.status === 'fulfilled'
+        ? (seriesResult.value.data?.series || []).map((item) => ({
             value: item.id,
             label: item.title || item.id,
-        }));
-    } catch {
-        surveyOptions.value = [];
-        seriesOptions.value = [];
-    }
+        }))
+        : [];
 };
 
 onMounted(loadOptions);

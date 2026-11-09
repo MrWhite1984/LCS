@@ -4,15 +4,24 @@
             Вариантов пока нет. Добавьте первый вариант ответа.
         </div>
 
-        <div v-else class="options-list">
-            <div v-for="(option, index) in items" :key="index" class="option-row">
+        <VueDraggable
+            v-else
+            :model-value="items"
+            :animation="180"
+            handle=".option-drag"
+            ghost-class="option-ghost"
+            class="options-list"
+            @update:modelValue="onReorder"
+        >
+            <div v-for="(option, index) in items" :key="option.id || index" class="option-row">
+                <span class="option-drag" title="Перетащить вариант">
+                    <i class="pi pi-bars"></i>
+                </span>
                 <span class="option-index">{{ index + 1 }}</span>
-                <InputText v-model="option.label" placeholder="Подпись" class="option-label" />
-                <InputText v-model="option.id" placeholder="id" class="option-id" />
-                <InputText v-model="option.semestr" placeholder="семестр" class="option-semestr" />
+                <InputText :modelValue="option.label" placeholder="Вариант ответа" class="option-label" @update:modelValue="(value) => updateOption(index, 'label', value)" />
                 <Button icon="pi pi-times" text rounded size="small" severity="danger" aria-label="Удалить вариант" @click="removeOption(index)" />
             </div>
-        </div>
+        </VueDraggable>
 
         <Button label="Добавить вариант" icon="pi pi-plus" size="small" outlined @click="addOption" />
     </div>
@@ -20,6 +29,7 @@
 
 <script setup>
 import { ref, watch } from 'vue';
+import { VueDraggable } from 'vue-draggable-plus';
 
 const props = defineProps({
     modelValue: { type: Array, default: () => [] },
@@ -34,7 +44,6 @@ function normalize(options) {
         label: option.label || '',
         position: option.position || 0,
         enabled: option.enabled !== false,
-        semestr: option.semestr || '',
     }));
 }
 
@@ -50,15 +59,27 @@ watch(() => props.modelValue, (value) => {
 
 const emitItems = () => {
     emit('update:modelValue', clone(items.value).map((option, index) => ({
-        ...option,
+        id: option.id || '',
+        label: option.label,
         position: index + 1,
         enabled: option.enabled !== false,
-        semestr: option.semestr || null,
     })));
 };
 
+const updateOption = (index, field, value) => {
+    const option = items.value[index];
+    if (!option) return;
+    option[field] = value;
+    emitItems();
+};
+
+const onReorder = (value) => {
+    items.value = Array.isArray(value) ? value : [];
+    emitItems();
+};
+
 const addOption = () => {
-    items.value.push({ id: '', label: '', position: items.value.length + 1, enabled: true, semestr: '' });
+    items.value.push({ id: '', label: '', position: items.value.length + 1, enabled: true });
     emitItems();
 };
 
@@ -91,9 +112,33 @@ const removeOption = (index) => {
 
 .option-row {
     display: grid;
-    grid-template-columns: 1.7rem minmax(0, 2fr) minmax(0, 1fr) minmax(0, 0.8fr) auto;
+    grid-template-columns: 1.6rem 1.7rem minmax(0, 1fr) auto;
     align-items: center;
     gap: 0.35rem;
+}
+
+.option-drag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.6rem;
+    height: 1.7rem;
+    border-radius: 8px;
+    color: var(--p-grey-1);
+    cursor: grab;
+}
+
+.option-drag:hover {
+    background: rgba(var(--p-blue-500-rgb), 0.1);
+    color: var(--p-primary-color);
+}
+
+.option-drag:active {
+    cursor: grabbing;
+}
+
+.option-ghost {
+    opacity: 0.35;
 }
 
 .option-index {
@@ -110,12 +155,7 @@ const removeOption = (index) => {
 
 @media (max-width: 720px) {
     .option-row {
-        grid-template-columns: 1.7rem 1fr auto;
-    }
-
-    .option-id,
-    .option-semestr {
-        grid-column: span 1;
+        grid-template-columns: 1.4rem 1.5rem minmax(0, 1fr) auto;
     }
 }
 </style>

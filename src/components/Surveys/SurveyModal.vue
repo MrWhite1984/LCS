@@ -139,7 +139,7 @@ const answeredCount = computed(() => (
 const anonymousLabel = computed(() => {
     if (survey.value?.anonymousMode === 'semi') return 'Анонимный';
     if (survey.value?.anonymousMode === 'open') return '';
-    return 'Ошибка';
+    return '';
 });
 
 const anonymousSeverity = computed(() => (

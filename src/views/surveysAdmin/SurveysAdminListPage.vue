@@ -92,7 +92,7 @@
                     <div class="admin-survey-card-actions" @click.stop>
                         <Button icon="pi pi-pencil" text rounded aria-label="Открыть" @click="openSurvey(survey)" />
                         <Button
-                            v-if="canUpdate && survey.status !== 'active'"
+                            v-if="(canUpdate || canManageAll) && survey.status !== 'active'"
                             icon="pi pi-play"
                             text
                             rounded
@@ -101,7 +101,7 @@
                             @click="publish(survey)"
                         />
                         <Button
-                            v-if="canUpdate && survey.status === 'active'"
+                            v-if="(canUpdate || canManageAll) && survey.status === 'active'"
                             icon="pi pi-stop"
                             text
                             rounded
@@ -110,7 +110,7 @@
                             @click="close(survey)"
                         />
                         <Button
-                            v-if="canDelete"
+                            v-if="canDelete || canManageAll"
                             icon="pi pi-trash"
                             text
                             rounded
@@ -190,11 +190,14 @@ import { usePermissionStore } from '@/stores/permissions.js';
 import { formatDateRuShort } from '@/utils/date.js';
 import { getApiErrorMessage } from '@/utils/apiErrors.js';
 import {
-    createAdminSurvey,
+    closeAdminAllSurvey,
     closeAdminSurvey,
+    createAdminSurvey,
+    deleteAdminAllSurvey,
     deleteAdminSurvey,
     getAdminAllSurveys,
     getAdminMySurveys,
+    publishAdminAllSurvey,
     publishAdminSurvey,
 } from '@/api/surveysAdmin.js';
 
@@ -242,12 +245,12 @@ const statusSeverities = {
     archived: 'contrast',
 };
 
-const statusLabel = (status) => statusLabels[status] || status || 'вЂ”';
+const statusLabel = (status) => statusLabels[status] || status || '—';
 const statusSeverity = (status) => statusSeverities[status] || 'secondary';
 const anonymousLabel = (mode) => {
     if (mode === 'semi') return 'Анонимный';
     if (mode === 'open') return '';
-    return 'Ошибка';
+    return '';
 };
 const anonymousSeverity = (mode) => (mode === 'open' || mode === 'semi' ? 'info' : 'danger');
 
@@ -365,7 +368,7 @@ const createSurvey = async () => {
 
 const publish = async (survey) => {
     try {
-        await publishAdminSurvey(survey.id);
+        await (canManageAll.value ? publishAdminAllSurvey(survey.id) : publishAdminSurvey(survey.id));
         toast.add({ severity: 'success', summary: 'Опрос опубликован', life: 3000 });
         await loadSurveys();
     } catch (error) {
@@ -375,7 +378,7 @@ const publish = async (survey) => {
 
 const close = async (survey) => {
     try {
-        await closeAdminSurvey(survey.id);
+        await (canManageAll.value ? closeAdminAllSurvey(survey.id) : closeAdminSurvey(survey.id));
         toast.add({ severity: 'success', summary: 'Опрос закрыт', life: 3000 });
         await loadSurveys();
     } catch (error) {
@@ -392,7 +395,7 @@ const remove = (survey) => {
         rejectProps: { label: 'Отмена', severity: 'secondary', outlined: true },
         accept: async () => {
             try {
-                await deleteAdminSurvey(survey.id);
+                await (canManageAll.value ? deleteAdminAllSurvey(survey.id) : deleteAdminSurvey(survey.id));
                 toast.add({ severity: 'success', summary: 'Опрос удалён', life: 3000 });
                 await loadSurveys();
             } catch (error) {

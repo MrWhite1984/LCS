@@ -10,10 +10,6 @@ export function getAdminSurvey(id) {
     return axiosInstance.get(`${base}/surveys/${encodeURIComponent(id)}`);
 }
 
-export function getAdminSurveyQuestions(id) {
-    return axiosInstance.get(`${base}/surveys/${encodeURIComponent(id)}/questions`);
-}
-
 export function createAdminSurvey(payload) {
     return axiosInstance.post(`${base}/surveys`, payload);
 }

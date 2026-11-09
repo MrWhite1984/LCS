@@ -6,8 +6,30 @@
                 <h3>{{ survey?.title || 'Опрос' }}</h3>
                 <p>Настройки, вопросы, аудитория и результаты.</p>
             </div>
-            <div class="admin-panel-actions">
-                <Tag :value="survey?.status || 'Не задан'" severity="contrast" />
+            <div class="admin-panel-actions admin-panel-actions--status">
+                <Tag :value="statusLabel(survey?.status)" :severity="statusSeverity(survey?.status)" />
+                <div class="admin-status-buttons">
+                    <Button
+                        v-if="canChangeStatus && ['draft', 'closed', 'archived'].includes(survey?.status)"
+                        label="Активировать"
+                        icon="pi pi-play"
+                        size="small"
+                        outlined
+                        severity="success"
+                        :loading="changingStatus"
+                        @click="publishSurvey"
+                    />
+                    <Button
+                        v-if="canChangeStatus && survey?.status === 'active'"
+                        label="Закрыть"
+                        icon="pi pi-stop"
+                        size="small"
+                        outlined
+                        severity="warn"
+                        :loading="changingStatus"
+                        @click="closeSurvey"
+                    />
+                </div>
             </div>
         </div>
 
@@ -43,10 +65,6 @@
                     </div>
 
                     <div class="admin-form-grid">
-                        <div class="admin-field">
-                            <label>Статус</label>
-                            <Select v-model="form.status" :options="statusOptions" optionLabel="label" optionValue="value" class="w-full" />
-                        </div>
                         <div class="admin-field">
                             <label>Анонимность</label>
                             <Select v-model="form.anonymousMode" :options="anonymousOptions" optionLabel="label" optionValue="value" class="w-full" />
@@ -103,12 +121,7 @@
                     <Button v-if="canCreate" label="Добавить вопрос" icon="pi pi-plus" @click="openQuestionDialog()" />
                 </div>
 
-                <div v-if="questionsError" class="admin-questions-warning">
-                    <i class="pi pi-exclamation-triangle"></i>
-                    <span>Не удалось загрузить сохранённые вопросы: {{ questionsError }}</span>
-                </div>
-
-                <p v-if="!questions.length && !questionsError" class="admin-hint">
+                <p v-if="!questions.length" class="admin-hint">
                     У опроса пока нет вопросов. Добавьте первый вопрос.
                 </p>
 
@@ -181,7 +194,7 @@
             </div>
 
             <div v-else-if="activeTab === 'results'" class="admin-card">
-                <SurveyResultsPanel :survey-id="id" />
+                <SurveyResultsPanel :survey-id="id" :initial-questions="questions" />
             </div>
         </template>
 
@@ -278,6 +291,8 @@ import { usePermissionStore } from '@/stores/permissions.js';
 import { getApiErrorMessage } from '@/utils/apiErrors.js';
 import axiosInstance from '@/utils/axios.js';
 import {
+    closeAdminAllSurvey,
+    closeAdminSurvey,
     createAdminQuestion,
     deleteAdminAllSurvey,
     deleteAdminQuestion,
@@ -285,9 +300,10 @@ import {
     evaluateAdminAudience,
     getAdminAllSurvey,
     getAdminSurvey,
-    getAdminSurveyQuestions,
     getAdminUserOptions,
     grantAdminAccess,
+    publishAdminAllSurvey,
+    publishAdminSurvey,
     reorderAdminQuestions,
     updateAdminAllSurvey,
     updateAdminQuestion,
@@ -307,13 +323,13 @@ const permissionStore = usePermissionStore();
 const id = computed(() => String(route.params.id || ''));
 const survey = ref(null);
 const questions = ref([]);
-const questionsError = ref('');
 const previousQuestions = ref([]);
 const loading = ref(false);
 const error = ref(false);
 const errorDetail = ref('');
 const saving = ref(false);
 const savingAudience = ref(false);
+const changingStatus = ref(false);
 const activeTab = ref('settings');
 
 const canCreate = computed(() => permissionStore.hasPermission('SurveysAdmin', 'Create'));
@@ -324,6 +340,7 @@ const canReadAudience = computed(() => permissionStore.hasPermission('SurveysAud
 const canReadResults = computed(() => permissionStore.hasPermission('SurveysResults', 'Read'));
 const canGrant = computed(() => permissionStore.hasPermission('SurveysAccessGrant', 'Create'));
 const canManageAll = computed(() => permissionStore.hasPermission('SurveysAdmin', 'ManageAll'));
+const canChangeStatus = computed(() => canUpdate.value || canManageAll.value);
 
 const detailTabs = computed(() => [
     { id: 'settings', label: 'Основное', icon: 'pi pi-cog' },
@@ -332,16 +349,24 @@ const detailTabs = computed(() => [
     ...(canReadResults.value ? [{ id: 'results', label: 'Результаты', icon: 'pi pi-chart-bar' }] : []),
 ]);
 
-const statusOptions = [
-    { label: 'Черновик', value: 'draft' },
-    { label: 'Активен', value: 'active' },
-    { label: 'Закрыт', value: 'closed' },
-    { label: 'Архив', value: 'archived' },
-];
 const anonymousOptions = [
     { label: 'Открытый', value: 'open' },
     { label: 'Анонимный', value: 'semi' },
 ];
+const statusLabels = {
+    draft: 'Черновик',
+    active: 'Активен',
+    closed: 'Закрыт',
+    archived: 'Архив',
+};
+const statusSeverities = {
+    draft: 'secondary',
+    active: 'success',
+    closed: 'warn',
+    archived: 'contrast',
+};
+const statusLabel = (status) => statusLabels[status] || 'Не задан';
+const statusSeverity = (status) => statusSeverities[status] || 'contrast';
 const audienceModeOptions = [
     { label: 'Все', value: 'all' },
     { label: 'Роли', value: 'roles' },
@@ -401,7 +426,6 @@ const fillForm = (data) => {
     Object.assign(form, {
         title: data.title || '',
         description: data.description || '',
-        status: data.status || 'draft',
         isMandatory: Boolean(data.isMandatory),
         anonymousMode: data.anonymousMode === 'semi' ? 'semi' : 'open',
         allowMultiple: Boolean(data.allowMultiple),
@@ -416,7 +440,8 @@ const fillForm = (data) => {
 };
 
 const fillAudience = (audience) => {
-    audienceForm.mode = audience?.mode || 'all';
+    const validModes = new Set(audienceModeOptions.map((option) => option.value));
+    audienceForm.mode = validModes.has(audience?.mode) ? audience.mode : 'all';
     audienceForm.roleIds = [...(audience?.roleIds || [])];
     audienceForm.condition = audience?.condition ? JSON.parse(JSON.stringify(audience.condition)) : null;
 };
@@ -437,34 +462,17 @@ const loadSurvey = async () => {
     loading.value = true;
     error.value = false;
     errorDetail.value = '';
-    questionsError.value = '';
 
     try {
-        const [surveyResult, questionsResult] = await Promise.allSettled([
-            canManageAll.value ? getAdminAllSurvey(id.value) : getAdminSurvey(id.value),
-            getAdminSurveyQuestions(id.value),
-        ]);
+        const response = canManageAll.value
+            ? await getAdminAllSurvey(id.value)
+            : await getAdminSurvey(id.value);
 
-        if (surveyResult.status === 'rejected') {
-            throw surveyResult.reason;
-        }
-
-        const data = surveyResult.value.data;
+        const data = response.data;
         survey.value = data.survey || null;
-
-        const adminQuestions = Array.isArray(data.survey?.questions)
-            ? data.survey.questions
+        questions.value = Array.isArray(data.questions)
+            ? [...data.questions].sort((left, right) => (left.position || 0) - (right.position || 0))
             : [];
-        const loadedQuestions = questionsResult.status === 'fulfilled'
-            && Array.isArray(questionsResult.value.data?.questions)
-            ? questionsResult.value.data.questions
-            : [];
-
-        questions.value = loadedQuestions.length ? loadedQuestions : adminQuestions;
-
-        if (questionsResult.status === 'rejected' && questions.value.length === 0) {
-            questionsError.value = getApiErrorMessage(questionsResult.reason);
-        }
 
         fillForm(survey.value || {});
         fillAudience(data.audience);
@@ -486,7 +494,8 @@ const buildSurveyPayload = () => {
         ...surveyData,
         title: form.title,
         description: form.description || null,
-        status: form.status,
+        seriesId: survey.value?.seriesId?.trim() || null,
+        surveyTemplateId: survey.value?.surveyTemplateId?.trim() || null,
         isMandatory: form.isMandatory,
         anonymousMode: form.anonymousMode,
         allowMultiple: form.allowMultiple,
@@ -513,6 +522,32 @@ const saveSurvey = async () => {
         toast.add({ severity: 'error', summary: 'Не удалось сохранить', detail: getApiErrorMessage(requestError), life: 4000 });
     } finally {
         saving.value = false;
+    }
+};
+
+const publishSurvey = async () => {
+    changingStatus.value = true;
+    try {
+        await (canManageAll.value ? publishAdminAllSurvey(id.value) : publishAdminSurvey(id.value));
+        toast.add({ severity: 'success', summary: 'Опрос опубликован', life: 3000 });
+        await loadSurvey();
+    } catch (requestError) {
+        toast.add({ severity: 'error', summary: 'Не удалось опубликовать', detail: getApiErrorMessage(requestError), life: 4000 });
+    } finally {
+        changingStatus.value = false;
+    }
+};
+
+const closeSurvey = async () => {
+    changingStatus.value = true;
+    try {
+        await (canManageAll.value ? closeAdminAllSurvey(id.value) : closeAdminSurvey(id.value));
+        toast.add({ severity: 'success', summary: 'Опрос закрыт', life: 3000 });
+        await loadSurvey();
+    } catch (requestError) {
+        toast.add({ severity: 'error', summary: 'Не удалось закрыть', detail: getApiErrorMessage(requestError), life: 4000 });
+    } finally {
+        changingStatus.value = false;
     }
 };
 
@@ -790,6 +825,8 @@ onMounted(() => {
 .admin-panel-head h3 { margin: 0.35rem 0 0; }
 .admin-panel-head p { margin: 0.35rem 0 0; color: var(--p-grey-1); }
 .admin-panel-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.admin-panel-actions--status { flex-direction: column; align-items: flex-end; gap: 0.5rem; }
+.admin-status-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end; }
 .admin-subtabs { display: flex; flex-wrap: wrap; gap: 0.35rem; }
 .admin-subtab { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.5rem 0.75rem; border: 1px solid rgba(var(--p-blue-500-rgb), 0.14); border-radius: 10px; background: transparent; color: var(--p-text-color); cursor: pointer; }
 .admin-subtab--active { background: var(--p-primary-color); color: #fff; border-color: var(--p-primary-color); }
@@ -816,7 +853,6 @@ onMounted(() => {
 .admin-row-actions { display: flex; gap: 0.15rem; }
 .admin-empty { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; padding: 2rem; color: var(--p-grey-1); text-align: center; }
 .admin-hint { margin: 0; padding: 0.65rem; border-radius: 10px; background: rgba(var(--p-orange-500-rgb, 245, 158, 11), 0.08); color: var(--p-grey-1); font-size: 0.82rem; }
-.admin-questions-warning { display: flex; align-items: flex-start; gap: 0.45rem; padding: 0.65rem; border-radius: 10px; background: rgba(var(--p-orange-500-rgb, 245, 158, 11), 0.1); color: var(--p-orange-500); font-size: 0.82rem; }
 @media (max-width: 700px) { .admin-form-grid { grid-template-columns: 1fr; } }
 </style>
 

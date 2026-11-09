@@ -90,20 +90,25 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import { formatDateRuLongWithTime, formatDateRuShort } from '@/utils/date.js';
 import { getApiErrorMessage } from '@/utils/apiErrors.js';
+import { usePermissionStore } from '@/stores/permissions.js';
 import {
     exportAdminResults,
+    getAdminAllSurvey,
     getAdminProgress,
     getAdminResponses,
     getAdminSeriesById,
-    getAdminSurveyQuestions,
+    getAdminSurvey,
 } from '@/api/surveysAdmin.js';
 
 const props = defineProps({
     surveyId: { type: String, default: '' },
     seriesId: { type: String, default: '' },
+    initialQuestions: { type: Array, default: () => [] },
 });
 
 const toast = useToast();
+const permissionStore = usePermissionStore();
+const canManageAll = computed(() => permissionStore.hasPermission('SurveysAdmin', 'ManageAll'));
 const loading = ref(false);
 const progress = ref(null);
 const responses = ref([]);
@@ -167,11 +172,25 @@ const buildResponseParams = () => ({
     pageSize: filters.value.pageSize || 20,
 });
 
+const fetchSurveyQuestions = async (surveyId) => {
+    const response = canManageAll.value
+        ? await getAdminAllSurvey(surveyId)
+        : await getAdminSurvey(surveyId);
+
+    return Array.isArray(response.data?.questions) ? response.data.questions : [];
+};
+
 const loadQuestions = async () => {
     const key = props.surveyId || props.seriesId;
     if (!key) {
         questions.value = [];
         loadedQuestionsKey.value = '';
+        return;
+    }
+
+    if (props.initialQuestions.length) {
+        questions.value = [...props.initialQuestions];
+        loadedQuestionsKey.value = key;
         return;
     }
 
@@ -191,18 +210,17 @@ const loadQuestions = async () => {
 
     try {
         if (props.surveyId) {
-            const response = await getAdminSurveyQuestions(props.surveyId);
-            addQuestions(response.data?.questions);
+            addQuestions(await fetchSurveyQuestions(props.surveyId));
         } else {
             const seriesResponse = await getAdminSeriesById(props.seriesId);
             const surveys = Array.isArray(seriesResponse.data?.surveys) ? seriesResponse.data.surveys : [];
             const questionResponses = await Promise.allSettled(
-                surveys.map((survey) => getAdminSurveyQuestions(survey.id)),
+                surveys.map((survey) => fetchSurveyQuestions(survey.id)),
             );
 
             questionResponses.forEach((response) => {
                 if (response.status === 'fulfilled') {
-                    addQuestions(response.value.data?.questions);
+                    addQuestions(response.value);
                 }
             });
         }

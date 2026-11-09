@@ -396,6 +396,7 @@ const servicesCatalogItems = computed(() => {
         { id: 'electronic-record-book', name: 'Электронная зачётка', icon: 'pi pi-id-card', path: '/electronic-record-book', description: 'Успеваемость, оценки и академические результаты.' },
         { id: 'my-curriculum', name: 'Мой учебный план', icon: 'pi pi-list-check', path: '/my-curriculum', description: 'Дисциплины, модули и график обучения по программе.' },
         { id: 'portfolio-works', name: 'Учебные работы', icon: 'pi pi-folder-open', path: '/portfolio/works', description: 'Загрузка и хранение учебных работ по дисциплинам.' },
+        { id: 'my-statistic', name:'Статистика', icon: 'pi pi-chart-line', disabled: true, description: 'Статистика активности студента', badge:'Скоро'},
     ].filter((child) => {
         if (child.id === 'electronic-record-book') return hasUmuAccount.value;
         if (child.id === 'portfolio-works') return hasPermission('Portfolio', 'Read');
